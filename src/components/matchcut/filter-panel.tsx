@@ -40,7 +40,8 @@ export function FilterPanel() {
   function addNiche(raw: string) {
     const next = normalizeFilterNiche(raw);
     if (!next) return;
-    if (!niches.some((item) => item.toLowerCase() === next.toLowerCase())) toggleNiche(next);
+    const current = useDeck.getState().niches;
+    if (!current.some((item) => item.toLowerCase() === next.toLowerCase())) toggleNiche(next);
     setQuery("");
   }
 
@@ -60,11 +61,6 @@ export function FilterPanel() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              addNiche(query);
-            }}
             placeholder="Add a niche, like Woodworking"
             aria-label="Add a niche"
             maxLength={40}
@@ -73,15 +69,12 @@ export function FilterPanel() {
         </form>
         <div className="mt-3 flex flex-wrap gap-2">
           {customNiches.map((niche) => (
-            <button
+            <span
               key={niche}
-              type="button"
-              aria-pressed={true}
-              onClick={() => toggleNiche(niche)}
-              className="press min-h-11 rounded-full border border-accent bg-accent px-3 text-sm text-on-accent"
+              className="inline-flex min-h-11 items-center rounded-full border border-accent bg-accent px-3 text-sm text-on-accent"
             >
               {niche}
-            </button>
+            </span>
           ))}
           {NICHES.map((niche) => {
             const on = niches.some((item) => item.toLowerCase() === niche.toLowerCase());

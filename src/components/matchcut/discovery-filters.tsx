@@ -207,7 +207,7 @@ export function DiscoveryFilters({ open, onOpenChange }: { open: boolean; onOpen
                 (niche) => !(NICHES as readonly string[]).includes(niche),
               );
               setDiscovery({
-                niches: broad ? [] : [...picked, ...custom],
+                niches: broad ? custom : [...picked, ...custom],
                 minBracket,
                 maxBracket,
                 location,
