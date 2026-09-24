@@ -7,6 +7,10 @@ import {
   type YouTubeOAuthErrorReason,
 } from "@/lib/youtube/oauth";
 import {
+  buildYtAccountCookie,
+  signYtAccount,
+} from "@/lib/youtube/plus-entitlement";
+import {
   buildCookie,
   clearCookie,
   parseCookieHeader,
@@ -63,10 +67,12 @@ export const Route = createFileRoute("/api/youtube/callback")({
           return redirectError(request, home, channelResult.reason);
         }
 
-        const signed = await signVerifiedChannel(channelResult);
+        const signedChannel = await signVerifiedChannel(channelResult);
+        const signedAccount = await signYtAccount(channelResult.channelId);
         return redirectOk(home, [
           clearCookie(request, YT_STATE_COOKIE),
-          buildCookie(request, YT_CHANNEL_COOKIE, signed, 600),
+          buildCookie(request, YT_CHANNEL_COOKIE, signedChannel, 600),
+          buildYtAccountCookie(request, signedAccount),
         ]);
       },
     },
