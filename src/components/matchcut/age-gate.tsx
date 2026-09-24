@@ -40,7 +40,7 @@ export function AgeGate({ age, onChoose }: { age: AgeChoice; onChoose: (next: "a
             </>
           ) : (
             <>
-              <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">Matchcut</p>
+              <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">Smash Collab</p>
               <Dialog.Title className="mt-2 font-display text-3xl leading-tight">Age Verification Required</Dialog.Title>
               <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-strong">
                 You must be 18 or older to use this platform.
