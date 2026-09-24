@@ -258,7 +258,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     if (
       direction === "pitch" &&
       !state.premium &&
-      pitchesToday(state.swipes) >= FREE_DAILY + state.referralDaily &&
+      pitchesToday(state.swipes) >= FREE_DAILY &&
       state.extraPitches <= 0
     ) {
       return "limit";
@@ -282,7 +282,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     const usedBonus =
       direction === "pitch" &&
       !get().premium &&
-      pitchesToday(get().swipes) >= FREE_DAILY + get().referralDaily;
+      pitchesToday(get().swipes) >= FREE_DAILY;
     const swipes = [
       ...get().swipes,
       { creatorId, direction, day: todayKey(), at: Date.now(), bonus: usedBonus || undefined },

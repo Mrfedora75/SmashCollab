@@ -15,7 +15,6 @@ export function InviteModal({
   const link = referralLink(channel);
   const [copied, setCopied] = useState(false);
   const [invites, setInvites] = useState(0);
-  const [bonusDaily, setBonusDaily] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -23,7 +22,6 @@ export function InviteModal({
     void fetchReferralStatus(channel).then((status) => {
       if (cancelled || !status) return;
       setInvites(status.invites);
-      setBonusDaily(status.bonusDaily);
     });
     return () => {
       cancelled = true;
@@ -45,9 +43,6 @@ export function InviteModal({
     }
   }
 
-  const joined =
-    invites === 1 ? "1 creator joined with your link." : `${invites} creators joined with your link.`;
-
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -57,7 +52,7 @@ export function InviteModal({
             <div>
               <Dialog.Title className="font-display text-3xl leading-tight">Invite Creators</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm text-muted">
-                Share your link. When a new creator joins with it, you get +2 pitches every day, permanently.
+                Give 14 Days of Plus, Get 14 Days of Plus
               </Dialog.Description>
             </div>
             <Dialog.Close className="press flex size-11 shrink-0 items-center justify-center rounded-full border border-line" aria-label="Close invite">
@@ -85,8 +80,11 @@ export function InviteModal({
           </button>
 
           <p className="mt-4 text-sm text-muted" role="status">
-            {joined}
-            {bonusDaily > 0 ? ` Bonus: +${bonusDaily} daily pitches.` : ""}
+            {invites === 0
+              ? "When a new creator joins with your link, you both get 14 days of Plus."
+              : invites === 1
+                ? "1 creator joined. You both received 14 days of Plus."
+                : `${invites} creators joined. Each signup added 14 days of Plus for both of you.`}
           </p>
         </Dialog.Content>
       </Dialog.Portal>

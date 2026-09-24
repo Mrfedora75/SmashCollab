@@ -166,7 +166,12 @@ export function MatchcutApp() {
   function finishSignIn(next: DeskProfile) {
     setProfile(next);
     setSignedIn(true);
-    void claimPendingReferral(next.channel, next.channelId);
+    void claimPendingReferral(next.channel, next.channelId).then((until) => {
+      if (!until) return;
+      const current = useDeck.getState();
+      const existing = current.premium && typeof current.premiumUntil === "number" ? current.premiumUntil : 0;
+      current.setPremium(true, Math.max(existing, until), "14 days of Plus from your invite.");
+    });
   }
 
   useEffect(() => {
@@ -177,8 +182,11 @@ export function MatchcutApp() {
     if (!profile) return;
     let cancelled = false;
     void fetchReferralStatus(profile.channel).then((status) => {
-      if (cancelled || !status) return;
-      useDeck.getState().setReferralDaily(status.bonusDaily);
+      if (cancelled || !status || status.plusUntil <= Date.now()) return;
+      const current = useDeck.getState();
+      const existing = current.premium && typeof current.premiumUntil === "number" ? current.premiumUntil : 0;
+      if (status.plusUntil <= existing) return;
+      current.setPremium(true, status.plusUntil, "14 days of Plus from your invite.");
     });
     return () => {
       cancelled = true;
@@ -216,9 +224,8 @@ export function MatchcutApp() {
   }
 
   const extraPitches = useDeck((state) => state.extraPitches);
-  const referralDaily = useDeck((state) => state.referralDaily);
   const pitchesToday = swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length;
-  const dailyCap = FREE_DAILY + (premium ? 0 : referralDaily);
+  const dailyCap = FREE_DAILY;
   const remaining = Math.max(0, dailyCap - pitchesToday) + (premium ? 0 : extraPitches);
   const pitchLabel = remaining === 1 ? "1 pitch left" : `${remaining} pitches left`;
   const allowance = dailyCap + (premium ? 0 : extraPitches);

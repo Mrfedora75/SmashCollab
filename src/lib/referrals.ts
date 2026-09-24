@@ -1,7 +1,12 @@
 export const PENDING_REF_KEY = "matchcut-pending-ref";
 export const REFEREE_ID_KEY = "matchcut-referee-id";
 export const REF_CLAIMED_KEY = "matchcut-ref-claimed";
-export const BONUS_DAILY_PER_INVITE = 2;
+export const REFERRAL_PLUS_MS = 14 * 24 * 60 * 60 * 1000;
+
+export type ReferralStatus = {
+  invites: number;
+  plusUntil: number;
+};
 
 export function referralCode(channel: string): string {
   const slug = channel
@@ -43,12 +48,12 @@ function refereeId(channelId?: string): string {
   return created;
 }
 
-export async function claimPendingReferral(channel: string, channelId?: string): Promise<void> {
+export async function claimPendingReferral(channel: string, channelId?: string): Promise<number | null> {
   const code = localStorage.getItem(PENDING_REF_KEY);
-  if (!code || localStorage.getItem(REF_CLAIMED_KEY) === "1") return;
+  if (!code || localStorage.getItem(REF_CLAIMED_KEY) === "1") return null;
   if (referralCode(channel) === code) {
     localStorage.removeItem(PENDING_REF_KEY);
-    return;
+    return null;
   }
   try {
     const res = await fetch("/api/referrals", {
@@ -57,15 +62,17 @@ export async function claimPendingReferral(channel: string, channelId?: string):
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify({ code, refereeId: refereeId(channelId) }),
     });
-    if (!res.ok) return;
+    if (!res.ok) return null;
+    const data = (await res.json()) as { refereePlusUntil?: number; already?: boolean };
     localStorage.setItem(REF_CLAIMED_KEY, "1");
     localStorage.removeItem(PENDING_REF_KEY);
+    return typeof data.refereePlusUntil === "number" && data.already !== true ? data.refereePlusUntil : null;
   } catch {
-    // Keep the pending code so the next visit can retry.
+    return null;
   }
 }
 
-export async function fetchReferralStatus(channel: string): Promise<{ invites: number; bonusDaily: number } | null> {
+export async function fetchReferralStatus(channel: string): Promise<ReferralStatus | null> {
   const code = referralCode(channel);
   if (!code) return null;
   try {
@@ -74,10 +81,10 @@ export async function fetchReferralStatus(channel: string): Promise<{ invites: n
       headers: { Accept: "application/json" },
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { invites?: number; bonusDaily?: number };
+    const data = (await res.json()) as { invites?: number; plusUntil?: number };
     return {
       invites: typeof data.invites === "number" ? data.invites : 0,
-      bonusDaily: typeof data.bonusDaily === "number" ? data.bonusDaily : 0,
+      plusUntil: typeof data.plusUntil === "number" ? data.plusUntil : 0,
     };
   } catch {
     return null;
