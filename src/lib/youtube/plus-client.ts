@@ -1,4 +1,4 @@
-/** Client helpers to sync Matchcut Plus with the server cookie. */
+/** Client helpers to sync Smash Collab Plus with the server cookie. */
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 

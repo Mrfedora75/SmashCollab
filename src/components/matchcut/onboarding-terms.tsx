@@ -12,7 +12,7 @@ export function TermsModal({ open, onAccept }: { open: boolean; onAccept: () => 
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
         >
-          <p className="text-xs font-medium tracking-widest text-muted-strong">SmashCollab</p>
+          <p className="text-xs font-medium tracking-widest text-muted-strong">Smash Collab</p>
           <Dialog.Title className="mt-2 font-display text-3xl leading-tight">Safety & Terms</Dialog.Title>
           <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-strong">
             Pitches stay on this desk. The channels are fictional, and nothing is emailed, uploaded, or billed.

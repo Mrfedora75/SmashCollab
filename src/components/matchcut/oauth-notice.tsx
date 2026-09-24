@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 export function OauthNotice({
   tone = "light",
-  text = "We use official Google OAuth. Collabr only accesses your public subscriber count and channel display data. We never see, store, or have access to your Google password or private information.",
+  text = "We use official Google OAuth. Smash Collab only accesses your public subscriber count and channel display data. We never see, store, or have access to your Google password or private information.",
 }: {
   tone?: "light" | "dark";
   text?: string;
