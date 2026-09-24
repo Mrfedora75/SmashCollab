@@ -73,6 +73,7 @@ export async function exchangeCodeForTokens(
 
 type YouTubeChannelsResponse = {
   items?: Array<{
+    id?: string;
     snippet?: {
       title?: string;
       customUrl?: string;
@@ -121,7 +122,8 @@ export async function fetchVerifiedChannel(
   }
 
   const item = data.items?.[0];
-  if (!item?.snippet?.title) {
+  const channelId = typeof item?.id === "string" ? item.id.trim() : "";
+  if (!item?.snippet?.title || !channelId) {
     return { reason: "no_channel" };
   }
 
@@ -141,6 +143,7 @@ export async function fetchVerifiedChannel(
   const googleName = await fetchGoogleDisplayName(accessToken);
 
   return {
+    channelId,
     displayName: googleName || channelTitle,
     channel: custom ? (custom.startsWith("@") ? custom : `@${custom}`) : channelTitle,
     subscribers,
