@@ -39,6 +39,7 @@ type Persisted = {
   premiumUntil: number | null;
   notes: Record<string, string>;
   extraPitches: number;
+  referralDaily: number;
 };
 
 const KEY = "matchcut-v1";
@@ -93,6 +94,10 @@ function load(): Partial<Persisted> {
     const premium = parsed.premium === true && (premiumUntil == null || premiumUntil > Date.now());
     const extraPitches =
       typeof parsed.extraPitches === "number" && parsed.extraPitches > 0 ? Math.floor(parsed.extraPitches) : 0;
+    const referralDaily =
+      typeof parsed.referralDaily === "number" && parsed.referralDaily > 0
+        ? Math.min(200, Math.floor(parsed.referralDaily))
+        : 0;
     const location = isLocation(parsed.location) ? parsed.location : "global";
     const usState = isUsState(parsed.usState) ? parsed.usState : null;
     return {
@@ -107,6 +112,7 @@ function load(): Partial<Persisted> {
       premiumUntil: premium ? premiumUntil : null,
       notes,
       extraPitches,
+      referralDaily,
     };
   } catch {
     return {};
@@ -126,6 +132,7 @@ function persist(state: DeckState) {
     premiumUntil: state.premiumUntil,
     notes: state.notes,
     extraPitches: state.extraPitches,
+    referralDaily: state.referralDaily,
   };
   localStorage.setItem(KEY, JSON.stringify(data));
 }
@@ -158,6 +165,7 @@ type DeckState = Persisted & {
   closePremium: () => void;
   setPremium: (premium: boolean, until?: number | null, announcement?: string) => void;
   addExtraPitch: () => void;
+  setReferralDaily: (count: number) => void;
   usedToday: () => number;
 };
 
@@ -173,6 +181,7 @@ export const useDeck = create<DeckState>((set, get) => ({
   premiumUntil: null,
   notes: {},
   extraPitches: 0,
+  referralDaily: 0,
   hydrated: false,
   premiumOpen: false,
   gate: null,
@@ -249,7 +258,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     if (
       direction === "pitch" &&
       !state.premium &&
-      pitchesToday(state.swipes) >= FREE_DAILY &&
+      pitchesToday(state.swipes) >= FREE_DAILY + state.referralDaily &&
       state.extraPitches <= 0
     ) {
       return "limit";
@@ -270,7 +279,10 @@ export const useDeck = create<DeckState>((set, get) => ({
     }
     const notes = { ...get().notes };
     if (direction === "pitch" && !notes[creatorId]) notes[creatorId] = defaultPitch(creator);
-    const usedBonus = direction === "pitch" && !get().premium && pitchesToday(get().swipes) >= FREE_DAILY;
+    const usedBonus =
+      direction === "pitch" &&
+      !get().premium &&
+      pitchesToday(get().swipes) >= FREE_DAILY + get().referralDaily;
     const swipes = [
       ...get().swipes,
       { creatorId, direction, day: todayKey(), at: Date.now(), bonus: usedBonus || undefined },
@@ -348,6 +360,16 @@ export const useDeck = create<DeckState>((set, get) => ({
   usedToday: () => pitchesToday(get().swipes),
   addExtraPitch: () => {
     set({ extraPitches: get().extraPitches + 1, announcement: "1 extra pitch is ready." });
+    persist(get());
+  },
+  setReferralDaily: (count) => {
+    const referralDaily = Math.max(0, Math.min(200, Math.floor(count)));
+    if (referralDaily <= get().referralDaily) return;
+    const gained = referralDaily - get().referralDaily;
+    set({
+      referralDaily,
+      announcement: `Invite bonus: +${gained} daily pitches.`,
+    });
     persist(get());
   },
 }));

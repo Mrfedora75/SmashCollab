@@ -15,6 +15,8 @@ import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
 import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
 import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, saveProfile, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
 import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
+import { InviteModal } from "@/components/matchcut/invite-modal";
+import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
@@ -44,6 +46,7 @@ export function MatchcutApp() {
   const [threads, setThreads] = useState<Record<string, ChatMessage[]>>(THREADS);
   const [chatId, setChatId] = useState<string | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [askingPush, setAskingPush] = useState(false);
@@ -155,6 +158,7 @@ export function MatchcutApp() {
     setFiltersOpen(false);
     setPitchesOpen(false);
     setPrefsOpen(false);
+    setInviteOpen(false);
     setChatId(null);
     setReviewFor(null);
   }
@@ -162,7 +166,24 @@ export function MatchcutApp() {
   function finishSignIn(next: DeskProfile) {
     setProfile(next);
     setSignedIn(true);
+    void claimPendingReferral(next.channel, next.channelId);
   }
+
+  useEffect(() => {
+    captureReferralFromUrl();
+  }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    void fetchReferralStatus(profile.channel).then((status) => {
+      if (cancelled || !status) return;
+      useDeck.getState().setReferralDaily(status.bonusDaily);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
 
   useEffect(() => {
     if (!toast) return;
@@ -195,10 +216,12 @@ export function MatchcutApp() {
   }
 
   const extraPitches = useDeck((state) => state.extraPitches);
+  const referralDaily = useDeck((state) => state.referralDaily);
   const pitchesToday = swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length;
-  const remaining = Math.max(0, FREE_DAILY - pitchesToday) + (premium ? 0 : extraPitches);
+  const dailyCap = FREE_DAILY + (premium ? 0 : referralDaily);
+  const remaining = Math.max(0, dailyCap - pitchesToday) + (premium ? 0 : extraPitches);
   const pitchLabel = remaining === 1 ? "1 pitch left" : `${remaining} pitches left`;
-  const allowance = FREE_DAILY + (premium ? 0 : extraPitches);
+  const allowance = dailyCap + (premium ? 0 : extraPitches);
   const meter = premium ? 100 : (remaining / Math.max(allowance, 1)) * 100;
   const pitchCount = swipes.filter((swipe) => swipe.direction === "pitch").length;
   const outbound = swipes
@@ -272,6 +295,15 @@ export function MatchcutApp() {
               <SlidersHorizontal className="size-4" aria-hidden="true" />
               Filters
             </button>
+            {signedIn && profile ? (
+              <button
+                type="button"
+                onClick={() => setInviteOpen(true)}
+                className="press h-11 rounded-control border border-line px-3 text-sm"
+              >
+                Invite Creators
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => openPremium(null)}
@@ -482,6 +514,9 @@ export function MatchcutApp() {
         onOpenChange={setDashboardOpen}
         onSave={setProfile}
       />
+    ) : null}
+    {profile ? (
+      <InviteModal open={inviteOpen} channel={profile.channel} onOpenChange={setInviteOpen} />
     ) : null}
     <AgeGate age={age} onChoose={choose} />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />

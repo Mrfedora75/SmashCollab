@@ -10,6 +10,7 @@ import {
   type VerifiedChannel,
 } from "@/components/matchcut/onboarding-storage";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
+import { claimPendingReferral } from "@/lib/referrals";
 
 export function CreateProfile({
   onComplete,
@@ -126,6 +127,7 @@ export function CreateProfile({
               toggle={toggle}
               onEnter={() => {
                 const existing = loadProfile();
+                const isNew = !existing;
                 const sameChannel = !existing?.channelId || existing.channelId === verified.channelId;
                 const profile: DeskProfile = {
                   displayName: sameChannel && existing?.displayName ? existing.displayName : verified.displayName,
@@ -138,6 +140,7 @@ export function CreateProfile({
                   avatar: verified.avatar ?? (sameChannel ? (existing?.avatar ?? null) : null),
                 };
                 saveProfile(profile);
+                if (isNew) void claimPendingReferral(profile.channel, profile.channelId);
                 onComplete(profile);
               }}
             />

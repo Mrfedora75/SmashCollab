@@ -15,6 +15,7 @@ import { Route as ApiYoutubeMeRouteImport } from './routes/api/youtube/me'
 import { Route as ApiYoutubeLogoutRouteImport } from './routes/api/youtube/logout'
 import { Route as ApiYoutubeStartRouteImport } from './routes/api/youtube/start'
 import { Route as ApiPlusGrantRouteImport } from './routes/api/plus/grant'
+import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const ApiPlusGrantRoute = ApiPlusGrantRouteImport.update({
   path: '/api/plus/grant',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReferralsRoute = ApiReferralsRouteImport.update({
+  id: '/api/referrals',
+  path: '/api/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/api/youtube/logout': typeof ApiYoutubeLogoutRoute
   '/api/youtube/start': typeof ApiYoutubeStartRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
+  '/api/referrals': typeof ApiReferralsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/api/youtube/logout': typeof ApiYoutubeLogoutRoute
   '/api/youtube/start': typeof ApiYoutubeStartRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
+  '/api/referrals': typeof ApiReferralsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,14 @@ export interface FileRoutesById {
   '/api/youtube/logout': typeof ApiYoutubeLogoutRoute
   '/api/youtube/start': typeof ApiYoutubeStartRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
+  '/api/referrals': typeof ApiReferralsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant'
+    '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant'
+  to: '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals'
   id:
     | '__root__'
     | '/'
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
     | '/api/youtube/logout'
     | '/api/youtube/start'
     | '/api/plus/grant'
+    | '/api/referrals'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,6 +105,7 @@ export interface RootRouteChildren {
   ApiYoutubeLogoutRoute: typeof ApiYoutubeLogoutRoute
   ApiYoutubeStartRoute: typeof ApiYoutubeStartRoute
   ApiPlusGrantRoute: typeof ApiPlusGrantRoute
+  ApiReferralsRoute: typeof ApiReferralsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPlusGrantRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/referrals': {
+      id: '/api/referrals'
+      path: '/api/referrals'
+      fullPath: '/api/referrals'
+      preLoaderRoute: typeof ApiReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -151,6 +169,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiYoutubeLogoutRoute: ApiYoutubeLogoutRoute,
   ApiYoutubeStartRoute: ApiYoutubeStartRoute,
   ApiPlusGrantRoute: ApiPlusGrantRoute,
+  ApiReferralsRoute: ApiReferralsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
