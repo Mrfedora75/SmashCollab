@@ -50,7 +50,13 @@ export function clearSession() {
   clearSessionStorageOnly();
 }
 
-/** Clear client storage, expire YouTube cookies, and hard-reload to `/`. */
+/**
+ * Clear client storage, expire YouTube session cookies, and hard-reload to `/`.
+ * Server logout clears yt_oauth_state, yt_verified_channel, and yt_account only.
+ * The HttpOnly `matchcut_plus` entitlement cookie is intentionally kept so Plus
+ * time can be restored after the next YouTube verification.
+ */
+
 export async function logoutAndReset(): Promise<void> {
   try {
     await fetch("/api/youtube/logout", {

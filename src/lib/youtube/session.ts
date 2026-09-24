@@ -6,6 +6,7 @@ export const YT_STATE_COOKIE = "yt_oauth_state";
 export const YT_CHANNEL_COOKIE = "yt_verified_channel";
 
 export type VerifiedYouTubeChannel = {
+  channelId: string;
   displayName: string;
   channel: string;
   subscribers: number;
@@ -13,7 +14,7 @@ export type VerifiedYouTubeChannel = {
   avatar: string | null;
 };
 
-function signingKey(): Uint8Array {
+export function getYoutubeSigningKey(): Uint8Array {
   const secret =
     getGoogleClientSecret() ??
     env("BETTER_AUTH_SECRET") ??
@@ -68,6 +69,7 @@ export async function signVerifiedChannel(
   channel: VerifiedYouTubeChannel,
 ): Promise<string> {
   return new SignJWT({
+    channelId: channel.channelId,
     displayName: channel.displayName,
     channel: channel.channel,
     subscribers: channel.subscribers,
@@ -77,7 +79,7 @@ export async function signVerifiedChannel(
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("10m")
-    .sign(signingKey());
+    .sign(getYoutubeSigningKey());
 }
 
 export async function readVerifiedChannel(
@@ -85,7 +87,8 @@ export async function readVerifiedChannel(
 ): Promise<VerifiedYouTubeChannel | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, signingKey());
+    const { payload } = await jwtVerify(token, getYoutubeSigningKey());
+    const channelId = typeof payload.channelId === "string" ? payload.channelId : "";
     const displayName = typeof payload.displayName === "string" ? payload.displayName : "";
     const channel = typeof payload.channel === "string" ? payload.channel : "";
     const subscribers =
@@ -94,8 +97,9 @@ export async function readVerifiedChannel(
       typeof payload.avgViews === "number" ? payload.avgViews : Number(payload.avgViews);
     const avatar =
       typeof payload.avatar === "string" && payload.avatar.length > 0 ? payload.avatar : null;
-    if (!channel || !Number.isFinite(subscribers)) return null;
+    if (!channelId || !channel || !Number.isFinite(subscribers)) return null;
     return {
+      channelId,
       displayName: displayName || channel,
       channel,
       subscribers: Math.max(0, Math.floor(subscribers)),
