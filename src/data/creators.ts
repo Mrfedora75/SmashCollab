@@ -17,6 +17,13 @@ export const NICHES = [
 
 export type Niche = (typeof NICHES)[number];
 
+export function normalizeFilterNiche(value: string): string | null {
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (!trimmed || trimmed.length > 40) return null;
+  const preset = NICHES.find((item) => item.toLowerCase() === trimmed.toLowerCase());
+  return preset ?? trimmed;
+}
+
 export const LOCATIONS = [
   { id: "global", label: "Global / Remote Collabs" },
   { id: "us", label: "United States" },

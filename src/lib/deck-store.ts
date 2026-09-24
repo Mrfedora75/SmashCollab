@@ -7,9 +7,9 @@ import {
   LOCATIONS,
   US_STATES,
   bracketIndex,
+  normalizeFilterNiche,
   type Creator,
   type LocationId,
-  type Niche,
   type UsState,
 } from "@/data/creators";
 import { defaultPitch, todayKey } from "@/lib/format";
@@ -28,7 +28,7 @@ export type Swipe = {
 };
 
 type Persisted = {
-  niches: Niche[];
+  niches: string[];
   minBracket: number;
   maxBracket: number;
   location: LocationId;
@@ -47,8 +47,8 @@ function pitchesToday(swipes: Swipe[], day = todayKey()): number {
   return swipes.filter((swipe) => swipe.day === day && swipe.direction === "pitch").length;
 }
 
-function isNiche(value: unknown): value is Niche {
-  return typeof value === "string" && CREATORS.some((creator) => creator.niches.includes(value as Niche));
+function isStoredNiche(value: unknown): value is string {
+  return typeof value === "string" && normalizeFilterNiche(value) === value;
 }
 
 function isLocation(value: unknown): value is LocationId {
@@ -65,7 +65,7 @@ function load(): Partial<Persisted> {
     const raw = localStorage.getItem(KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Partial<Persisted>;
-    const niches = Array.isArray(parsed.niches) ? parsed.niches.filter(isNiche) : [];
+    const niches = Array.isArray(parsed.niches) ? parsed.niches.filter(isStoredNiche) : [];
     let minBracket = typeof parsed.minBracket === "number" ? Math.round(parsed.minBracket) : 0;
     let maxBracket = typeof parsed.maxBracket === "number" ? Math.round(parsed.maxBracket) : BRACKETS.length - 1;
     minBracket = Math.min(BRACKETS.length - 1, Math.max(0, minBracket));
@@ -136,11 +136,11 @@ type DeckState = Persisted & {
   gate: Gate | null;
   announcement: string;
   hydrate: () => void;
-  toggleNiche: (niche: Niche) => void;
+  toggleNiche: (niche: string) => void;
   setBrackets: (min: number, max: number) => void;
   setLocation: (location: LocationId) => void;
   setDiscovery: (next: {
-    niches: Niche[];
+    niches: string[];
     minBracket: number;
     maxBracket: number;
     location: LocationId;
@@ -200,9 +200,11 @@ export const useDeck = create<DeckState>((set, get) => ({
     });
   },
   toggleNiche: (niche) => {
-    const niches = get().niches.includes(niche)
-      ? get().niches.filter((item) => item !== niche)
-      : [...get().niches, niche];
+    const next = normalizeFilterNiche(niche);
+    if (!next) return;
+    const niches = get().niches.some((item) => item.toLowerCase() === next.toLowerCase())
+      ? get().niches.filter((item) => item.toLowerCase() !== next.toLowerCase())
+      : [...get().niches, next];
     set({ niches });
     persist(get());
   },
@@ -222,7 +224,10 @@ export const useDeck = create<DeckState>((set, get) => ({
     const nextLocation = isLocation(location) ? location : "global";
     const wantsState = nextLocation === "us" || nextLocation === "us-state";
     set({
-      niches: niches.filter(isNiche),
+      niches: niches.flatMap((item) => {
+        const next = normalizeFilterNiche(item);
+        return next ? [next] : [];
+      }),
       minBracket: low,
       maxBracket: high,
       location: nextLocation,

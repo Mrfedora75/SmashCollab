@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Slider from "@radix-ui/react-slider";
-import { BRACKETS, NICHES, type Niche } from "@/data/creators";
+import { Search } from "lucide-react";
+import { BRACKETS, NICHES, normalizeFilterNiche } from "@/data/creators";
 import { cn } from "@/lib/cn";
 import { useDeck, type SortKey } from "@/lib/deck-store";
 
@@ -22,6 +23,7 @@ export function FilterPanel() {
   const clearFilters = useDeck((state) => state.clearFilters);
   const resetSwipes = useDeck((state) => state.resetSwipes);
   const [sliderReady, setSliderReady] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     setSliderReady(true);
@@ -33,21 +35,62 @@ export function FilterPanel() {
     minBracket === maxBracket
       ? `Only ${BRACKETS[minBracket].label} · ${BRACKETS[minBracket].range}`
       : `${BRACKETS[minBracket].label} to ${BRACKETS[maxBracket].label}`;
+  const customNiches = niches.filter((niche) => !(NICHES as readonly string[]).includes(niche));
+
+  function addNiche(raw: string) {
+    const next = normalizeFilterNiche(raw);
+    if (!next) return;
+    if (!niches.some((item) => item.toLowerCase() === next.toLowerCase())) toggleNiche(next);
+    setQuery("");
+  }
 
   return (
     <div className="flex flex-col gap-8 p-5">
       <div>
         <h2 className="text-xs font-medium tracking-widest text-muted uppercase">Niches</h2>
         <p className="mt-1 text-sm text-muted">Show channels in any selected niche.</p>
+        <form
+          className="relative mt-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            addNiche(query);
+          }}
+        >
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              addNiche(query);
+            }}
+            placeholder="Add a niche, like Woodworking"
+            aria-label="Add a niche"
+            maxLength={40}
+            className="h-11 w-full rounded-control border border-line bg-transparent pr-3 pl-9 text-sm text-cream outline-none placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          />
+        </form>
         <div className="mt-3 flex flex-wrap gap-2">
+          {customNiches.map((niche) => (
+            <button
+              key={niche}
+              type="button"
+              aria-pressed={true}
+              onClick={() => toggleNiche(niche)}
+              className="press min-h-11 rounded-full border border-accent bg-accent px-3 text-sm text-on-accent"
+            >
+              {niche}
+            </button>
+          ))}
           {NICHES.map((niche) => {
-            const on = niches.includes(niche);
+            const on = niches.some((item) => item.toLowerCase() === niche.toLowerCase());
             return (
               <button
                 key={niche}
                 type="button"
                 aria-pressed={on}
-                onClick={() => toggleNiche(niche as Niche)}
+                onClick={() => toggleNiche(niche)}
                 className={cn(
                   "press min-h-11 rounded-full border px-3 text-sm",
                   on ? "border-accent bg-accent text-on-accent" : "border-line text-cream",

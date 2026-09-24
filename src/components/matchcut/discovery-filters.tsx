@@ -27,9 +27,12 @@ export function DiscoveryFilters({ open, onOpenChange }: { open: boolean; onOpen
 
   useEffect(() => {
     if (!open) return;
-    const all = storedNiches.length === 0;
+    const presets = storedNiches.filter((niche): niche is Niche =>
+      (NICHES as readonly string[]).includes(niche),
+    );
+    const all = presets.length === 0 && storedNiches.length === 0;
     setBroad(all);
-    setPicked(all ? [...NICHES] : storedNiches);
+    setPicked(all ? [...NICHES] : presets);
     setMinBracket(storedMin);
     setMaxBracket(storedMax);
     setLocation(storedLocation);
@@ -200,8 +203,11 @@ export function DiscoveryFilters({ open, onOpenChange }: { open: boolean; onOpen
           <button
             type="button"
             onClick={() => {
+              const custom = storedNiches.filter(
+                (niche) => !(NICHES as readonly string[]).includes(niche),
+              );
               setDiscovery({
-                niches: broad ? [] : picked,
+                niches: broad ? [] : [...picked, ...custom],
                 minBracket,
                 maxBracket,
                 location,
