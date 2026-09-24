@@ -17,6 +17,7 @@ import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, savePr
 import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
 import { InviteModal } from "@/components/matchcut/invite-modal";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
+import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
 import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
@@ -176,6 +177,19 @@ export function MatchcutApp() {
 
   useEffect(() => {
     captureReferralFromUrl();
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    const checkout = params.get("checkout");
+    if (checkout) {
+      params.delete("checkout");
+      params.delete("session_id");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+      window.history.replaceState(null, "", next);
+    }
+    void (async () => {
+      if (checkout === "success" && sessionId) await confirmStripeSession(sessionId);
+      await syncStripeAccount();
+    })();
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { Check, X } from "lucide-react";
 import { FREE_DAILY } from "@/data/creators";
 import { cn } from "@/lib/cn";
 import { useDeck } from "@/lib/deck-store";
+import { startStripeCheckout } from "@/lib/stripe-client";
 
 const PERKS = [
   "Unlimited daily swipes",
@@ -27,6 +28,8 @@ export function PremiumModal() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState("");
   const [yearFree, setYearFree] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -36,6 +39,8 @@ export function PremiumModal() {
       setCode("");
       setCodeError("");
       setYearFree(false);
+      setCheckoutError("");
+      setCheckingOut(false);
     }
   }, [open]);
 
@@ -81,7 +86,7 @@ export function PremiumModal() {
                 {redeemed
                   ? "Unlimited swipes and flagship pitches are on for the next 30 days."
                   : premium && !done
-                    ? "Daily swipes are unlimited, and flagship pitches are open. This preview does not bill anyone."
+                    ? "Daily swipes are unlimited, and flagship pitches are open."
                     : lead}
               </Dialog.Description>
             </div>
@@ -134,8 +139,8 @@ export function PremiumModal() {
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Plan">
                 {(
                   [
-                    { id: "month" as const, price: "$18", cadence: "per month" },
-                    { id: "year" as const, price: "$144", cadence: "per year" },
+                    { id: "month" as const, price: "$9.99", cadence: "per month" },
+                    { id: "year" as const, price: "$107.89", cadence: "per year" },
                   ]
                 ).map((option) => {
                   const on = plan === option.id;
@@ -157,7 +162,7 @@ export function PremiumModal() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-sm text-muted-strong">Yearly is two months included.</p>
+              <p className="mt-3 text-sm text-muted-strong">Annual is 10% off the monthly rate.</p>
               <ul className="mt-4 space-y-2">
                 {PERKS.map((perk) => (
                   <li key={perk} className="flex items-start gap-2 text-sm">
@@ -211,15 +216,23 @@ export function PremiumModal() {
               </form>
               <button
                 type="button"
+                disabled={checkingOut}
                 onClick={() => {
-                  setPremium(true);
-                  setDone(true);
+                  setCheckingOut(true);
+                  void startStripeCheckout(plan).then((error) => {
+                    setCheckingOut(false);
+                    setCheckoutError(error ?? "");
+                  });
                 }}
-                className="press mt-5 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent"
+                className="press mt-5 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent disabled:opacity-60"
               >
-                Upgrade to Plus
+                {checkingOut ? "Opening checkout" : plan === "year" ? "Continue with Annual" : "Continue with Monthly"}
               </button>
-              <p className="mt-2 text-center text-xs text-muted-strong">Preview paywall. You will not be charged.</p>
+              {checkoutError ? (
+                <p className="mt-2 text-sm text-accent-deep" role="alert">
+                  {checkoutError}
+                </p>
+              ) : null}
             </div>
           )}
         </Dialog.Content>

@@ -16,6 +16,9 @@ import { Route as ApiYoutubeLogoutRouteImport } from './routes/api/youtube/logou
 import { Route as ApiYoutubeStartRouteImport } from './routes/api/youtube/start'
 import { Route as ApiPlusGrantRouteImport } from './routes/api/plus/grant'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
+import { Route as ApiStripeCheckoutRouteImport } from './routes/api/stripe/checkout'
+import { Route as ApiStripeConfirmRouteImport } from './routes/api/stripe/confirm'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +55,21 @@ const ApiReferralsRoute = ApiReferralsRouteImport.update({
   path: '/api/referrals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStripeCheckoutRoute = ApiStripeCheckoutRouteImport.update({
+  id: '/api/stripe/checkout',
+  path: '/api/stripe/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripeConfirmRoute = ApiStripeConfirmRouteImport.update({
+  id: '/api/stripe/confirm',
+  path: '/api/stripe/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe/webhook',
+  path: '/api/stripe/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +79,9 @@ export interface FileRoutesByFullPath {
   '/api/youtube/start': typeof ApiYoutubeStartRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
+  '/api/stripe/confirm': typeof ApiStripeConfirmRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +91,9 @@ export interface FileRoutesByTo {
   '/api/youtube/start': typeof ApiYoutubeStartRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
+  '/api/stripe/confirm': typeof ApiStripeConfirmRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,13 +104,16 @@ export interface FileRoutesById {
   '/api/youtube/start': typeof ApiYoutubeStartRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
+  '/api/stripe/confirm': typeof ApiStripeConfirmRoute
+  '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals'
+    '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals'
+  to: '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook'
   id:
     | '__root__'
     | '/'
@@ -96,6 +123,9 @@ export interface FileRouteTypes {
     | '/api/youtube/start'
     | '/api/plus/grant'
     | '/api/referrals'
+    | '/api/stripe/checkout'
+    | '/api/stripe/confirm'
+    | '/api/stripe/webhook' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +136,9 @@ export interface RootRouteChildren {
   ApiYoutubeStartRoute: typeof ApiYoutubeStartRoute
   ApiPlusGrantRoute: typeof ApiPlusGrantRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
+  ApiStripeCheckoutRoute: typeof ApiStripeCheckoutRoute
+  ApiStripeConfirmRoute: typeof ApiStripeConfirmRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -159,6 +192,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReferralsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/stripe/checkout': {
+      id: '/api/stripe/checkout'
+      path: '/api/stripe/checkout'
+      fullPath: '/api/stripe/checkout'
+      preLoaderRoute: typeof ApiStripeCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe/confirm': {
+      id: '/api/stripe/confirm'
+      path: '/api/stripe/confirm'
+      fullPath: '/api/stripe/confirm'
+      preLoaderRoute: typeof ApiStripeConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stripe/webhook': {
+      id: '/api/stripe/webhook'
+      path: '/api/stripe/webhook'
+      fullPath: '/api/stripe/webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -170,6 +224,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiYoutubeStartRoute: ApiYoutubeStartRoute,
   ApiPlusGrantRoute: ApiPlusGrantRoute,
   ApiReferralsRoute: ApiReferralsRoute,
+  ApiStripeCheckoutRoute: ApiStripeCheckoutRoute,
+  ApiStripeConfirmRoute: ApiStripeConfirmRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

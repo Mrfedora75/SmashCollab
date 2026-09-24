@@ -165,6 +165,7 @@ type DeckState = Persisted & {
   closePremium: () => void;
   setPremium: (premium: boolean, until?: number | null, announcement?: string) => void;
   addExtraPitch: () => void;
+  addPurchasedPitches: (count: number) => void;
   setReferralDaily: (count: number) => void;
   usedToday: () => number;
 };
@@ -360,6 +361,15 @@ export const useDeck = create<DeckState>((set, get) => ({
   usedToday: () => pitchesToday(get().swipes),
   addExtraPitch: () => {
     set({ extraPitches: get().extraPitches + 1, announcement: "1 extra pitch is ready." });
+    persist(get());
+  },
+  addPurchasedPitches: (count) => {
+    const extra = Math.max(0, Math.floor(count));
+    if (!extra) return;
+    set({
+      extraPitches: get().extraPitches + extra,
+      announcement: extra === 1 ? "1 extra pitch is ready." : `${extra} extra pitches are ready.`,
+    });
     persist(get());
   },
   setReferralDaily: (count) => {
