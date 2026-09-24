@@ -13,6 +13,7 @@ import {
   type UsState,
 } from "@/data/creators";
 import { defaultPitch, todayKey } from "@/lib/format";
+import { clearPlusOnServer, grantPlusOnServer } from "@/lib/youtube/plus-client";
 
 export type Direction = "pass" | "pitch";
 export type SortKey = "fit" | "views" | "subs";
@@ -294,15 +295,30 @@ export const useDeck = create<DeckState>((set, get) => ({
   openPremium: (gate = null) => set({ premiumOpen: true, gate: gate ?? null }),
   closePremium: () => set({ premiumOpen: false, gate: null }),
   setPremium: (premium, until = null, announcement) => {
-    const premiumUntil = premium ? until : null;
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    // Bare Upgrade (no until) still gets 30 days so server Plus can persist across logout.
+    const premiumUntil = premium
+      ? typeof until === "number" && Number.isFinite(until)
+        ? until
+        : Date.now() + THIRTY_DAYS_MS
+      : null;
     set({
       premium,
       premiumUntil,
       announcement:
         announcement ??
-        (premium ? (premiumUntil ? "Premium Unlocked for 30 Days" : "Plus is on for this preview.") : "Reverted to the free desk."),
+        (premium
+          ? premiumUntil
+            ? "Premium Unlocked for 30 Days"
+            : "Plus is on for this preview."
+          : "Reverted to the free desk."),
     });
     persist(get());
+    if (premium && premiumUntil) {
+      void grantPlusOnServer(premiumUntil);
+    } else if (!premium) {
+      void clearPlusOnServer();
+    }
   },
   usedToday: () => pitchesToday(get().swipes),
   addExtraPitch: () => {
