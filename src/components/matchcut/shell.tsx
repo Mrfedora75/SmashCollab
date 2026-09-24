@@ -13,8 +13,10 @@ import { DeckStage } from "@/components/matchcut/deck-stage";
 import { PremiumModal } from "@/components/matchcut/premium-modal";
 import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
 import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
-import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
+import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, saveProfile, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
 import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
+import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
+import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
 import { ReviewModal, type SavedReview } from "@/components/matchcut/review-modal";
 import { PreferencesModal } from "@/components/matchcut/preferences";
@@ -51,6 +53,7 @@ export function MatchcutApp() {
   const { age, choose } = useAgeGate();
   const [terms, setTerms] = useState(false);
   const [profile, setProfile] = useState<DeskProfile | null>(null);
+  const [pendingChannel, setPendingChannel] = useState<VerifiedChannel | null>(null);
   const [signedIn, setSignedIn] = useState(true);
 
   useEffect(() => {
@@ -70,6 +73,73 @@ export function MatchcutApp() {
     }
     setMemoryReady(true);
   }, [hydrate]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const yt = params.get("yt");
+    if (yt !== "ok" && yt !== "error") return;
+    if (yt === "error") {
+      setToast(ytErrorMessage(params.get("reason")));
+      clearYtQueryParams();
+      return;
+    }
+    clearYtQueryParams();
+    void (async () => {
+      try {
+        const res = await fetch("/api/youtube/me", {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) {
+          setToast(ytErrorMessage("unknown"));
+          return;
+        }
+        const data = (await res.json()) as VerifiedChannel;
+        const verified: VerifiedChannel = {
+          displayName: data.displayName,
+          channel: data.channel,
+          channelId: data.channelId,
+          subscribers: data.subscribers,
+          avgViews: data.avgViews,
+          avatar: data.avatar,
+          premium: data.premium === true,
+          premiumUntil: typeof data.premiumUntil === "number" ? data.premiumUntil : null,
+        };
+        if (
+          verified.premium === true &&
+          typeof verified.premiumUntil === "number" &&
+          verified.premiumUntil > Date.now()
+        ) {
+          useDeck.getState().setPremium(true, verified.premiumUntil, "Plus restored for this YouTube channel.");
+        }
+        const existing = loadProfile();
+        if (existing && existing.niches.length > 0) {
+          const next: DeskProfile = {
+            displayName: verified.displayName || existing.displayName,
+            channel: verified.channel,
+            channelId: verified.channelId,
+            subscribers: verified.subscribers,
+            avgViews: verified.avgViews,
+            niches: existing.niches,
+            bio: existing.bio,
+            avatar: verified.avatar,
+          };
+          saveProfile(next);
+          setProfile(next);
+          setSignedIn(true);
+          setPendingChannel(null);
+          setToast(`Connected ${next.channel}`);
+          return;
+        }
+        setPendingChannel(verified);
+        setProfile(null);
+        setSignedIn(false);
+      } catch {
+        setToast(ytErrorMessage("unknown"));
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!memoryReady) return;
@@ -158,6 +228,14 @@ export function MatchcutApp() {
       <header className="border-b border-line">
         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
           <Mark className="size-8 shrink-0 text-cream" />
+          {signedIn && profile?.avatar ? (
+            <img
+              src={profile.avatar}
+              alt=""
+              className="size-8 shrink-0 rounded-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : null}
           <div className="min-w-0">
             <p className="font-display text-2xl leading-none">SmashCollab</p>
             {signedIn ? (
@@ -407,7 +485,9 @@ export function MatchcutApp() {
     ) : null}
     <AgeGate age={age} onChoose={choose} />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />
-    {age === "adult" && terms && !profile ? <CreateProfile onComplete={finishSignIn} /> : null}
+    {age === "adult" && terms && !profile ? (
+      <CreateProfile verifiedChannel={pendingChannel} onComplete={finishSignIn} />
+    ) : null}
     <div className="toast" aria-live="polite">
       {toast ? <p className="rounded-control bg-cream px-4 py-3 text-sm font-medium text-ink-text shadow-card">{toast}</p> : null}
     </div>

@@ -9,11 +9,15 @@ import {
   type DeskProfile,
   type VerifiedChannel,
 } from "@/components/matchcut/onboarding-storage";
-import { ytErrorMessage, clearYtQueryParams } from "@/components/matchcut/onboarding-helpers";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
-import { useDeck } from "@/lib/deck-store";
 
-export function CreateProfile({ onComplete }: { onComplete: (profile: DeskProfile) => void }) {
+export function CreateProfile({
+  onComplete,
+  verifiedChannel = null,
+}: {
+  onComplete: (profile: DeskProfile) => void;
+  verifiedChannel?: VerifiedChannel | null;
+}) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
   const [menuOpen, setMenuOpen] = useState(false);
   const [picked, setPicked] = useState<Niche[]>([]);
@@ -22,79 +26,13 @@ export function CreateProfile({ onComplete }: { onComplete: (profile: DeskProfil
   const returning = loadProfile();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const yt = params.get("yt");
-    const reason = params.get("reason");
-
-    if (yt === "error") {
-      setError(ytErrorMessage(reason));
-      setPhase("connect");
-      clearYtQueryParams();
-      return;
-    }
-
-    if (yt !== "ok") return;
-
-    let cancelled = false;
+    if (!verifiedChannel) return;
+    setVerified(verifiedChannel);
+    const existing = loadProfile();
+    if (existing?.niches.length) setPicked(existing.niches);
+    setPhase("ready");
     setError(null);
-    setPhase("loading");
-    clearYtQueryParams();
-
-    void (async () => {
-      try {
-        const res = await fetch("/api/youtube/me", {
-          method: "GET",
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as { error?: string } | null;
-          if (!cancelled) {
-            setError(body?.error ?? ytErrorMessage("unknown"));
-            setPhase("connect");
-          }
-          return;
-        }
-        const data = (await res.json()) as VerifiedChannel;
-        if (cancelled) return;
-        setVerified({
-          displayName: data.displayName,
-          channel: data.channel,
-          channelId: data.channelId,
-          subscribers: data.subscribers,
-          avgViews: data.avgViews,
-          avatar: data.avatar,
-          premium: data.premium === true,
-          premiumUntil: typeof data.premiumUntil === "number" ? data.premiumUntil : null,
-        });
-        const existing = loadProfile();
-        if (existing && (existing.channelId === data.channelId || !existing.channelId)) {
-          setPicked(existing.niches);
-        }
-        if (
-          data.premium === true &&
-          typeof data.premiumUntil === "number" &&
-          data.premiumUntil > Date.now()
-        ) {
-          useDeck.getState().setPremium(
-            true,
-            data.premiumUntil,
-            "Plus restored for this YouTube channel.",
-          );
-        }
-        setPhase("ready");
-      } catch {
-        if (!cancelled) {
-          setError(ytErrorMessage("unknown"));
-          setPhase("connect");
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [verifiedChannel]);
 
   function toggle(niche: Niche) {
     setPicked((current) =>

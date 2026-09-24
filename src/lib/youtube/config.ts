@@ -46,6 +46,14 @@ export function getYouTubeRedirectUri(request: Request): string {
 }
 
 export function getAppHomeUrl(request: Request): string {
+  const explicit = env("GOOGLE_REDIRECT_URI");
+  if (explicit) {
+    try {
+      return `${new URL(explicit).origin}/`;
+    } catch {
+      // Ignore a malformed override and fall back to the request host.
+    }
+  }
   return `${getRequestOrigin(request)}/`;
 }
 
