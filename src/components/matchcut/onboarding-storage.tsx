@@ -7,6 +7,7 @@ export const SESSION_KEY = "matchcut-signed-in";
 export type DeskProfile = {
   displayName: string;
   channel: string;
+  channelId?: string;
   subscribers: number;
   avgViews: number;
   niches: Niche[];
@@ -17,9 +18,12 @@ export type DeskProfile = {
 export type VerifiedChannel = {
   displayName: string;
   channel: string;
+  channelId: string;
   subscribers: number;
   avgViews: number;
   avatar: string | null;
+  premium?: boolean;
+  premiumUntil?: number | null;
 };
 
 function isNiche(value: unknown): value is Niche {
@@ -60,6 +64,7 @@ export function loadProfile(): DeskProfile | null {
           ? parsed.displayName
           : parsed.channel,
       channel: parsed.channel,
+      channelId: typeof parsed.channelId === "string" ? parsed.channelId : undefined,
       subscribers: parsed.subscribers,
       avgViews: typeof parsed.avgViews === "number" ? parsed.avgViews : 0,
       niches,
