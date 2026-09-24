@@ -10,6 +10,7 @@ import {
 } from "@/components/matchcut/onboarding-storage";
 import { ytErrorMessage, clearYtQueryParams } from "@/components/matchcut/onboarding-helpers";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
+import { useDeck } from "@/lib/deck-store";
 
 export function CreateProfile({ onComplete }: { onComplete: (profile: DeskProfile) => void }) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
@@ -57,10 +58,24 @@ export function CreateProfile({ onComplete }: { onComplete: (profile: DeskProfil
         setVerified({
           displayName: data.displayName,
           channel: data.channel,
+          channelId: data.channelId,
           subscribers: data.subscribers,
           avgViews: data.avgViews,
           avatar: data.avatar,
+          premium: data.premium === true,
+          premiumUntil: typeof data.premiumUntil === "number" ? data.premiumUntil : null,
         });
+        if (
+          data.premium === true &&
+          typeof data.premiumUntil === "number" &&
+          data.premiumUntil > Date.now()
+        ) {
+          useDeck.getState().setPremium(
+            true,
+            data.premiumUntil,
+            "Plus restored for this YouTube channel.",
+          );
+        }
         setPhase("ready");
       } catch {
         if (!cancelled) {
@@ -145,6 +160,7 @@ export function CreateProfile({ onComplete }: { onComplete: (profile: DeskProfil
                 const profile: DeskProfile = {
                   displayName: verified.displayName,
                   channel: verified.channel,
+                  channelId: verified.channelId,
                   subscribers: verified.subscribers,
                   avgViews: verified.avgViews,
                   niches: picked,
