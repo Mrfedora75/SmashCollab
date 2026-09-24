@@ -112,7 +112,7 @@ export function CreateProfile({ onComplete }: { onComplete: (profile: DeskProfil
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
         >
-          <p className="text-xs font-medium tracking-widest text-muted-strong">SmashCollab</p>
+          <p className="text-xs font-medium tracking-widest text-muted-strong">Smash Collab</p>
           <Dialog.Title className="mt-2 font-display text-3xl leading-tight">Create Your Profile</Dialog.Title>
           <Dialog.Description className="sr-only">
             Connect your YouTube channel with Google, then choose the niches you pitch in.
