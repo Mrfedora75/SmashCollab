@@ -8,6 +8,7 @@ import { OauthNotice } from "@/components/matchcut/oauth-notice";
 
 const TERMS_KEY = "matchcut-terms";
 const PROFILE_KEY = "matchcut-profile";
+export const SESSION_KEY = "matchcut-signed-in";
 
 export type DeskProfile = {
   displayName: string;
@@ -27,8 +28,14 @@ export function loadTerms(): boolean {
   return localStorage.getItem(TERMS_KEY) === "accepted";
 }
 
+export function clearSession() {
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.setItem(SESSION_KEY, "0");
+}
+
 export function saveProfile(profile: DeskProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  localStorage.setItem(SESSION_KEY, "1");
 }
 
 export function loadProfile(): DeskProfile | null {

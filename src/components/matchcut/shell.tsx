@@ -13,13 +13,11 @@ import { DeckStage } from "@/components/matchcut/deck-stage";
 import { PremiumModal } from "@/components/matchcut/premium-modal";
 import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
 import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
-import { CreateProfile, TermsModal, loadProfile, loadTerms, type DeskProfile } from "@/components/matchcut/onboarding";
+import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
 import { ReviewModal, type SavedReview } from "@/components/matchcut/review-modal";
 import { PreferencesModal } from "@/components/matchcut/preferences";
 import { CreatorDashboard } from "@/components/matchcut/dashboard";
-
-const SESSION_KEY = "matchcut-signed-in";
 
 export function MatchcutApp() {
   const hydrate = useDeck((state) => state.hydrate);
@@ -55,19 +53,28 @@ export function MatchcutApp() {
 
   useEffect(() => {
     hydrate();
+    const storedProfile = loadProfile();
+    const sessionOn = localStorage.getItem(SESSION_KEY) !== "0" && storedProfile != null;
     setTerms(loadTerms());
-    setProfile(loadProfile());
-    setSignedIn(localStorage.getItem(SESSION_KEY) !== "0");
+    setProfile(sessionOn ? storedProfile : null);
+    setSignedIn(sessionOn);
   }, [hydrate]);
 
   function logOut() {
-    localStorage.setItem(SESSION_KEY, "0");
+    clearSession();
     setSignedIn(false);
+    setProfile(null);
     setDashboardOpen(false);
+    setInboxOpen(false);
+    setFiltersOpen(false);
+    setPitchesOpen(false);
+    setPrefsOpen(false);
+    setChatId(null);
+    setReviewFor(null);
   }
 
-  function signIn() {
-    localStorage.setItem(SESSION_KEY, "1");
+  function finishSignIn(next: DeskProfile) {
+    setProfile(next);
     setSignedIn(true);
   }
 
@@ -123,7 +130,7 @@ export function MatchcutApp() {
     minBracket !== 0 ||
     maxBracket !== BRACKETS.length - 1 ||
     sort !== "fit";
-  const deskReady = age === "adult" && terms && profile != null;
+  const deskReady = age === "adult" && terms && signedIn && profile != null;
   const pitching = profile ?? VIEWER;
 
   return (
@@ -142,7 +149,7 @@ export function MatchcutApp() {
                 {pitching.channel} · {formatCount(pitching.subscribers)} · {pitching.niches.join(" & ")}
               </p>
             ) : (
-              <button type="button" onClick={signIn} className="press mt-1 text-xs font-medium text-cream">
+              <button type="button" onClick={() => setSignedIn(false)} className="press mt-1 text-xs font-medium text-cream">
                 Sign In
               </button>
             )}
@@ -384,7 +391,7 @@ export function MatchcutApp() {
     ) : null}
     <AgeGate age={age} onChoose={choose} />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />
-    {age === "adult" && terms && !profile ? <CreateProfile onComplete={setProfile} /> : null}
+    {age === "adult" && terms && !profile ? <CreateProfile onComplete={finishSignIn} /> : null}
     <div className="toast" aria-live="polite">
       {toast ? <p className="rounded-control bg-cream px-4 py-3 text-sm font-medium text-ink-text shadow-card">{toast}</p> : null}
     </div>
