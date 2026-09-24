@@ -1,7 +1,4 @@
         
-              </div>
-            ) : null}
-          </div>
           <DeckStage channel={pitching.channel} subscribers={pitching.subscribers} />
         </main>
         <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line xl:block">
