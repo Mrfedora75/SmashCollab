@@ -12,7 +12,7 @@ const LOGOUT_LOCAL_KEYS = [TERMS_KEY, PROFILE_KEY, SESSION_KEY, DECK_KEY] as con
  * from scratch. Keeps `matchcut-age` so the 18+ gate does not re-prompt.
  * Leaves Grok broker auth (`grok-auth.*` / better-auth) alone.
  */
-export function clearSession() {
+export function clearSessionStorageOnly() {
   for (const key of LOGOUT_LOCAL_KEYS) {
     localStorage.removeItem(key);
   }
@@ -45,6 +45,11 @@ export function clearSession() {
   }
 }
 
+/** @deprecated Prefer logoutAndReset; kept as storage wipe used before reload. */
+export function clearSession() {
+  clearSessionStorageOnly();
+}
+
 /** Clear client storage, expire YouTube cookies, and hard-reload to `/`. */
 export async function logoutAndReset(): Promise<void> {
   try {
@@ -56,6 +61,6 @@ export async function logoutAndReset(): Promise<void> {
   } catch {
     // Best-effort: still wipe local state if the network call fails.
   }
-  clearSession();
+  clearSessionStorageOnly();
   window.location.assign("/");
 }
