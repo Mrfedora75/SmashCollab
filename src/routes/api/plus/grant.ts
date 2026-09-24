@@ -106,16 +106,10 @@ export const Route = createFileRoute("/api/plus/grant")({
       },
 
       GET: async ({ request }) => {
-        const channelId = await resolveChannelId(request);
-        if (!channelId) {
-          return Response.json(
-            { premium: false, premiumUntil: null, channelId: null },
-            { status: 200, headers: { "Cache-Control": "no-store" } },
-          );
-        }
         const cookies = parseCookieHeader(request);
         const plus = await readPlusEntitlement(cookies[PLUS_COOKIE]);
-        if (!plus || plus.channelId !== channelId) {
+        const channelId = await resolveChannelId(request);
+        if (!plus || (channelId != null && plus.channelId !== channelId)) {
           return Response.json(
             { premium: false, premiumUntil: null, channelId },
             { status: 200, headers: { "Cache-Control": "no-store" } },
@@ -125,7 +119,7 @@ export const Route = createFileRoute("/api/plus/grant")({
           {
             premium: true,
             premiumUntil: plus.premiumUntil,
-            channelId,
+            channelId: plus.channelId,
             source: plus.source ?? null,
           },
           { status: 200, headers: { "Cache-Control": "no-store" } },

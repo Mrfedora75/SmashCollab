@@ -13,7 +13,7 @@ import {
   type UsState,
 } from "@/data/creators";
 import { defaultPitch, todayKey } from "@/lib/format";
-import { clearPlusOnServer, grantPlusOnServer } from "@/lib/youtube/plus-client";
+import { clearPlusLocal, clearPlusOnServer, fetchPlusFromServer, grantPlusOnServer, readPlusLocal, writePlusLocal } from "@/lib/youtube/plus-client";
 
 export type Direction = "pass" | "pitch";
 export type SortKey = "fit" | "views" | "subs";
@@ -180,6 +180,24 @@ export const useDeck = create<DeckState>((set, get) => ({
   hydrate: () => {
     if (get().hydrated) return;
     set({ ...load(), hydrated: true });
+    const storedUntil = get().premiumUntil;
+    const deckUntil = get().premium && typeof storedUntil === "number" ? storedUntil : 0;
+    const remembered = Math.max(deckUntil, readPlusLocal() ?? 0);
+    if (remembered > Date.now()) {
+      writePlusLocal(remembered);
+      if (!get().premium || (get().premiumUntil ?? 0) < remembered) {
+        set({ premium: true, premiumUntil: remembered });
+        persist(get());
+      }
+    }
+    void fetchPlusFromServer().then((serverUntil) => {
+      if (!serverUntil || serverUntil <= Date.now()) return;
+      writePlusLocal(serverUntil);
+      if (!get().premium || (get().premiumUntil ?? 0) < serverUntil) {
+        set({ premium: true, premiumUntil: serverUntil });
+        persist(get());
+      }
+    });
   },
   toggleNiche: (niche) => {
     const niches = get().niches.includes(niche)
@@ -315,8 +333,10 @@ export const useDeck = create<DeckState>((set, get) => ({
     });
     persist(get());
     if (premium && premiumUntil) {
+      writePlusLocal(premiumUntil);
       void grantPlusOnServer(premiumUntil);
     } else if (!premium) {
+      clearPlusLocal();
       void clearPlusOnServer();
     }
   },

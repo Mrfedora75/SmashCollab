@@ -1,4 +1,6 @@
 /** Client logout helpers — wipe matchcut/YouTube state; leave Grok broker alone. */
+import { PLUS_LOCAL_KEY } from "@/lib/youtube/plus-client";
+
 const TERMS_KEY = "matchcut-terms";
 const PROFILE_KEY = "matchcut-profile";
 export const SESSION_KEY = "matchcut-signed-in";
@@ -19,7 +21,7 @@ export function clearSessionStorageOnly() {
 
   for (let i = localStorage.length - 1; i >= 0; i -= 1) {
     const key = localStorage.key(i);
-    if (!key || key === AGE_KEY) continue;
+    if (!key || key === AGE_KEY || key === PLUS_LOCAL_KEY) continue;
     if (
       key.startsWith("matchcut-") ||
       key.startsWith("youtube-") ||
