@@ -53,12 +53,9 @@ export function clearSession() {
 }
 
 /**
- * Clear client storage, expire YouTube session cookies, and hard-reload to `/`.
- * Server logout clears yt_oauth_state, yt_verified_channel, and yt_account only.
- * The HttpOnly `matchcut_plus` entitlement cookie is intentionally kept so Plus
- * time can be restored after the next YouTube verification.
+ * End the YouTube session and lock the desk.
+ * Profile, messages, blocked creators, pitches, and Plus time stay on this device.
  */
-
 export async function logoutAndReset(): Promise<void> {
   try {
     await fetch("/api/youtube/logout", {
@@ -67,8 +64,8 @@ export async function logoutAndReset(): Promise<void> {
       headers: { Accept: "application/json" },
     });
   } catch {
-    // Best-effort: still wipe local state if the network call fails.
+    // Best-effort: still lock the desk if the network call fails.
   }
-  clearSessionStorageOnly();
+  localStorage.setItem(SESSION_KEY, "0");
   window.location.assign("/");
 }

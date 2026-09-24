@@ -14,6 +14,7 @@ import { PremiumModal } from "@/components/matchcut/premium-modal";
 import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
 import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
 import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
+import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
 import { ReviewModal, type SavedReview } from "@/components/matchcut/review-modal";
 import { PreferencesModal } from "@/components/matchcut/preferences";
@@ -45,6 +46,7 @@ export function MatchcutApp() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [askingPush, setAskingPush] = useState(false);
   const [blocked, setBlocked] = useState<BlockedCreator[]>([]);
+  const [memoryReady, setMemoryReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const { age, choose } = useAgeGate();
   const [terms, setTerms] = useState(false);
@@ -58,7 +60,21 @@ export function MatchcutApp() {
     setTerms(loadTerms());
     setProfile(sessionOn ? storedProfile : null);
     setSignedIn(sessionOn);
+    const memory = loadDeskMemory();
+    if (memory) {
+      setPending(memory.pending);
+      setAccepted(memory.accepted);
+      setThreads(memory.threads);
+      setBlocked(memory.blocked);
+      setReviews(memory.reviews);
+    }
+    setMemoryReady(true);
   }, [hydrate]);
+
+  useEffect(() => {
+    if (!memoryReady) return;
+    saveDeskMemory({ pending, accepted, threads, blocked, reviews });
+  }, [memoryReady, pending, accepted, threads, blocked, reviews]);
 
   function logOut() {
     clearSession();
