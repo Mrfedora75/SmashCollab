@@ -4,7 +4,7 @@ export {
   loadTerms,
   saveProfile,
   loadProfile,
-  TermsModal,
-  CreateProfile,
   type DeskProfile,
-} from "./onboarding-ui";
+} from "@/components/matchcut/onboarding-storage";
+export { TermsModal } from "@/components/matchcut/onboarding-terms";
+export { CreateProfile } from "@/components/matchcut/onboarding-create";
