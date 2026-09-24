@@ -95,7 +95,7 @@ export function PreferencesModal({
             onInteractOutside={(event) => event.preventDefault()}
           >
             <Dialog.Title className="text-sm leading-relaxed font-medium">
-              Collabr would like to send you notifications.
+              Smash Collab would like to send you notifications.
             </Dialog.Title>
             <Dialog.Description className="sr-only">Choose whether this preview can show notification alerts.</Dialog.Description>
             <div className="mt-4 flex justify-end gap-2">
