@@ -4,9 +4,19 @@ import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 
-async function googleUser(): Promise<User | null> {
+export function describeAuthError(error: unknown): string {
+  if (error && typeof error === "object") {
+    const code = "code" in error ? String(error.code) : "";
+    const message = "message" in error ? String(error.message) : "";
+    if (code && message) return message.includes(code) ? message : `${code}: ${message}`;
+    if (message) return message;
+  }
+  return error instanceof Error ? error.message : "Sign-in failed.";
+}
+
+async function googleUser(): Promise<User> {
   const auth = firebaseAuth();
-  if (!auth) return null;
+  if (!auth) throw new Error("Firebase is not configured.");
   if (auth.currentUser) return auth.currentUser;
 
   try {
@@ -34,9 +44,8 @@ async function googleUser(): Promise<User | null> {
 
 export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
   const db = firebaseDb();
-  if (!db) return;
+  if (!db) throw new Error("Firebase is not configured.");
   const user = await googleUser();
-  if (!user) return;
   const ref = doc(db, "users", user.uid);
   const existing = await getDoc(ref);
   const niches = profile.niches.flatMap((item) => {

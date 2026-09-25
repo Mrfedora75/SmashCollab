@@ -8,6 +8,7 @@ import {
   type DeskProfile,
   type VerifiedChannel,
 } from "@/components/matchcut/onboarding-storage";
+import { saveFirebaseUser, describeAuthError } from "@/lib/firebase-user";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
 
 export function CreateProfile({
@@ -18,6 +19,7 @@ export function CreateProfile({
   verifiedChannel?: VerifiedChannel | null;
 }) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
+  const [loadingLabel, setLoadingLabel] = useState("Connecting to YouTube");
   const [menuOpen, setMenuOpen] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const [verified, setVerified] = useState<VerifiedChannel | null>(null);
@@ -41,8 +43,23 @@ export function CreateProfile({
 
   function startYouTubeVerify() {
     setError(null);
+    setLoadingLabel("Connecting to YouTube");
     setPhase("loading");
     window.location.assign("/api/youtube/start");
+  }
+
+  async function enterDesk(profile: DeskProfile, back: "connect" | "ready") {
+    setError(null);
+    setLoadingLabel("Signing in with Google");
+    setPhase("loading");
+    saveProfile(profile);
+    try {
+      await saveFirebaseUser(profile);
+      onComplete(profile);
+    } catch (error) {
+      setPhase(back);
+      setError(describeAuthError(error));
+    }
   }
 
   return (
@@ -62,17 +79,17 @@ export function CreateProfile({
           <Dialog.Description className="sr-only">
             Connect your YouTube channel with Google, then choose the niches you pitch in.
           </Dialog.Description>
+          {error ? (
+            <p
+              className="mx-auto mt-4 max-w-sm rounded-control border border-cream-deep bg-cream-deep/60 px-3 py-2 text-left text-sm text-ink-text"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
 
           {phase === "connect" ? (
             <div className="mt-8">
-              {error ? (
-                <p
-                  className="mx-auto mb-4 max-w-sm rounded-control border border-cream-deep bg-cream-deep/60 px-3 py-2 text-sm text-ink-text"
-                  role="alert"
-                >
-                  {error}
-                </p>
-              ) : null}
               {returning ? (
                 <div className="mx-auto max-w-sm">
                   <p className="font-display text-2xl leading-tight">{returning.channel}</p>
@@ -82,8 +99,7 @@ export function CreateProfile({
                   <button
                     type="button"
                     onClick={() => {
-                      saveProfile(returning);
-                      onComplete(returning);
+                      void enterDesk(returning, "connect");
                     }}
                     className="press mt-4 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent"
                   >
@@ -112,7 +128,7 @@ export function CreateProfile({
           {phase === "loading" ? (
             <div className="mt-10 flex flex-col items-center gap-3" role="status">
               <Loader2 className="size-8 animate-spin text-accent" aria-hidden="true" />
-              <p className="text-sm text-muted-strong">Connecting to YouTube</p>
+              <p className="text-sm text-muted-strong">{loadingLabel}</p>
             </div>
           ) : null}
 
@@ -137,7 +153,7 @@ export function CreateProfile({
                   avatar: verified.avatar ?? (sameChannel ? (existing?.avatar ?? null) : null),
                 };
                 saveProfile(profile);
-                onComplete(profile);
+                void enterDesk(profile, "ready");
               }}
             />
           ) : null}

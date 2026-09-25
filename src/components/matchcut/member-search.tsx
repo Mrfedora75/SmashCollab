@@ -14,6 +14,7 @@ export function MemberSearch({
 }) {
   const members = useDeck((state) => state.members);
   const membersStatus = useDeck((state) => state.membersStatus);
+  const authError = useDeck((state) => state.authError);
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
@@ -54,6 +55,9 @@ export function MemberSearch({
             />
           </label>
           <ul className="mt-4 flex max-h-80 flex-col gap-2 overflow-y-auto">
+            {authError ? (
+              <li className="text-sm text-cream" role="alert">{authError}</li>
+            ) : null}
             {membersStatus === "loading" ? (
               <li className="text-sm text-muted">Loading creators…</li>
             ) : membersStatus === "auth" ? (

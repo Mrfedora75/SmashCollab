@@ -17,6 +17,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
   const swipes = useDeck((state) => state.swipes);
   const members = useDeck((state) => state.members);
   const membersStatus = useDeck((state) => state.membersStatus);
+  const authError = useDeck((state) => state.authError);
   const premium = useDeck((state) => state.premium);
   const { unseen, matchCount } = visibleCreators({ niches, minBracket, maxBracket, location, usState, sort, swipes }, members);
   const top = unseen[0];
@@ -180,7 +181,9 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                         : "That's the cut."}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              {membersStatus === "loading"
+              {authError
+                ? authError
+                : membersStatus === "loading"
                 ? "Pulling live profiles from the member list."
                 : membersStatus === "auth"
                   ? "Verify via YouTube so this desk can read other creators."

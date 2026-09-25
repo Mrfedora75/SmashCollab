@@ -171,7 +171,9 @@ type DeckState = Persisted & {
   usedToday: () => number;
   members: Creator[];
   membersStatus: MembersStatus;
+  authError: string | null;
   setMembers: (members: Creator[], status: MembersStatus) => void;
+  setAuthError: (message: string | null) => void;
 };
 
 export const useDeck = create<DeckState>((set, get) => ({
@@ -388,7 +390,9 @@ export const useDeck = create<DeckState>((set, get) => ({
   },
   members: [],
   membersStatus: "idle",
+  authError: null,
   setMembers: (members, status) => set({ members, membersStatus: status }),
+  setAuthError: (message) => set({ authError: message }),
 }));
 
 export function visibleCreators(

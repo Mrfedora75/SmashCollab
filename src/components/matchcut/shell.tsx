@@ -18,8 +18,10 @@ import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memor
 import { InviteModal } from "@/components/matchcut/invite-modal";
 import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
-import { saveFirebaseUser } from "@/lib/firebase-user";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { saveFirebaseUser, describeAuthError } from "@/lib/firebase-user";
 import { loadMemberCreators } from "@/lib/members";
+import { firebaseAuth } from "@/lib/firebase";
 import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
 import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
@@ -39,6 +41,7 @@ export function MatchcutApp() {
   const location = useDeck((state) => state.location);
   const sort = useDeck((state) => state.sort);
   const announcement = useDeck((state) => state.announcement);
+  const authError = useDeck((state) => state.authError);
   const openPremium = useDeck((state) => state.openPremium);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pitchesOpen, setPitchesOpen] = useState(false);
@@ -155,6 +158,10 @@ export function MatchcutApp() {
   }, [memoryReady, pending, accepted, threads, blocked, reviews]);
 
   function logOut() {
+    const auth = firebaseAuth();
+    if (auth) void signOut(auth).catch(() => {});
+    useDeck.getState().setMembers([], "auth");
+    useDeck.getState().setAuthError(null);
     clearSession();
     setSignedIn(false);
     setProfile(null);
@@ -171,11 +178,7 @@ export function MatchcutApp() {
   function finishSignIn(next: DeskProfile) {
     setProfile(next);
     setSignedIn(true);
-    void saveFirebaseUser(next)
-      .then(() => refreshMembers(next))
-      .catch(() => {
-        // Desk sign-in still works if Firebase rules or the Google popup are not ready.
-      });
+    useDeck.getState().setAuthError(null);
     void claimPendingReferral(next.channel, next.channelId).then((until) => {
       if (!until) return;
       const current = useDeck.getState();
@@ -184,20 +187,36 @@ export function MatchcutApp() {
     });
   }
 
-  function refreshMembers(next: DeskProfile) {
-    useDeck.getState().setMembers([], "loading");
-    void loadMemberCreators({ channelId: next.channelId, channel: next.channel })
-      .then((result) => {
-        useDeck.getState().setMembers(result.members, result.status);
-      })
-      .catch(() => {
-        useDeck.getState().setMembers([], "error");
-      });
-  }
-
   useEffect(() => {
     if (!signedIn || !profile) return;
-    refreshMembers(profile);
+    const auth = firebaseAuth();
+    if (!auth) {
+      useDeck.getState().setAuthError("Firebase is not configured.");
+      useDeck.getState().setMembers([], "auth");
+      return;
+    }
+    const current = profile;
+    let request = 0;
+    const stop = onAuthStateChanged(auth, (user) => {
+      const ticket = ++request;
+      if (!user) {
+        useDeck.getState().setMembers([], "auth");
+        return;
+      }
+      useDeck.getState().setMembers([], "loading");
+      void loadMemberCreators({ channelId: current.channelId, channel: current.channel })
+        .then((result) => {
+          if (ticket !== request) return;
+          if (result.status === "ready") useDeck.getState().setAuthError(null);
+          useDeck.getState().setMembers(result.members, result.status);
+        })
+        .catch((error) => {
+          if (ticket !== request) return;
+          useDeck.getState().setAuthError(describeAuthError(error));
+          useDeck.getState().setMembers([], "error");
+        });
+    });
+    return () => stop();
   }, [signedIn, profile]);
 
   useEffect(() => {
@@ -445,6 +464,11 @@ export function MatchcutApp() {
               </div>
             ) : null}
           </div>
+          {authError ? (
+            <p className="mx-4 mt-4 rounded-control border border-line bg-ink-soft px-4 py-3 text-sm text-cream" role="alert">
+              {authError}
+            </p>
+          ) : null}
           <DeckStage channel={pitching.channel} subscribers={pitching.subscribers} />
         </main>
         <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line xl:block">
@@ -578,11 +602,9 @@ export function MatchcutApp() {
         onOpenChange={setDashboardOpen}
         onSave={(next) => {
           setProfile(next);
-          void saveFirebaseUser(next)
-            .then(() => refreshMembers(next))
-            .catch(() => {
-              // The profile is still saved on this device if Firestore is unavailable.
-            });
+          void saveFirebaseUser(next).catch((error) => {
+            useDeck.getState().setAuthError(describeAuthError(error));
+          });
         }}
       />
     ) : null}

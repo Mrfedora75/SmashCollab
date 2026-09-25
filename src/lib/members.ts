@@ -1,4 +1,3 @@
-import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs } from "firebase/firestore";
 import type { Creator, ProfileCountry, UsState } from "@/data/creators";
 import { PROFILE_COUNTRIES, US_STATES } from "@/data/creators";
@@ -49,25 +48,12 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
   };
 }
 
-async function waitForAuthUser() {
-  const auth = firebaseAuth();
-  if (!auth) return null;
-  if (auth.currentUser) return auth.currentUser;
-  await new Promise<void>((resolve) => {
-    const stop = onAuthStateChanged(auth, () => {
-      stop();
-      resolve();
-    });
-  });
-  return auth.currentUser;
-}
-
 export async function loadMemberCreators(self: { channelId?: string; channel?: string }): Promise<{
   members: Creator[];
   status: "ready" | "auth";
 }> {
   const db = firebaseDb();
-  const user = await waitForAuthUser();
+  const user = firebaseAuth()?.currentUser ?? null;
   if (!db || !user) return { members: [], status: "auth" };
   const snap = await getDocs(collection(db, "users"));
   const ownChannel = self.channel?.replace(/^@/, "").trim().toLowerCase() ?? "";
