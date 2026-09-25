@@ -44,7 +44,7 @@ export function OutOfSwipes() {
               onClick={() => openPremium(null)}
               className="press h-12 rounded-control bg-accent px-4 text-sm font-medium text-on-accent"
             >
-              Unlock Unlimited for $9.99/mo
+              Unlock Unlimited for $7/mo
             </button>
             <button
               type="button"
@@ -59,7 +59,7 @@ export function OutOfSwipes() {
               }}
               className="press h-12 rounded-control border border-ink-text px-4 text-sm font-medium disabled:opacity-60"
             >
-              {buying ? "Opening checkout" : "Buy 1 Pitch for $0.99"}
+              {buying ? "Opening checkout" : "Buy 1 Pitch for $1.00"}
             </button>
             {error ? (
               <p className="text-sm text-accent-deep" role="alert">

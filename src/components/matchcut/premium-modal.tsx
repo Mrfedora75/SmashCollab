@@ -139,8 +139,8 @@ export function PremiumModal() {
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Plan">
                 {(
                   [
-                    { id: "month" as const, price: "$9.99", cadence: "per month" },
-                    { id: "year" as const, price: "$107.89", cadence: "per year" },
+                    { id: "month" as const, price: "$7", cadence: "per month" },
+                    { id: "year" as const, price: "$75", cadence: "per year" },
                   ]
                 ).map((option) => {
                   const on = plan === option.id;
@@ -162,7 +162,7 @@ export function PremiumModal() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-sm text-muted-strong">Annual is 10% off the monthly rate.</p>
+              <p className="mt-3 text-sm text-muted-strong">Annual is $75 for the year.</p>
               <ul className="mt-4 space-y-2">
                 {PERKS.map((perk) => (
                   <li key={perk} className="flex items-start gap-2 text-sm">

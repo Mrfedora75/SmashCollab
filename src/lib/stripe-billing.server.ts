@@ -66,32 +66,41 @@ const PRICE_LOOKUP = {
   pitch: "smash_extra_pitch",
 } as const;
 
+const PRICE_AMOUNTS = {
+  month: "700",
+  year: "7500",
+  pitch: "100",
+} as const;
+
 export async function resolvePriceId(plan: "month" | "year" | "pitch"): Promise<string> {
   const configured = priceIdFor(plan);
   if (configured) return configured;
   const cached = PRICE_CACHE[plan];
   if (cached) return cached;
   const lookup = PRICE_LOOKUP[plan];
-  const existing = await stripeRequest<{ data?: { id?: string }[] }>(
+  const amount = PRICE_AMOUNTS[plan];
+  const existing = await stripeRequest<{ data?: { id?: string; unit_amount?: number; product?: string }[] }>(
     `prices?lookup_keys[]=${lookup}&active=true&limit=1`,
     undefined,
     "GET",
   );
-  const found = existing.data?.[0]?.id;
-  if (found) {
-    PRICE_CACHE[plan] = found;
-    return found;
+  const found = existing.data?.[0];
+  if (found?.id && String(found.unit_amount ?? "") === amount) {
+    PRICE_CACHE[plan] = found.id;
+    return found.id;
   }
-  const productName = plan === "pitch" ? "Smash Collab Extra Pitch" : "Smash Collab Plus";
-  const product = await stripeRequest<{ id: string }>(
-    "products",
-    new URLSearchParams({ name: productName }),
-  );
+  let productId = typeof found?.product === "string" ? found.product : "";
+  if (!productId) {
+    const productName = plan === "pitch" ? "Smash Collab Extra Pitch" : "Smash Collab Plus";
+    const product = await stripeRequest<{ id: string }>("products", new URLSearchParams({ name: productName }));
+    productId = product.id;
+  }
   const params = new URLSearchParams({
-    product: product.id,
+    product: productId,
     currency: "usd",
     lookup_key: lookup,
-    "unit_amount": plan === "month" ? "999" : plan === "year" ? "10789" : "99",
+    transfer_lookup_key: "true",
+    unit_amount: amount,
   });
   if (plan === "pitch") {
     params.set("nickname", "One extra pitch");
