@@ -38,6 +38,7 @@ export function buildGoogleAuthUrl(request: Request, state: string): string | nu
 
 type TokenResponse = {
   access_token?: string;
+  id_token?: string;
   error?: string;
   error_description?: string;
 };
@@ -45,7 +46,7 @@ type TokenResponse = {
 export async function exchangeCodeForTokens(
   request: Request,
   code: string,
-): Promise<{ accessToken: string } | { reason: YouTubeOAuthErrorReason }> {
+): Promise<{ accessToken: string; idToken: string | null } | { reason: YouTubeOAuthErrorReason }> {
   const clientId = getGoogleClientId();
   const clientSecret = getGoogleClientSecret();
   if (!clientId || !clientSecret) return { reason: "config" };
@@ -68,7 +69,7 @@ export async function exchangeCodeForTokens(
   if (!res.ok || !data.access_token) {
     return { reason: "token" };
   }
-  return { accessToken: data.access_token };
+  return { accessToken: data.access_token, idToken: data.id_token ?? null };
 }
 
 type YouTubeChannelsResponse = {

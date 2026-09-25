@@ -17,6 +17,7 @@ import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, savePr
 import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
 import { InviteModal } from "@/components/matchcut/invite-modal";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
+import { saveFirebaseUser } from "@/lib/firebase-user";
 import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
 import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
@@ -167,6 +168,9 @@ export function MatchcutApp() {
   function finishSignIn(next: DeskProfile) {
     setProfile(next);
     setSignedIn(true);
+    void saveFirebaseUser(next).catch(() => {
+      // Desk sign-in still works if Firebase rules or the Google popup are not ready.
+    });
     void claimPendingReferral(next.channel, next.channelId).then((until) => {
       if (!until) return;
       const current = useDeck.getState();

@@ -16,6 +16,7 @@ import {
   parseCookieHeader,
   signVerifiedChannel,
   YT_CHANNEL_COOKIE,
+  YT_ID_TOKEN_COOKIE,
   YT_STATE_COOKIE,
 } from "@/lib/youtube/session";
 
@@ -69,11 +70,15 @@ export const Route = createFileRoute("/api/youtube/callback")({
 
         const signedChannel = await signVerifiedChannel(channelResult);
         const signedAccount = await signYtAccount(channelResult.channelId);
-        return redirectOk(home, [
+        const setCookies = [
           clearCookie(request, YT_STATE_COOKIE),
           buildCookie(request, YT_CHANNEL_COOKIE, signedChannel, 600),
           buildYtAccountCookie(request, signedAccount),
-        ]);
+        ];
+        if (tokenResult.idToken) {
+          setCookies.push(buildCookie(request, YT_ID_TOKEN_COOKIE, tokenResult.idToken, 600));
+        }
+        return redirectOk(home, setCookies);
       },
     },
   },

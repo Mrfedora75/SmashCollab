@@ -4,6 +4,7 @@ import { getGoogleClientSecret, isSecureRequest } from "./config";
 
 export const YT_STATE_COOKIE = "yt_oauth_state";
 export const YT_CHANNEL_COOKIE = "yt_verified_channel";
+export const YT_ID_TOKEN_COOKIE = "yt_google_id";
 
 export type VerifiedYouTubeChannel = {
   channelId: string;
