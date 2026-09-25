@@ -1,5 +1,6 @@
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup, type User } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 
@@ -38,6 +39,10 @@ export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
   if (!user) return;
   const ref = doc(db, "users", user.uid);
   const existing = await getDoc(ref);
+  const niches = profile.niches.flatMap((item) => {
+    const next = normalizeFilterNiche(item);
+    return next ? [next] : [];
+  }).filter((item, index, all) => all.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index);
   await setDoc(
     ref,
     {
@@ -48,7 +53,7 @@ export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
       channelId: profile.channelId ?? null,
       subscribers: profile.subscribers,
       avgViews: profile.avgViews,
-      niches: profile.niches,
+      niches,
       bio: profile.bio ?? "",
       avatar: profile.avatar ?? user.photoURL ?? null,
       country: profile.country ?? "",

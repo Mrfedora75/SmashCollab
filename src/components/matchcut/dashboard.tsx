@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Camera, Check, X } from "lucide-react";
-import { NICHES, PROFILE_COUNTRIES, US_STATES, type Niche, type ProfileCountry, type UsState } from "@/data/creators";
+import { NICHES, PROFILE_COUNTRIES, US_STATES, normalizeFilterNiche, type ProfileCountry, type UsState } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { saveProfile, type DeskProfile } from "@/components/matchcut/onboarding";
@@ -62,7 +62,8 @@ export function CreatorDashboard({
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [channel, setChannel] = useState(profile.channel);
   const [bio, setBio] = useState(profile.bio);
-  const [niches, setNiches] = useState<Niche[]>(profile.niches);
+  const [niches, setNiches] = useState<string[]>(profile.niches);
+  const [tag, setTag] = useState("");
   const [country, setCountry] = useState<ProfileCountry | "">(profile.country ?? "");
   const [stateName, setStateName] = useState<UsState | "">(profile.state ?? "");
   const [county, setCounty] = useState(profile.county ?? "");
@@ -77,6 +78,7 @@ export function CreatorDashboard({
     setChannel(profile.channel);
     setBio(profile.bio);
     setNiches(profile.niches);
+    setTag("");
     setCountry(profile.country ?? "");
     setStateName(profile.state ?? "");
     setCounty(profile.county ?? "");
@@ -86,9 +88,23 @@ export function CreatorDashboard({
     setPhotoError("");
   }, [open]);
 
-  function toggle(niche: Niche) {
+  function toggle(niche: string) {
     setSaved(false);
-    setNiches((current) => (current.includes(niche) ? current.filter((item) => item !== niche) : [...current, niche]));
+    setNiches((current) =>
+      current.some((item) => item.toLowerCase() === niche.toLowerCase())
+        ? current.filter((item) => item.toLowerCase() !== niche.toLowerCase())
+        : [...current, niche],
+    );
+  }
+
+  function addTag(raw: string) {
+    const next = normalizeFilterNiche(raw);
+    setTag("");
+    if (!next) return;
+    setSaved(false);
+    setNiches((current) =>
+      current.some((item) => item.toLowerCase() === next.toLowerCase()) ? current : [...current, next],
+    );
   }
 
   const canSave = displayName.trim().length > 0 && channel.trim().length > 0 && niches.length > 0;
@@ -256,6 +272,44 @@ export function CreatorDashboard({
             <p id="dash-niches" className="text-sm">
               Niche Tags
             </p>
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                addTag(tag);
+              }}
+            >
+              <input
+                value={tag}
+                onChange={(event) => setTag(event.target.value)}
+                placeholder="Add a tag, like Woodworking"
+                aria-label="Add a custom niche"
+                maxLength={40}
+                className="h-12 min-w-0 flex-1 rounded-control border border-line bg-ink px-3 text-sm text-cream"
+              />
+              <button type="submit" className="press h-12 shrink-0 rounded-control border border-line px-4 text-sm">
+                Add
+              </button>
+            </form>
+            {niches.some((item) => !(NICHES as readonly string[]).includes(item)) ? (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {niches
+                  .filter((item) => !(NICHES as readonly string[]).includes(item))
+                  .map((niche) => (
+                    <li key={niche}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(niche)}
+                        className="press inline-flex h-9 items-center gap-1 rounded-full bg-accent px-3 text-sm text-on-accent"
+                      >
+                        {niche}
+                        <X className="size-3" aria-hidden="true" />
+                        <span className="sr-only">Remove {niche}</span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
             <button
               type="button"
               aria-haspopup="listbox"
@@ -277,7 +331,7 @@ export function CreatorDashboard({
                 className="mt-2 max-h-48 overflow-auto rounded-control border border-line"
               >
                 {NICHES.map((niche) => {
-                  const on = niches.includes(niche);
+                  const on = niches.some((item) => item.toLowerCase() === niche.toLowerCase());
                   return (
                     <li key={niche}>
                       <button

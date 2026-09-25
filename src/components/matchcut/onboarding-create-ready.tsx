@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Check } from "lucide-react";
-import { NICHES, type Niche } from "@/data/creators";
+import { NICHES } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
@@ -14,10 +14,10 @@ export function CreateReadyView({
   onEnter,
 }: {
   verified: VerifiedChannel;
-  picked: Niche[];
+  picked: string[];
   menuOpen: boolean;
   setMenuOpen: Dispatch<SetStateAction<boolean>>;
-  toggle: (niche: Niche) => void;
+  toggle: (niche: string) => void;
   onEnter: () => void;
 }) {
   return (

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, Youtube } from "lucide-react";
-import { type Niche } from "@/data/creators";
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
 import {
   loadProfile,
@@ -20,7 +19,7 @@ export function CreateProfile({
 }) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [picked, setPicked] = useState<Niche[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
   const [verified, setVerified] = useState<VerifiedChannel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const returning = loadProfile();
@@ -34,7 +33,7 @@ export function CreateProfile({
     setError(null);
   }, [verifiedChannel]);
 
-  function toggle(niche: Niche) {
+  function toggle(niche: string) {
     setPicked((current) =>
       current.includes(niche) ? current.filter((item) => item !== niche) : [...current, niche],
     );

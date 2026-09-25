@@ -405,7 +405,14 @@ export function visibleCreators(
     } else if (state.location !== "global" && creator.location !== state.location) {
       return false;
     }
-    if (state.niches.length > 0 && !creator.niches.some((niche) => state.niches.includes(niche))) return false;
+    if (
+      state.niches.length > 0 &&
+      !creator.niches.some((niche) =>
+        state.niches.some((wanted) => wanted.toLowerCase() === niche.toLowerCase()),
+      )
+    ) {
+      return false;
+    }
     return true;
   });
   const unseen = matched.filter((creator) => !seen.has(creator.id));

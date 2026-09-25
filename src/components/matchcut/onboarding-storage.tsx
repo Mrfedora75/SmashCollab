@@ -1,4 +1,4 @@
-import { NICHES, PROFILE_COUNTRIES, US_STATES, type Niche, type ProfileCountry, type UsState } from "@/data/creators";
+import { PROFILE_COUNTRIES, US_STATES, normalizeFilterNiche, type ProfileCountry, type UsState } from "@/data/creators";
 
 const TERMS_KEY = "matchcut-terms";
 const PROFILE_KEY = "matchcut-profile";
@@ -10,7 +10,7 @@ export type DeskProfile = {
   channelId?: string;
   subscribers: number;
   avgViews: number;
-  niches: Niche[];
+  niches: string[];
   bio: string;
   avatar: string | null;
   country?: ProfileCountry | "";
@@ -37,10 +37,6 @@ function isUsState(value: unknown): value is UsState {
   return typeof value === "string" && (US_STATES as readonly string[]).includes(value);
 }
 
-function isNiche(value: unknown): value is Niche {
-  return typeof value === "string" && (NICHES as readonly string[]).includes(value);
-}
-
 function isAvatarUrl(value: string): boolean {
   return (
     value.startsWith("data:image/") ||
@@ -63,7 +59,12 @@ export function loadProfile(): DeskProfile | null {
     const raw = localStorage.getItem(PROFILE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DeskProfile>;
-    const niches = Array.isArray(parsed.niches) ? parsed.niches.filter(isNiche) : [];
+    const niches = Array.isArray(parsed.niches)
+      ? parsed.niches.flatMap((item) => {
+          const next = typeof item === "string" ? normalizeFilterNiche(item) : null;
+          return next ? [next] : [];
+        }).filter((item, index, all) => all.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index)
+      : [];
     if (typeof parsed.channel !== "string" || typeof parsed.subscribers !== "number" || niches.length === 0) {
       return null;
     }
