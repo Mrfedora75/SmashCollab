@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { SlidersHorizontal, Settings, X } from "lucide-react";
+import { SlidersHorizontal, Settings, Search, X } from "lucide-react";
 import { BRACKETS, CREATORS, FREE_DAILY, VIEWER } from "@/data/creators";
 import { ACCEPTED_COLLABS, INBOUND_PITCHES, THREADS, type AcceptedCollab, type BlockedCreator, type ChatMessage, type InboundPitch } from "@/data/inbox";
 import { formatCount, todayKey } from "@/lib/format";
@@ -16,8 +16,10 @@ import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
 import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, saveProfile, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
 import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
 import { InviteModal } from "@/components/matchcut/invite-modal";
+import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { saveFirebaseUser } from "@/lib/firebase-user";
+import { loadMemberCreators } from "@/lib/members";
 import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
 import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
@@ -49,6 +51,7 @@ export function MatchcutApp() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [askingPush, setAskingPush] = useState(false);
@@ -168,9 +171,11 @@ export function MatchcutApp() {
   function finishSignIn(next: DeskProfile) {
     setProfile(next);
     setSignedIn(true);
-    void saveFirebaseUser(next).catch(() => {
-      // Desk sign-in still works if Firebase rules or the Google popup are not ready.
-    });
+    void saveFirebaseUser(next)
+      .then(() => refreshMembers(next))
+      .catch(() => {
+        // Desk sign-in still works if Firebase rules or the Google popup are not ready.
+      });
     void claimPendingReferral(next.channel, next.channelId).then((until) => {
       if (!until) return;
       const current = useDeck.getState();
@@ -178,6 +183,22 @@ export function MatchcutApp() {
       current.setPremium(true, Math.max(existing, until), "14 days of Plus from your invite.");
     });
   }
+
+  function refreshMembers(next: DeskProfile) {
+    useDeck.getState().setMembers([], "loading");
+    void loadMemberCreators({ channelId: next.channelId, channel: next.channel })
+      .then((result) => {
+        useDeck.getState().setMembers(result.members, result.status);
+      })
+      .catch(() => {
+        useDeck.getState().setMembers([], "error");
+      });
+  }
+
+  useEffect(() => {
+    if (!signedIn || !profile) return;
+    refreshMembers(profile);
+  }, [signedIn, profile]);
 
   useEffect(() => {
     captureReferralFromUrl();
@@ -323,6 +344,16 @@ export function MatchcutApp() {
             {signedIn && profile ? (
               <button
                 type="button"
+                onClick={() => setSearchOpen(true)}
+                className="press hidden h-11 items-center gap-2 rounded-control border border-line px-3 text-sm sm:inline-flex"
+              >
+                <Search className="size-4" aria-hidden="true" />
+                Member Search
+              </button>
+            ) : null}
+            {signedIn && profile ? (
+              <button
+                type="button"
                 onClick={() => setInviteOpen(true)}
                 className="press h-11 rounded-control border border-line px-3 text-sm"
               >
@@ -374,21 +405,29 @@ export function MatchcutApp() {
             {pending.length > 0 ? ` · ${pending.length}` : ""}
           </button>
           <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setFiltersOpen(true)}
-            className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-line text-sm"
-          >
-            <SlidersHorizontal className="size-4" aria-hidden="true" />
-            Filters{filtersOn ? " · on" : ""}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPitchesOpen(true)}
-            className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-line text-sm"
-          >
-            Pitches{pitchCount > 0 ? ` · ${pitchCount}` : ""}
-          </button>
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-line text-sm sm:hidden"
+            >
+              <Search className="size-4" aria-hidden="true" />
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-line text-sm"
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              Filters{filtersOn ? " · on" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPitchesOpen(true)}
+              className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-line text-sm"
+            >
+              Pitches{pitchCount > 0 ? ` · ${pitchCount}` : ""}
+            </button>
           </div>
         </div>
       </header>
@@ -543,6 +582,7 @@ export function MatchcutApp() {
     {profile ? (
       <InviteModal open={inviteOpen} channel={profile.channel} onOpenChange={setInviteOpen} />
     ) : null}
+    <MemberSearch open={searchOpen} onOpenChange={setSearchOpen} />
     <AgeGate age={age} onChoose={choose} />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />
     {age === "adult" && terms && !profile ? (

@@ -4,6 +4,7 @@ import { useDeck } from "@/lib/deck-store";
 
 export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: string; heading?: boolean }) {
   const swipes = useDeck((state) => state.swipes);
+  const members = useDeck((state) => state.members);
   const notes = useDeck((state) => state.notes);
   const setNote = useDeck((state) => state.setNote);
   const removeSwipe = useDeck((state) => state.removeSwipe);
@@ -24,7 +25,7 @@ export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: st
       ) : (
         <ul className="flex flex-col gap-4 overflow-y-auto p-5">
           {pitches.map((swipe) => {
-            const creator = CREATORS.find((item) => item.id === swipe.creatorId);
+            const creator = members.find((item) => item.id === swipe.creatorId) ?? CREATORS.find((item) => item.id === swipe.creatorId);
             if (!creator) return null;
             const tier = bracketOf(creator.subscribers);
             return (

@@ -67,7 +67,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
             <dt className="text-xs tracking-wide text-muted-strong uppercase">Collab rating</dt>
             <dd className="flex items-center gap-1.5">
               <StarRow value={creator.rating} />
-              <span className="text-sm font-medium">{creator.rating.toFixed(1)}</span>
+              <span className="text-sm font-medium">{creator.rating > 0 ? creator.rating.toFixed(1) : "New"}</span>
             </dd>
           </div>
         </dl>

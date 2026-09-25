@@ -15,8 +15,10 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
   const location = useDeck((state) => state.location);
   const usState = useDeck((state) => state.usState);
   const swipes = useDeck((state) => state.swipes);
+  const members = useDeck((state) => state.members);
+  const membersStatus = useDeck((state) => state.membersStatus);
   const premium = useDeck((state) => state.premium);
-  const { unseen, matchCount } = visibleCreators({ niches, minBracket, maxBracket, location, usState, sort, swipes });
+  const { unseen, matchCount } = visibleCreators({ niches, minBracket, maxBracket, location, usState, sort, swipes }, members);
   const top = unseen[0];
   const behind = unseen.slice(1, 3);
 
@@ -165,12 +167,30 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
         ) : (
           <div className="rounded-card border border-line bg-ink-soft px-6 py-12 text-center">
             <h2 className="font-display text-3xl">
-              {matchCount === 0 ? "Nothing in this bracket." : "That's the cut."}
+              {membersStatus === "loading"
+                ? "Loading creators"
+                : membersStatus === "auth"
+                  ? "Google sign-in needed"
+                  : membersStatus === "error"
+                    ? "Couldn't load creators"
+                    : members.length === 0
+                      ? "No creators yet"
+                      : matchCount === 0
+                        ? "Nothing in this bracket."
+                        : "That's the cut."}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              {matchCount === 0
-                ? "Widen the niches or the channel-size range to bring cards back."
-                : "You've passed or pitched everyone who matches. Reset swipes, or loosen the filters."}
+              {membersStatus === "loading"
+                ? "Pulling live profiles from the member list."
+                : membersStatus === "auth"
+                  ? "Verify via YouTube so this desk can read other creators."
+                  : membersStatus === "error"
+                    ? "The member list did not load. Refresh and try again."
+                    : members.length === 0
+                      ? "When another creator finishes their profile, they will show up here."
+                      : matchCount === 0
+                        ? "Widen the niches or the channel-size range to bring cards back."
+                        : "You've passed or pitched everyone who matches. Reset swipes, or loosen the filters."}
             </p>
           </div>
         )}

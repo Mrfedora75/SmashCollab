@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import {
   BRACKETS,
-  CREATORS,
   FLAGSHIP_INDEX,
   FREE_DAILY,
   LOCATIONS,
@@ -41,6 +40,8 @@ type Persisted = {
   extraPitches: number;
   referralDaily: number;
 };
+
+export type MembersStatus = "idle" | "loading" | "ready" | "auth" | "error";
 
 const KEY = "matchcut-v1";
 
@@ -168,6 +169,9 @@ type DeckState = Persisted & {
   addPurchasedPitches: (count: number) => void;
   setReferralDaily: (count: number) => void;
   usedToday: () => number;
+  members: Creator[];
+  membersStatus: MembersStatus;
+  setMembers: (members: Creator[], status: MembersStatus) => void;
 };
 
 export const useDeck = create<DeckState>((set, get) => ({
@@ -270,7 +274,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     return null;
   },
   commit: (creatorId, direction) => {
-    const creator = CREATORS.find((item) => item.id === creatorId);
+    const creator = get().members.find((item) => item.id === creatorId);
     if (!creator) return;
     if (get().swipes.some((swipe) => swipe.creatorId === creatorId)) return;
     const gate = get().gateFor(creator, direction);
@@ -304,7 +308,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     const swipes = get().swipes;
     const last = swipes[swipes.length - 1];
     if (!last) return;
-    const creator = CREATORS.find((item) => item.id === last.creatorId);
+    const creator = get().members.find((item) => item.id === last.creatorId);
     set({
       swipes: swipes.slice(0, -1),
       extraPitches: last.bonus ? get().extraPitches + 1 : get().extraPitches,
@@ -313,7 +317,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     persist(get());
   },
   removeSwipe: (creatorId) => {
-    const creator = CREATORS.find((item) => item.id === creatorId);
+    const creator = get().members.find((item) => item.id === creatorId);
     set({
       swipes: get().swipes.filter((swipe) => swipe.creatorId !== creatorId),
       announcement: creator ? `Pulled the pitch for ${creator.channel}.` : "",
@@ -382,11 +386,17 @@ export const useDeck = create<DeckState>((set, get) => ({
     });
     persist(get());
   },
+  members: [],
+  membersStatus: "idle",
+  setMembers: (members, status) => set({ members, membersStatus: status }),
 }));
 
-export function visibleCreators(state: Pick<DeckState, "niches" | "minBracket" | "maxBracket" | "location" | "usState" | "sort" | "swipes">) {
+export function visibleCreators(
+  state: Pick<DeckState, "niches" | "minBracket" | "maxBracket" | "location" | "usState" | "sort" | "swipes">,
+  members: Creator[],
+) {
   const seen = new Set(state.swipes.map((swipe) => swipe.creatorId));
-  const matched = CREATORS.filter((creator) => {
+  const matched = members.filter((creator) => {
     const index = bracketIndex(creator.subscribers);
     if (index < state.minBracket || index > state.maxBracket) return false;
     if (state.location === "us" || state.location === "us-state") {

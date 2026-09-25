@@ -97,8 +97,8 @@ export type Creator = {
   channel: string;
   subscribers: number;
   avgViews: number;
-  niches: Niche[];
-  location: Region;
+  niches: string[];
+  location: Region | "remote";
   state: UsState | null;
   videoTitle: string;
   duration: string;
