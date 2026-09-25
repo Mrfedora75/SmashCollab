@@ -576,7 +576,14 @@ export function MatchcutApp() {
         open={dashboardOpen}
         profile={profile}
         onOpenChange={setDashboardOpen}
-        onSave={setProfile}
+        onSave={(next) => {
+          setProfile(next);
+          void saveFirebaseUser(next)
+            .then(() => refreshMembers(next))
+            .catch(() => {
+              // The profile is still saved on this device if Firestore is unavailable.
+            });
+        }}
       />
     ) : null}
     {profile ? (

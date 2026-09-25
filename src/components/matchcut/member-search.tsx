@@ -22,8 +22,9 @@ export function MemberSearch({
     return members.filter((creator) => {
       const channel = creator.channel.toLowerCase();
       const name = creator.name.toLowerCase();
+      const place = `${creator.state ?? ""} ${creator.county ?? ""}`.toLowerCase();
       const niche = creator.niches.some((item) => item.toLowerCase().includes(needle));
-      return channel.includes(needle) || name.includes(needle) || niche;
+      return channel.includes(needle) || name.includes(needle) || niche || place.includes(needle);
     });
   }, [members, query]);
 
@@ -36,7 +37,7 @@ export function MemberSearch({
             <div>
               <Dialog.Title className="font-display text-3xl leading-tight">Member Search</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm text-muted">
-                Find creators by channel name or niche.
+                Find creators by channel name, niche, state, or county.
               </Dialog.Description>
             </div>
             <Dialog.Close className="press flex size-11 shrink-0 items-center justify-center rounded-full border border-line" aria-label="Close search">
@@ -48,7 +49,7 @@ export function MemberSearch({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Channel name or niche"
+              placeholder="Channel, niche, state, or county"
               className="h-12 w-full rounded-control border border-line bg-ink-soft pr-3 pl-10 text-sm text-cream"
             />
           </label>
@@ -66,8 +67,20 @@ export function MemberSearch({
                   <p className="mt-1 text-sm text-muted">
                     {creator.name} · {bracketOf(creator.subscribers).label} · {formatCount(creator.subscribers)} subs
                   </p>
-                  {creator.niches.length > 0 ? (
-                    <p className="mt-1 text-sm text-muted">{creator.niches.join(" · ")}</p>
+                  {creator.niches.length > 0 || creator.state || creator.county ? (
+                    <p className="mt-1 text-sm text-muted">
+                      {[
+                        creator.county
+                          ? /county/i.test(creator.county)
+                            ? creator.county
+                            : `${creator.county} County`
+                          : null,
+                        creator.state,
+                        ...creator.niches,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   ) : null}
                 </li>
               ))

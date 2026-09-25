@@ -1,4 +1,4 @@
-import { NICHES, type Niche } from "@/data/creators";
+import { NICHES, PROFILE_COUNTRIES, US_STATES, type Niche, type ProfileCountry, type UsState } from "@/data/creators";
 
 const TERMS_KEY = "matchcut-terms";
 const PROFILE_KEY = "matchcut-profile";
@@ -13,6 +13,9 @@ export type DeskProfile = {
   niches: Niche[];
   bio: string;
   avatar: string | null;
+  country?: ProfileCountry | "";
+  state?: UsState | null;
+  county?: string;
 };
 
 export type VerifiedChannel = {
@@ -25,6 +28,14 @@ export type VerifiedChannel = {
   premium?: boolean;
   premiumUntil?: number | null;
 };
+
+function isCountry(value: unknown): value is ProfileCountry {
+  return typeof value === "string" && PROFILE_COUNTRIES.some((item) => item.id === value);
+}
+
+function isUsState(value: unknown): value is UsState {
+  return typeof value === "string" && (US_STATES as readonly string[]).includes(value);
+}
 
 function isNiche(value: unknown): value is Niche {
   return typeof value === "string" && (NICHES as readonly string[]).includes(value);
@@ -58,6 +69,9 @@ export function loadProfile(): DeskProfile | null {
     }
     const avatar =
       typeof parsed.avatar === "string" && isAvatarUrl(parsed.avatar) ? parsed.avatar : null;
+    const country = isCountry(parsed.country) ? parsed.country : "";
+    const state = country === "us" && isUsState(parsed.state) ? parsed.state : null;
+    const county = typeof parsed.county === "string" ? parsed.county.trim().slice(0, 40) : "";
     return {
       displayName:
         typeof parsed.displayName === "string" && parsed.displayName.trim()
@@ -70,6 +84,9 @@ export function loadProfile(): DeskProfile | null {
       niches,
       bio: typeof parsed.bio === "string" ? parsed.bio.slice(0, 150) : "",
       avatar,
+      country,
+      state,
+      county,
     };
   } catch {
     return null;

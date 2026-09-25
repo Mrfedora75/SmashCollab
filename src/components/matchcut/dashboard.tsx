@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Camera, Check, X } from "lucide-react";
-import { NICHES, type Niche } from "@/data/creators";
+import { NICHES, PROFILE_COUNTRIES, US_STATES, type Niche, type ProfileCountry, type UsState } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { saveProfile, type DeskProfile } from "@/components/matchcut/onboarding";
@@ -63,6 +63,9 @@ export function CreatorDashboard({
   const [channel, setChannel] = useState(profile.channel);
   const [bio, setBio] = useState(profile.bio);
   const [niches, setNiches] = useState<Niche[]>(profile.niches);
+  const [country, setCountry] = useState<ProfileCountry | "">(profile.country ?? "");
+  const [stateName, setStateName] = useState<UsState | "">(profile.state ?? "");
+  const [county, setCounty] = useState(profile.county ?? "");
   const [avatar, setAvatar] = useState<string | null>(profile.avatar);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -74,6 +77,9 @@ export function CreatorDashboard({
     setChannel(profile.channel);
     setBio(profile.bio);
     setNiches(profile.niches);
+    setCountry(profile.country ?? "");
+    setStateName(profile.state ?? "");
+    setCounty(profile.county ?? "");
     setAvatar(profile.avatar);
     setMenuOpen(false);
     setSaved(false);
@@ -187,6 +193,65 @@ export function CreatorDashboard({
             {bio.length}/{BIO_LIMIT}
           </p>
 
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm" htmlFor="profile-country">
+              Country
+              <select
+                id="profile-country"
+                value={country}
+                onChange={(event) => {
+                  const next = event.target.value as ProfileCountry | "";
+                  setCountry(next);
+                  if (next !== "us") setStateName("");
+                  setSaved(false);
+                }}
+                className="mt-2 h-12 w-full rounded-control border border-line bg-ink px-3 text-sm text-cream"
+              >
+                <option value="">Not set</option>
+                {PROFILE_COUNTRIES.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {country === "us" ? (
+              <label className="block text-sm" htmlFor="profile-state">
+                State
+                <select
+                  id="profile-state"
+                  value={stateName}
+                  onChange={(event) => {
+                    setStateName(event.target.value as UsState | "");
+                    setSaved(false);
+                  }}
+                  className="mt-2 h-12 w-full rounded-control border border-line bg-ink px-3 text-sm text-cream"
+                >
+                  <option value="">Any state</option>
+                  {US_STATES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <label className="block text-sm sm:col-span-2" htmlFor="profile-county">
+              County
+              <input
+                id="profile-county"
+                value={county}
+                onChange={(event) => {
+                  setCounty(event.target.value.slice(0, 40));
+                  setSaved(false);
+                }}
+                maxLength={40}
+                placeholder="Allegheny"
+                className="mt-2 h-12 w-full rounded-control border border-line bg-ink px-3 text-sm text-cream"
+              />
+            </label>
+          </div>
+
           <div className="relative mt-2">
             <p id="dash-niches" className="text-sm">
               Niche Tags
@@ -264,6 +329,9 @@ export function CreatorDashboard({
                 bio,
                 niches,
                 avatar,
+                country,
+                state: country === "us" && stateName ? stateName : null,
+                county: county.trim(),
               };
               saveProfile(next);
               onSave(next);

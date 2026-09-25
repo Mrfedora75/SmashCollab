@@ -1,6 +1,7 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, getDocs } from "firebase/firestore";
-import type { Creator } from "@/data/creators";
+import type { Creator, ProfileCountry, UsState } from "@/data/creators";
+import { PROFILE_COUNTRIES, US_STATES } from "@/data/creators";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 
 const FALLBACK_THUMB =
@@ -22,6 +23,13 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
   const avatar = typeof data.avatar === "string" && /^https?:\/\//.test(data.avatar) ? data.avatar : null;
   const bio = typeof data.bio === "string" ? data.bio.trim() : "";
   const name = typeof data.displayName === "string" ? data.displayName.trim() : "";
+  const country = PROFILE_COUNTRIES.some((item) => item.id === data.country) ? (data.country as ProfileCountry) : "";
+  const state =
+    country === "us" && typeof data.state === "string" && (US_STATES as readonly string[]).includes(data.state)
+      ? (data.state as UsState)
+      : null;
+  const county = typeof data.county === "string" ? data.county.trim().slice(0, 40) : "";
+  const location = country === "us" || country === "uk" || country === "europe" || country === "latam" ? country : "remote";
   return {
     id,
     name: name || channel,
@@ -29,8 +37,9 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
     subscribers: asNumber(data.subscribers),
     avgViews: asNumber(data.avgViews),
     niches,
-    location: "remote",
-    state: null,
+    location,
+    state,
+    county: county || null,
     videoTitle: bio || "Open to collabs",
     duration: "Live",
     thumb: avatar ?? FALLBACK_THUMB,

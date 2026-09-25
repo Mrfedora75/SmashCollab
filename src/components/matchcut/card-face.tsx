@@ -53,6 +53,13 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
             <p className="mt-1 font-display text-3xl leading-tight text-ink-text">{creator.channel}</p>
           )}
           <p className="mt-1 text-sm text-muted-strong">{creator.name}</p>
+          {creator.state || creator.county ? (
+            <p className="mt-1 text-sm text-muted-strong">
+              {[creator.county ? (/county/i.test(creator.county) ? creator.county : `${creator.county} County`) : null, creator.state]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          ) : null}
         </div>
         <dl className="grid grid-cols-2 gap-3 border-y border-cream-deep py-3">
           <div>

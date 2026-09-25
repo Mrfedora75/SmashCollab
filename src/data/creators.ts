@@ -36,6 +36,16 @@ export const LOCATIONS = [
 export type LocationId = (typeof LOCATIONS)[number]["id"];
 export type Region = "us" | "uk" | "europe" | "latam";
 
+export const PROFILE_COUNTRIES = [
+  { id: "us", label: "United States" },
+  { id: "uk", label: "United Kingdom" },
+  { id: "europe", label: "Europe" },
+  { id: "latam", label: "Latin America" },
+  { id: "other", label: "Other" },
+] as const;
+
+export type ProfileCountry = (typeof PROFILE_COUNTRIES)[number]["id"];
+
 export const US_STATES = [
   "Alabama",
   "Alaska",
@@ -100,6 +110,7 @@ export type Creator = {
   niches: string[];
   location: Region | "remote";
   state: UsState | null;
+  county?: string | null;
   videoTitle: string;
   duration: string;
   thumb: string;
