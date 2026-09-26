@@ -97,7 +97,7 @@ export function PreferencesModal({
             <Dialog.Title className="text-sm leading-relaxed font-medium">
               Smash Collab would like to send you notifications.
             </Dialog.Title>
-            <Dialog.Description className="sr-only">Choose whether this preview can show notification alerts.</Dialog.Description>
+            <Dialog.Description className="sr-only">Choose whether Smash Collab can show notification alerts.</Dialog.Description>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"

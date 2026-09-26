@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { SlidersHorizontal, Settings, Search, X } from "lucide-react";
-import { BRACKETS, CREATORS, FREE_DAILY, VIEWER } from "@/data/creators";
-import { ACCEPTED_COLLABS, INBOUND_PITCHES, THREADS, type AcceptedCollab, type BlockedCreator, type ChatMessage, type InboundPitch } from "@/data/inbox";
+import { BRACKETS, FREE_DAILY, type Creator } from "@/data/creators";
+import type { AcceptedCollab, BlockedCreator, ChatMessage, InboundPitch } from "@/data/inbox";
 import { formatCount, todayKey } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
 import { Mark } from "@/components/matchcut/mark";
@@ -14,21 +14,37 @@ import { PremiumModal } from "@/components/matchcut/premium-modal";
 import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
 import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
 import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, saveProfile, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
-import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memory";
+import { loadReviews, saveReviews } from "@/components/matchcut/desk-memory";
 import { InviteModal } from "@/components/matchcut/invite-modal";
 import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
-import { saveFirebaseUser, describeAuthError } from "@/lib/firebase-user";
+import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
+import { fillFromSaved } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
-import { firebaseAuth } from "@/lib/firebase";
+import { utcDayKey } from "@/lib/pitch-policy";
+import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
+import {
+  loadMySwipes,
+  sendMessage,
+  syncProfileOnServer,
+  setMatchBlocked,
+  watchInbound,
+  watchMatches,
+  watchMessages,
+  type InboundRemote,
+  type RemoteMatch,
+  type RemoteMessage,
+} from "@/lib/collab";
+import { SiteFooter } from "@/components/site-footer";
 import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
 import { ReviewModal, type SavedReview } from "@/components/matchcut/review-modal";
 import { PreferencesModal } from "@/components/matchcut/preferences";
 import { CreatorDashboard } from "@/components/matchcut/dashboard";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 export function MatchcutApp() {
   const hydrate = useDeck((state) => state.hydrate);
@@ -48,17 +64,19 @@ export function MatchcutApp() {
   const [inboxOpen, setInboxOpen] = useState(false);
   const [reviewFor, setReviewFor] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Record<string, SavedReview>>({});
-  const [pending, setPending] = useState<InboundPitch[]>(INBOUND_PITCHES);
-  const [accepted, setAccepted] = useState<AcceptedCollab[]>(ACCEPTED_COLLABS);
-  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>(THREADS);
+  const [inbound, setInbound] = useState<InboundRemote[]>([]);
+  const [matches, setMatches] = useState<RemoteMatch[]>([]);
+  const [myUid, setMyUid] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<RemoteMessage[]>([]);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const members = useDeck((state) => state.members);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [askingPush, setAskingPush] = useState(false);
-  const [blocked, setBlocked] = useState<BlockedCreator[]>([]);
   const [memoryReady, setMemoryReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const { age, choose } = useAgeGate();
@@ -74,14 +92,7 @@ export function MatchcutApp() {
     setTerms(loadTerms());
     setProfile(sessionOn ? storedProfile : null);
     setSignedIn(sessionOn);
-    const memory = loadDeskMemory();
-    if (memory) {
-      setPending(memory.pending);
-      setAccepted(memory.accepted);
-      setThreads(memory.threads);
-      setBlocked(memory.blocked);
-      setReviews(memory.reviews);
-    }
+    setReviews(loadReviews());
     setMemoryReady(true);
   }, [hydrate]);
 
@@ -124,7 +135,23 @@ export function MatchcutApp() {
         ) {
           useDeck.getState().setPremium(true, verified.premiumUntil, "Plus restored for this YouTube channel.");
         }
-        const existing = loadProfile();
+        // Sign in to Firebase right away: the Google ID token cookie from this verification is
+        // one-shot and only lives ~10 minutes, so don't wait for the niche picker.
+        let signInError: unknown = null;
+        try {
+          await signInToFirebase();
+        } catch (error) {
+          signInError = error;
+        }
+        const local = loadProfile();
+        let existing = local && local.niches.length > 0 ? local : null;
+        if (!signInError) {
+          // Firestore is the source of truth for the profile; this device only fills gaps.
+          const saved = await loadFirebaseProfile().catch(() => null);
+          if (saved && (!saved.channelId || saved.channelId === verified.channelId)) {
+            existing = existing ? fillFromSaved(saved, existing as unknown as Record<string, unknown>) : saved;
+          }
+        }
         if (existing && existing.niches.length > 0) {
           const next: DeskProfile = {
             displayName: verified.displayName || existing.displayName,
@@ -134,11 +161,22 @@ export function MatchcutApp() {
             avgViews: verified.avgViews,
             niches: existing.niches,
             bio: existing.bio,
-            avatar: verified.avatar,
+            avatar: verified.avatar ?? existing.avatar,
+            country: existing.country,
+            state: existing.state,
+            county: existing.county,
           };
           saveProfile(next);
           setProfile(next);
           setSignedIn(true);
+          if (signInError) {
+            useDeck.getState().setAuthError(describeAuthError(signInError));
+          } else {
+            void saveFirebaseUser(next, { mode: "onboarding" })
+              .then((saved) => saveProfile(saved))
+              .catch((error) => setToast(`Your profile was not saved to your account: ${describeAuthError(error)}`));
+          }
+          void syncStripeAccount();
           setPendingChannel(null);
           setToast(`Connected ${next.channel}`);
           return;
@@ -154,8 +192,20 @@ export function MatchcutApp() {
 
   useEffect(() => {
     if (!memoryReady) return;
-    saveDeskMemory({ pending, accepted, threads, blocked, reviews });
-  }, [memoryReady, pending, accepted, threads, blocked, reviews]);
+    saveReviews(reviews);
+  }, [memoryReady, reviews]);
+
+  useEffect(() => {
+    useDeck.getState().setMe(profile ? { channel: profile.channel, subscribers: profile.subscribers, niches: profile.niches } : null);
+  }, [profile]);
+
+  useEffect(() => {
+    useDeck.getState().setOnMatch((creatorId) => {
+      const creator = useDeck.getState().members.find((item) => item.id === creatorId);
+      setToast(`It's a match${creator ? ` with ${creator.channel}` : ""}! Say hi in Matches & Messages.`);
+    });
+    return () => useDeck.getState().setOnMatch(null);
+  }, []);
 
   function logOut() {
     useDeck.getState().setMembers([], "auth");
@@ -173,15 +223,16 @@ export function MatchcutApp() {
     setReviewFor(null);
   }
 
-  function finishSignIn(next: DeskProfile) {
+  function finishSignIn(next: DeskProfile, warning?: string) {
     setProfile(next);
     setSignedIn(true);
     useDeck.getState().setAuthError(null);
-    void claimPendingReferral(next.channel, next.channelId).then((until) => {
+    if (warning) setToast(warning);
+    void claimPendingReferral(next.channel).then((until) => {
       if (!until) return;
-      const current = useDeck.getState();
-      const existing = current.premium && typeof current.premiumUntil === "number" ? current.premiumUntil : 0;
-      current.setPremium(true, Math.max(existing, until), "14 days of Plus from your invite.");
+      // Re-read Plus from the server, which recorded the invite reward.
+      void syncStripeAccount();
+      setToast("14 days of Plus from your invite.");
     });
   }
 
@@ -198,12 +249,46 @@ export function MatchcutApp() {
       }
       const current = profile;
       let request = 0;
-      stop = onAuthStateChanged(auth, (user) => {
+      let unwatch: Array<() => void> = [];
+      let restoreTried = false;
+      const stopAuth = onAuthStateChanged(auth, (user) => {
         const ticket = ++request;
+        for (const fn of unwatch) fn();
+        unwatch = [];
+        setMyUid(user?.uid ?? null);
         if (!user) {
-          useDeck.getState().setMembers([], "auth");
+          setInbound([]);
+          setMatches([]);
+          if (restoreTried) {
+            useDeck.getState().setMembers([], "auth");
+            return;
+          }
+          // No Firebase session in this browser: restore it silently from the verified-channel
+          // cookie (custom token). Success fires this listener again with the user.
+          restoreTried = true;
+          useDeck.getState().setMembers([], "loading");
+          void signInToFirebase().catch((error) => {
+            if (cancelled || ticket !== request) return;
+            if (!isNeedsVerify(error)) useDeck.getState().setAuthError(describeAuthError(error));
+            useDeck.getState().setMembers([], "auth");
+          });
           return;
         }
+        void firebaseDb().then((db) => {
+          if (!db || ticket !== request) return;
+          const onError = (error: unknown) => useDeck.getState().setAuthError(describeAuthError(error));
+          unwatch.push(watchInbound(db, user.uid, setInbound, onError));
+          unwatch.push(watchMatches(db, user.uid, setMatches, onError));
+        });
+        // Server writes the verified subscriber count + Plus flag onto this profile and reports today's free pitches.
+        void syncProfileOnServer().then((sync) => {
+          if (sync && ticket === request) useDeck.getState().setServerFree(sync.day, sync.freeUsedToday);
+        });
+        void loadMySwipes()
+          .then((remote) => {
+            if (ticket === request) useDeck.getState().setRemoteSwipes(remote);
+          })
+          .catch((error) => useDeck.getState().setAuthError(describeAuthError(error)));
         useDeck.getState().setMembers([], "loading");
         void loadMemberCreators({ channelId: current.channelId, channel: current.channel })
           .then((result) => {
@@ -217,6 +302,11 @@ export function MatchcutApp() {
             useDeck.getState().setMembers([], "error");
           });
       });
+      stop = () => {
+        stopAuth();
+        for (const fn of unwatch) fn();
+        unwatch = [];
+      };
     });
     return () => {
       cancelled = true;
@@ -236,7 +326,11 @@ export function MatchcutApp() {
       window.history.replaceState(null, "", next);
     }
     void (async () => {
-      if (checkout === "success" && sessionId) await confirmStripeSession(sessionId);
+      if (checkout === "success" && sessionId) {
+        setToast(await confirmStripeSession(sessionId));
+        return;
+      }
+      if (checkout === "cancel") setToast("Checkout canceled. No charge was made.");
       await syncStripeAccount();
     })();
   }, []);
@@ -244,12 +338,10 @@ export function MatchcutApp() {
   useEffect(() => {
     if (!profile) return;
     let cancelled = false;
-    void fetchReferralStatus(profile.channel).then((status) => {
+    // Registers this creator's invite code on the server and refreshes Plus (invite rewards live there).
+    void fetchReferralStatus().then((status) => {
       if (cancelled || !status || status.plusUntil <= Date.now()) return;
-      const current = useDeck.getState();
-      const existing = current.premium && typeof current.premiumUntil === "number" ? current.premiumUntil : 0;
-      if (status.plusUntil <= existing) return;
-      current.setPremium(true, status.plusUntil, "14 days of Plus from your invite.");
+      void syncStripeAccount();
     });
     return () => {
       cancelled = true;
@@ -258,36 +350,84 @@ export function MatchcutApp() {
 
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2400);
+    // Longer messages (e.g. a failed save) stay up long enough to read.
+    const timer = window.setTimeout(() => setToast(null), toast.length > 60 ? 7000 : 2400);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  const lookup = (creatorId: string): Creator | undefined => members.find((item) => item.id === creatorId);
+  const swipedIds = new Set(swipes.map((swipe) => swipe.creatorId));
+  const hiddenMatches = new Set(matches.filter((match) => match.blockedBy).map((match) => match.other));
+  const pending: InboundPitch[] = inbound
+    .filter((item) => !swipedIds.has(item.from) && !hiddenMatches.has(item.from))
+    .map((item) => ({ creatorId: item.from, ago: timeAgo(item.at), message: item.note || "Wants to collab.", title: "Collab pitch" }));
+  const collabFor = (match: RemoteMatch): AcceptedCollab => {
+    const creator = lookup(match.other);
+    const theirNote = inbound.find((item) => item.from === match.other)?.note;
+    return {
+      id: match.id,
+      creatorId: match.other,
+      title: `Collab with ${creator?.channel ?? "a creator"}`,
+      when: `Matched ${new Date(match.createdAt).toLocaleDateString()}`,
+      summary: theirNote || notes[match.other] || "You both pitched.",
+      blockedBy: match.blockedBy,
+    };
+  };
+  const accepted: AcceptedCollab[] = matches.filter((match) => !match.blockedBy).map(collabFor);
+  const blocked: BlockedCreator[] = matches
+    .filter((match) => match.blockedBy && match.blockedBy === myUid)
+    .map((match) => ({ creatorId: match.other, channel: lookup(match.other)?.channel ?? "Creator", collab: collabFor(match), messages: [] }));
+  const threadMessages: ChatMessage[] = chatMessages.map((message) => ({
+    id: message.id,
+    from: message.from === myUid ? "you" : "them",
+    text: message.text,
+  }));
+
+  useEffect(() => {
+    useDeck.getState().setMatched(matches.map((match) => match.other));
+  }, [matches]);
+
+  useEffect(() => {
+    setChatMessages([]);
+    setChatError(null);
+    if (!chatId) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void watchMessages(chatId, setChatMessages, (error) => setChatError(describeAuthError(error)))
+      .then((unsubscribe) => {
+        if (cancelled) unsubscribe();
+        else stop = unsubscribe;
+      })
+      .catch((error) => setChatError(describeAuthError(error)));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [chatId]);
+
   function blockOpenThread() {
     if (!chatId) return;
-    const collab = accepted.find((item) => item.id === chatId);
-    if (!collab) return;
-    const creator = CREATORS.find((item) => item.id === collab.creatorId);
-    const saved = threads[chatId] ?? [];
-    setBlocked((current) => [
-      ...current.filter((item) => item.creatorId !== collab.creatorId),
-      { creatorId: collab.creatorId, channel: creator?.channel ?? "Creator", collab, messages: saved },
-    ]);
-    setAccepted((current) => current.filter((item) => item.id !== collab.id));
+    const id = chatId;
     setChatId(null);
-    setToast("User blocked");
+    void setMatchBlocked(id, true)
+      .then(() => setToast("User blocked"))
+      .catch((error) => setToast(describeAuthError(error)));
   }
 
   function unblockCreator(creatorId: string) {
-    const record = blocked.find((item) => item.creatorId === creatorId);
-    if (!record) return;
-    setBlocked((current) => current.filter((item) => item.creatorId !== creatorId));
-    setAccepted((current) => (current.some((item) => item.id === record.collab.id) ? current : [...current, record.collab]));
-    setThreads((current) => ({ ...current, [record.collab.id]: record.messages }));
-    setToast("User unblocked");
+    const match = matches.find((item) => item.other === creatorId && item.blockedBy === myUid);
+    if (!match) return;
+    void setMatchBlocked(match.id, false)
+      .then(() => setToast("User unblocked"))
+      .catch((error) => setToast(describeAuthError(error)));
   }
 
   const extraPitches = useDeck((state) => state.extraPitches);
-  const pitchesToday = swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length;
+  const serverFree = useDeck((state) => state.serverFree);
+  const pitchesToday = Math.max(
+    swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length,
+    serverFree && serverFree.day === utcDayKey() ? serverFree.count : 0,
+  );
   const dailyCap = FREE_DAILY;
   const remaining = Math.max(0, dailyCap - pitchesToday) + (premium ? 0 : extraPitches);
   const pitchLabel = remaining === 1 ? "1 pitch left" : `${remaining} pitches left`;
@@ -310,7 +450,7 @@ export function MatchcutApp() {
     maxBracket !== BRACKETS.length - 1 ||
     sort !== "fit";
   const deskReady = age === "adult" && terms && signedIn && profile != null;
-  const pitching = profile ?? VIEWER;
+  const pitching = profile ?? { channel: "", subscribers: 0, niches: [] as string[] };
 
   return (
     <>
@@ -330,10 +470,14 @@ export function MatchcutApp() {
             />
           ) : null}
           <div className="min-w-0">
-            <p className="font-display text-2xl leading-none">SmashCollab</p>
-            {signedIn ? (
-              <p className="mt-1 truncate text-xs text-muted">
-                {pitching.channel} · {formatCount(pitching.subscribers)} · {pitching.niches.join(" & ")}
+            <p className="font-display text-2xl leading-none">Smash Collab</p>
+            {signedIn && profile ? (
+              <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted">
+                <span className="shrink-0">{pitching.channel}</span>
+                {premium ? <PlusBadge size={14} /> : null}
+                <span className="truncate">
+                  · {formatCount(pitching.subscribers)} · {pitching.niches.join(" & ")}
+                </span>
               </p>
             ) : (
               <button type="button" onClick={() => setSignedIn(false)} className="press mt-1 text-xs font-medium text-cream">
@@ -493,7 +637,7 @@ export function MatchcutApp() {
                 <X className="size-4" />
               </Dialog.Close>
             </div>
-            <p className="px-5 pt-4 text-sm text-muted">Queued on this desk. Nothing is emailed.</p>
+            <p className="px-5 pt-4 text-sm text-muted">They see your pitch in their inbox. If they pitch back, you match.</p>
             <PitchTray idPrefix="sheet" heading={false} />
           </Dialog.Content>
         </Dialog.Portal>
@@ -502,6 +646,7 @@ export function MatchcutApp() {
       <PremiumModal />
       <OutOfSwipes />
     </div>
+    <SiteFooter />
     <Dialog.Root open={inboxOpen} onOpenChange={setInboxOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
@@ -523,28 +668,12 @@ export function MatchcutApp() {
               setInboxOpen(false);
               openPremium(null);
             }}
+            lookup={lookup}
             onAccept={(pitch) => {
-              const id = `pitch-${pitch.creatorId}`;
-              setPending((current) => current.filter((item) => item.creatorId !== pitch.creatorId));
-              setAccepted((current) => [
-                ...current,
-                {
-                  id,
-                  creatorId: pitch.creatorId,
-                  title: pitch.title,
-                  when: "Accepted just now",
-                  summary: pitch.message,
-                },
-              ]);
-              setThreads((current) => ({
-                ...current,
-                [id]: [
-                  { id: `${id}-them`, from: "them", text: pitch.message },
-                  { id: `${id}-you`, from: "you", text: "Accepted. Let's lock the date in this thread." },
-                ],
-              }));
+              // Accepting = pitching back, which creates the match.
+              useDeck.getState().commit(pitch.creatorId, "pitch");
             }}
-            onDecline={(creatorId) => setPending((current) => current.filter((item) => item.creatorId !== creatorId))}
+            onDecline={(creatorId) => useDeck.getState().commit(creatorId, "pass")}
             onOpen={setChatId}
             onReview={(collabId) => {
               setInboxOpen(false);
@@ -556,19 +685,20 @@ export function MatchcutApp() {
     </Dialog.Root>
     <ChatThread
       collab={accepted.find((item) => item.id === chatId) ?? null}
-      messages={chatId ? (threads[chatId] ?? []) : []}
+      creator={lookup(accepted.find((item) => item.id === chatId)?.creatorId ?? "")}
+      messages={threadMessages}
+      error={chatError}
       onClose={() => setChatId(null)}
       onSend={(text) => {
         if (!chatId) return;
-        setThreads((current) => ({
-          ...current,
-          [chatId]: [...(current[chatId] ?? []), { id: `you-${Date.now()}`, from: "you", text }],
-        }));
+        void sendMessage(chatId, text).catch((error) => setChatError(describeAuthError(error)));
       }}
       onBlock={blockOpenThread}
     />
     <ReviewModal
       collabId={reviewFor}
+      collab={accepted.find((item) => item.id === reviewFor)}
+      creator={lookup(accepted.find((item) => item.id === reviewFor)?.creatorId ?? "")}
       saved={reviewFor ? reviews[reviewFor] : undefined}
       onClose={() => setReviewFor(null)}
       onReturn={() => {
@@ -605,11 +735,10 @@ export function MatchcutApp() {
         open={dashboardOpen}
         profile={profile}
         onOpenChange={setDashboardOpen}
-        onSave={(next) => {
+        onSave={async (next) => {
           setProfile(next);
-          void saveFirebaseUser(next).catch((error) => {
-            useDeck.getState().setAuthError(describeAuthError(error));
-          });
+          // Throws (and the dashboard shows why) if the account did not get the change.
+          await saveFirebaseUser(next, { mode: "edit" });
         }}
       />
     ) : null}
@@ -627,4 +756,13 @@ export function MatchcutApp() {
     </div>
     </>
   );
+}
+
+function timeAgo(at: number): string {
+  const minutes = Math.max(0, Math.round((Date.now() - at) / 60_000));
+  if (minutes < 60) return minutes <= 1 ? "Just now" : `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "Yesterday" : `${days}d`;
 }

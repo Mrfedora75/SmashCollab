@@ -2,6 +2,7 @@ import { Lock, Play } from "lucide-react";
 import { bracketOf, type Creator } from "@/data/creators";
 import { fitLabel, formatCount } from "@/lib/format";
 import { StarRow } from "@/components/matchcut/stars";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 type CardFaceProps = {
   creator: Creator;
@@ -48,9 +49,15 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
         <div>
           <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">{tier.label}</p>
           {asHeading ? (
-            <h2 className="mt-1 font-display text-3xl leading-tight text-ink-text">{creator.channel}</h2>
+            <h2 className="mt-1 font-display text-3xl leading-tight text-ink-text">
+              {creator.channel}
+              {creator.plus ? <PlusBadge size={22} className="ml-1.5" /> : null}
+            </h2>
           ) : (
-            <p className="mt-1 font-display text-3xl leading-tight text-ink-text">{creator.channel}</p>
+            <p className="mt-1 font-display text-3xl leading-tight text-ink-text">
+              {creator.channel}
+              {creator.plus ? <PlusBadge size={22} className="ml-1.5" /> : null}
+            </p>
           )}
           <p className="mt-1 text-sm text-muted-strong">{creator.name}</p>
           {creator.state || creator.county ? (
@@ -101,7 +108,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
           {locked ? (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-accent-deep">
               <Lock className="size-3.5" aria-hidden="true" />
-              Free accounts can't pitch channels with 5,000 or more subscribers. Plus unlocks this pitch.
+              Free accounts can't pitch channels with 5,000 or more subscribers. Plus or a $1 pitch unlocks this pitch.
             </p>
           ) : null}
         </div>

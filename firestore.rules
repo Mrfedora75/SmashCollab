@@ -1,0 +1,153 @@
+rules_version = '2';
+
+// Smash Collab Firestore security rules.
+// Deploy: firebase deploy --only firestore:rules,firestore:indexes --project smash-collab
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function matchDoc(matchId) {
+      return get(/databases/$(database)/documents/matches/$(matchId));
+    }
+
+    function isParticipant(matchId) {
+      return signedIn() && request.auth.uid in matchDoc(matchId).data.users;
+    }
+
+    function optionalString(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    // Profile fields the browser may write. Everything else on a profile is
+    // server-controlled (written with the service account, which bypasses these
+    // rules): subscriberCount / subscribers (from the YouTube Data API),
+    // verifiedChannelId, subsVerifiedAt, plus, plusUntil, plusSyncedAt.
+    function clientProfileKeys() {
+      return ['uid', 'displayName', 'channel', 'channelId', 'avgViews', 'niches',
+              'bio', 'avatar', 'country', 'state', 'county', 'createdAt', 'updatedAt'];
+    }
+
+    function validProfile(data, uid) {
+      return data.uid == uid
+        && data.channel is string
+        && data.channel.size() > 0
+        && data.channel.size() <= 100
+        && data.avgViews is number
+        && data.niches is list
+        && data.niches.size() <= 20
+        && optionalString(data, 'displayName', 100)
+        && optionalString(data, 'channelId', 64)
+        && optionalString(data, 'bio', 150)
+        && optionalString(data, 'avatar', 1000)
+        && optionalString(data, 'country', 20)
+        && optionalString(data, 'state', 40)
+        && optionalString(data, 'county', 40);
+    }
+
+    // ---- Creator profiles: readable by signed-in creators, writable only by the owner,
+    // and only for the owner-editable fields above.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow delete: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(clientProfileKeys())
+        && validProfile(request.resource.data, uid);
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        // 'email' may only be removed (legacy docs stored it); it can never be set or changed.
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientProfileKeys().concat(['email']))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
+            || !('email' in request.resource.data))
+        && validProfile(request.resource.data, uid);
+    }
+
+    // ---- Swipes: id is "{fromUid}_{toUid}". Target can read pitches aimed at them.
+    // Pitches are created ONLY by the server (POST /api/pitch), which enforces the
+    // free-pitch limits. The browser may record a Pass, edit its own pitch note,
+    // withdraw a pitch (turn it into a Pass or delete it), but never create a pitch.
+    match /swipes/{swipeId} {
+      allow read: if signedIn() && (
+        resource.data.from == request.auth.uid ||
+        (resource.data.to == request.auth.uid && resource.data.direction == 'pitch'));
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['from', 'to', 'direction', 'note', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && swipeId == request.auth.uid + '_' + request.resource.data.to
+        && request.resource.data.direction == 'pass'
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && resource.data.from == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['note', 'direction', 'createdAt'])
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && (
+          // Pitch -> Pass (re-stamping createdAt is fine), or Pass stays Pass.
+          (request.resource.data.direction == 'pass'
+            && (request.resource.data.createdAt == resource.data.createdAt || request.resource.data.createdAt == request.time)) ||
+          // Editing the note on an existing pitch; direction and time unchanged.
+          (resource.data.direction == 'pitch'
+            && request.resource.data.direction == 'pitch'
+            && request.resource.data.createdAt == resource.data.createdAt)
+        );
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
+    }
+
+    // ---- Matches: id is "{uidA}_{uidB}" (sorted). Created only by the server after a mutual pitch.
+    match /matches/{matchId} {
+      allow get: if signedIn() && (resource == null || request.auth.uid in resource.data.users);
+      allow list: if signedIn() && request.auth.uid in resource.data.users;
+      // Matches are created only by the server (POST /api/pitch) after a mutual pitch.
+      allow create: if false;
+      // Participants may block/unblock (only the blocker can unblock) and bump lastMessageAt.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.users
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['blockedBy', 'lastMessageAt'])
+        && (
+          request.resource.data.blockedBy == resource.data.blockedBy ||
+          (resource.data.blockedBy == null && request.resource.data.blockedBy == request.auth.uid) ||
+          (resource.data.blockedBy == request.auth.uid && request.resource.data.blockedBy == null)
+        )
+        && (
+          request.resource.data.lastMessageAt == resource.data.lastMessageAt ||
+          request.resource.data.lastMessageAt == request.time
+        );
+      allow delete: if false;
+
+      // ---- Messages: only the two matched creators; never while the match is blocked.
+      match /messages/{messageId} {
+        allow read: if isParticipant(matchId);
+        allow create: if isParticipant(matchId)
+          && matchDoc(matchId).data.blockedBy == null
+          && request.resource.data.keys().hasOnly(['from', 'text', 'createdAt'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    // ---- Server-only collections (written by the service account, which bypasses rules).
+    match /entitlements/{doc} { allow read, write: if false; }
+    match /stripeSessions/{doc} { allow read, write: if false; }
+    match /referralCodes/{doc} { allow read, write: if false; }
+    match /referralClaims/{doc} { allow read, write: if false; }
+    match /referralRewards/{doc} { allow read, write: if false; }
+    match /channels/{doc} { allow read, write: if false; }
+    match /pitchUsage/{doc} { allow read, write: if false; }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

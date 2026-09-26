@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/site-footer";
 import * as Dialog from "@radix-ui/react-dialog";
 import { TERMS_KEY } from "@/components/matchcut/onboarding-storage";
 
@@ -33,7 +34,7 @@ export function TermsModal({ open, onAccept }: { open: boolean; onAccept: () => 
             >
               Google Privacy Policy
             </a>
-            . You confirm you are 18 or older. All subscription and pitch purchases are processed securely via Stripe.
+            , and to Smash Collab’s Terms of Service and Privacy Policy (links below). You confirm you are 18 or older. All subscription and pitch purchases are processed securely via Stripe.
           </Dialog.Description>
           <button
             type="button"
@@ -45,6 +46,7 @@ export function TermsModal({ open, onAccept }: { open: boolean; onAccept: () => 
           >
             Accept and continue
           </button>
+          <LegalLinks className="mt-4 text-center" />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

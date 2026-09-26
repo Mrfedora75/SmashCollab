@@ -94,16 +94,22 @@ type YouTubeChannelsResponse = {
   error?: { message?: string };
 };
 
-async function fetchGoogleDisplayName(accessToken: string): Promise<string | null> {
+async function fetchGoogleUser(accessToken: string): Promise<{ name: string | null; email: string | null }> {
   try {
     const res = await fetch(GOOGLE_USERINFO, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { name?: string };
-    return typeof data.name === "string" && data.name.trim() ? data.name.trim() : null;
+    if (!res.ok) return { name: null, email: null };
+    const data = (await res.json()) as { name?: string; email?: string; email_verified?: boolean };
+    const name = typeof data.name === "string" && data.name.trim() ? data.name.trim() : null;
+    // Only a Google-verified email is trusted (used for the tester Plus allowlist).
+    const email =
+      data.email_verified === true && typeof data.email === "string" && data.email.includes("@")
+        ? data.email.trim().toLowerCase()
+        : null;
+    return { name, email };
   } catch {
-    return null;
+    return { name: null, email: null };
   }
 }
 
@@ -141,15 +147,17 @@ export async function fetchVerifiedChannel(
 
   const channelTitle = item.snippet.title.trim();
   const custom = item.snippet.customUrl?.trim();
-  const googleName = await fetchGoogleDisplayName(accessToken);
+  const google = await fetchGoogleUser(accessToken);
 
   return {
     channelId,
-    displayName: googleName || channelTitle,
+    displayName: google.name || channelTitle,
     channel: custom ? (custom.startsWith("@") ? custom : `@${custom}`) : channelTitle,
     subscribers,
     avgViews,
     avatar: thumb,
+    email: google.email,
+    subscribersHidden: item.statistics?.hiddenSubscriberCount === true,
   };
 }
 

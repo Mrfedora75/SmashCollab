@@ -1,9 +1,15 @@
-/** Client helpers to sync Smash Collab Plus with the server cookie. */
+/** Client helpers that read Smash Collab Plus from the server (read-only). */
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** Survives logout. `matchcut-v1` is wiped; this key is not. */
+/** Local cache of the last server-confirmed Plus end time. */
 export const PLUS_LOCAL_KEY = "matchcut-plus";
+
+export type ServerPlus = {
+  premium: boolean;
+  premiumUntil: number | null;
+  pitchCredits: number;
+  /** "ok" when the server read durable storage; otherwise the numbers are not authoritative. */
+  storage: "ok" | "unconfigured" | "error" | "signed-out";
+};
 
 export function readPlusLocal(): number | null {
   if (typeof localStorage === "undefined") return null;
@@ -32,67 +38,27 @@ export function clearPlusLocal() {
   localStorage.removeItem(PLUS_LOCAL_KEY);
 }
 
-export async function fetchPlusFromServer(): Promise<number | null> {
+export function parseServerPlus(data: unknown): ServerPlus {
+  const d = (data ?? {}) as Partial<ServerPlus> & { channelId?: string | null };
+  const premiumUntil =
+    d.premium === true && typeof d.premiumUntil === "number" && d.premiumUntil > Date.now() ? Math.floor(d.premiumUntil) : null;
+  return {
+    premium: premiumUntil != null,
+    premiumUntil,
+    pitchCredits: typeof d.pitchCredits === "number" && d.pitchCredits > 0 ? Math.floor(d.pitchCredits) : 0,
+    storage: d.channelId === null ? "signed-out" : d.storage === "ok" || d.storage === "unconfigured" ? d.storage : "error",
+  };
+}
+
+export async function fetchPlusFromServer(): Promise<ServerPlus | null> {
   try {
-    const res = await fetch("/api/plus/grant", {
-      method: "GET",
+    const res = await fetch("/api/plus/status", {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { premium?: boolean; premiumUntil?: number };
-    if (data.premium === true && typeof data.premiumUntil === "number" && data.premiumUntil > Date.now()) {
-      return Math.floor(data.premiumUntil);
-    }
-    return null;
+    return parseServerPlus(await res.json());
   } catch {
     return null;
-  }
-}
-
-export async function grantPlusOnServer(
-  until: number | null | undefined,
-  source?: string,
-): Promise<{ ok: boolean; premiumUntil: number | null }> {
-  const premiumUntil =
-    typeof until === "number" && Number.isFinite(until) && until > Date.now()
-      ? Math.floor(until)
-      : Date.now() + THIRTY_DAYS_MS;
-  try {
-    const res = await fetch("/api/plus/grant", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ until: premiumUntil, source }),
-    });
-    if (!res.ok) return { ok: false, premiumUntil: null };
-    const data = (await res.json()) as { premiumUntil?: number };
-    return {
-      ok: true,
-      premiumUntil:
-        typeof data.premiumUntil === "number" ? data.premiumUntil : premiumUntil,
-    };
-  } catch {
-    return { ok: false, premiumUntil: null };
-  }
-}
-
-export async function clearPlusOnServer(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/plus/grant", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ clear: true }),
-    });
-    return res.ok;
-  } catch {
-    return false;
   }
 }

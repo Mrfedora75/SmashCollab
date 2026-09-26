@@ -27,9 +27,6 @@ export function getRequestOrigin(request: Request): string {
     return `${forwardedProto || "https"}://${forwardedHost}`.replace(/\/$/, "");
   }
 
-  const betterAuth = env("BETTER_AUTH_URL");
-  if (betterAuth) return betterAuth.replace(/\/$/, "");
-
   const vercel = env("VERCEL_URL");
   if (vercel) {
     const host = vercel.replace(/^https?:\/\//, "").replace(/\/$/, "");

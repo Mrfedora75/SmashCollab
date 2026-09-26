@@ -1,27 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "@/lib/env.server";
-import { applyCheckoutSession, grantPlus, revokePlus, stripeRequest, verifyStripeSignature } from "@/lib/stripe-billing.server";
+import {
+  applyCheckoutSession,
+  applySubscriptionEvent,
+  fetchCheckoutSession,
+  verifyStripeSignature,
+  type StripeSubscription,
+} from "@/lib/stripe-billing.server";
+import { syncPublicPlus } from "@/lib/server/public-profile.server";
 
 type StripeEvent = {
+  id?: string;
   type?: string;
-  data?: {
-    object?: {
-      id?: string;
-      metadata?: Record<string, string>;
-      customer?: string | null;
-      current_period_end?: number;
-    };
-  };
+  livemode?: boolean;
+  data?: { object?: { id?: string } & StripeSubscription };
 };
 
+/**
+ * Stripe webhook. Register this URL in the Stripe dashboard (test mode) with:
+ * checkout.session.completed, checkout.session.async_payment_succeeded,
+ * customer.subscription.updated, customer.subscription.deleted.
+ */
 export const Route = createFileRoute("/api/stripe/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const secret = env("STRIPE_WEBHOOK_SECRET");
-        if (!secret) {
-          return Response.json({ error: "Webhook secret is not configured." }, { status: 500 });
-        }
+        if (!secret) return Response.json({ error: "Webhook is not configured." }, { status: 503 });
         const payload = await request.text();
         if (!verifyStripeSignature(payload, request.headers.get("stripe-signature"), secret)) {
           return Response.json({ error: "Invalid Stripe signature." }, { status: 400 });
@@ -32,25 +37,28 @@ export const Route = createFileRoute("/api/stripe/webhook")({
         } catch {
           return Response.json({ error: "Invalid payload." }, { status: 400 });
         }
-        const object = event.data?.object;
-        if (event.type === "checkout.session.completed" && object?.id) {
-          const session = await stripeRequest<Parameters<typeof applyCheckoutSession>[0]>(
-            `checkout/sessions/${object.id}`,
-            undefined,
-            "GET",
-          );
-          await applyCheckoutSession(session);
+        if (event.livemode === true && env("STRIPE_ALLOW_LIVE") !== "true") {
+          // Test-mode deployment: acknowledge but ignore live events.
+          return Response.json({ received: true, ignored: "livemode" });
         }
-        if (
-          (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") &&
-          object?.metadata?.channelId
-        ) {
-          const channelId = object.metadata.channelId;
-          const ended = event.type === "customer.subscription.deleted" || (object.current_period_end ?? 0) * 1000 <= Date.now();
-          if (ended) await revokePlus(channelId);
-          else if (typeof object.current_period_end === "number") {
-            await grantPlus(channelId, object.current_period_end * 1000, object.customer ?? null, object.id ?? null);
+        const object = event.data?.object;
+        try {
+          if (
+            (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") &&
+            object?.id
+          ) {
+            // Re-fetch so we act on Stripe's current view of the session.
+            const session = await fetchCheckoutSession(object.id);
+            const result = await applyCheckoutSession(session);
+            if (result.kind === "plus") await syncPublicPlus(result.channelId);
+          } else if (event.type === "customer.subscription.updated" && object) {
+            if (await applySubscriptionEvent(object, false)) await syncPublicPlus(object.metadata?.channelId?.trim());
+          } else if (event.type === "customer.subscription.deleted" && object) {
+            if (await applySubscriptionEvent(object, true)) await syncPublicPlus(object.metadata?.channelId?.trim());
           }
+        } catch {
+          // Non-2xx makes Stripe retry later (e.g. storage briefly unavailable).
+          return Response.json({ error: "Could not record this event yet." }, { status: 500 });
         }
         return Response.json({ received: true });
       },

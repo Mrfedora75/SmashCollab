@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import { bracketOf } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 export function MemberSearch({
   open,
@@ -67,7 +68,10 @@ export function MemberSearch({
             ) : (
               results.map((creator) => (
                 <li key={creator.id} className="rounded-control border border-line bg-ink-soft p-3">
-                  <p className="font-medium">{creator.channel}</p>
+                  <p className="flex items-center gap-1 font-medium">
+                    <span>{creator.channel}</span>
+                    {creator.plus ? <PlusBadge /> : null}
+                  </p>
                   <p className="mt-1 text-sm text-muted">
                     {creator.name} · {bracketOf(creator.subscribers).label} · {formatCount(creator.subscribers)} subs
                   </p>

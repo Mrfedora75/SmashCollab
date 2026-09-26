@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/site-footer";
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, Youtube } from "lucide-react";
@@ -8,14 +9,14 @@ import {
   type DeskProfile,
   type VerifiedChannel,
 } from "@/components/matchcut/onboarding-storage";
-import { saveFirebaseUser, signInToFirebase, describeAuthError } from "@/lib/firebase-user";
+import { saveFirebaseUser, signInToFirebase, describeAuthError, isNeedsVerify } from "@/lib/firebase-user";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
 
 export function CreateProfile({
   onComplete,
   verifiedChannel = null,
 }: {
-  onComplete: (profile: DeskProfile) => void;
+  onComplete: (profile: DeskProfile, warning?: string) => void;
   verifiedChannel?: VerifiedChannel | null;
 }) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
@@ -54,17 +55,28 @@ export function CreateProfile({
     setPhase("loading");
     saveProfile(profile);
     try {
+      // The desk only opens with a real Firebase session; otherwise the deck cannot load creators.
       await signInToFirebase();
-      try {
-        await saveFirebaseUser(profile);
-      } catch {
-        // The desk still opens. Firestore sync waits for the saved Google session.
-      }
-      onComplete(profile);
     } catch (error) {
+      if (isNeedsVerify(error)) {
+        startYouTubeVerify();
+        return;
+      }
       setPhase(back);
       setError(describeAuthError(error));
+      return;
     }
+    let saved = profile;
+    let warning: string | undefined;
+    try {
+      // Onboarding never blanks a bio / location already saved in Firestore.
+      saved = await saveFirebaseUser(profile, { mode: "onboarding" });
+      saveProfile(saved);
+    } catch (error) {
+      // Signed in, so the deck works; say plainly that the profile did not reach the account.
+      warning = `Your profile was not saved to your account: ${describeAuthError(error)}`;
+    }
+    onComplete(saved, warning);
   }
 
   return (
@@ -125,7 +137,8 @@ export function CreateProfile({
                 Verify via YouTube
               </button>
               <div className="mx-auto mt-4 max-w-sm">
-                <OauthNotice text="We use official Google OAuth for secure sign-in. Creating a basic profile is completely free. We never store your Google password, and any premium upgrades are securely processed via Stripe." />
+                <OauthNotice text="We use official Google OAuth for secure sign-in. Creating a basic profile is completely free. We never store your Google password, and any Plus upgrades are securely processed via Stripe." />
+                <LegalLinks className="mt-3" />
               </div>
             </div>
           ) : null}

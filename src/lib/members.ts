@@ -33,7 +33,10 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
     id,
     name: name || channel,
     channel,
-    subscribers: asNumber(data.subscribers),
+    // Prefer the server-verified count (YouTube Data API); the legacy field is display-only.
+    subscribers: typeof data.subscriberCount === "number" ? asNumber(data.subscriberCount) : asNumber(data.subscribers),
+    // Server-controlled Plus flag; plusUntil lets an expired badge disappear without a write.
+    plus: data.plus === true && typeof data.plusUntil === "number" && data.plusUntil > Date.now(),
     avgViews: asNumber(data.avgViews),
     niches,
     location,
