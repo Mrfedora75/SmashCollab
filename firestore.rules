@@ -1,0 +1,140 @@
+rules_version = '2';
+
+// Smash Collab Firestore security rules.
+// Deploy: firebase deploy --only firestore:rules,firestore:indexes --project smash-collab
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isPitch(fromUid, toUid) {
+      let path = /databases/$(database)/documents/swipes/$(fromUid + '_' + toUid);
+      return exists(path) && get(path).data.direction == 'pitch';
+    }
+
+    function matchDoc(matchId) {
+      return get(/databases/$(database)/documents/matches/$(matchId));
+    }
+
+    function isParticipant(matchId) {
+      return signedIn() && request.auth.uid in matchDoc(matchId).data.users;
+    }
+
+    function optionalString(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    // ---- Creator profiles: readable by signed-in creators, writable only by the owner.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly([
+             'uid', 'displayName', 'channel', 'channelId', 'subscribers', 'avgViews', 'niches',
+             'bio', 'avatar', 'country', 'state', 'county', 'createdAt', 'updatedAt'])
+        && request.resource.data.channel is string
+        && request.resource.data.channel.size() > 0
+        && request.resource.data.channel.size() <= 100
+        && request.resource.data.subscribers is number
+        && request.resource.data.subscribers >= 0
+        && request.resource.data.avgViews is number
+        && request.resource.data.niches is list
+        && request.resource.data.niches.size() <= 20
+        && optionalString(request.resource.data, 'displayName', 100)
+        && optionalString(request.resource.data, 'channelId', 64)
+        && optionalString(request.resource.data, 'bio', 150)
+        && optionalString(request.resource.data, 'avatar', 1000)
+        && optionalString(request.resource.data, 'country', 20)
+        && optionalString(request.resource.data, 'state', 40)
+        && optionalString(request.resource.data, 'county', 40);
+    }
+
+    // ---- Swipes: id is "{fromUid}_{toUid}". Owner writes; target can read pitches aimed at them.
+    match /swipes/{swipeId} {
+      allow read: if signedIn() && (
+        resource.data.from == request.auth.uid ||
+        (resource.data.to == request.auth.uid && resource.data.direction == 'pitch'));
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['from', 'to', 'direction', 'note', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && swipeId == request.auth.uid + '_' + request.resource.data.to
+        && request.resource.data.direction in ['pass', 'pitch']
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && request.resource.data.createdAt == request.time;
+      // Owner can edit the note, or change Pass <-> Pitch (re-stamping createdAt).
+      allow update: if signedIn()
+        && resource.data.from == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['note', 'direction', 'createdAt'])
+        && request.resource.data.direction in ['pass', 'pitch']
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && (request.resource.data.createdAt == resource.data.createdAt || request.resource.data.createdAt == request.time);
+      allow delete: if signedIn() && resource.data.from == request.auth.uid;
+    }
+
+    // ---- Matches: id is "{uidA}_{uidB}" (sorted). Created only after a mutual pitch.
+    match /matches/{matchId} {
+      allow get: if signedIn() && (resource == null || request.auth.uid in resource.data.users);
+      allow list: if signedIn() && request.auth.uid in resource.data.users;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['users', 'createdAt', 'blockedBy', 'lastMessageAt'])
+        && request.resource.data.users is list
+        && request.resource.data.users.size() == 2
+        && request.auth.uid in request.resource.data.users
+        && request.resource.data.users[0] < request.resource.data.users[1]
+        && matchId == request.resource.data.users[0] + '_' + request.resource.data.users[1]
+        && isPitch(request.resource.data.users[0], request.resource.data.users[1])
+        && isPitch(request.resource.data.users[1], request.resource.data.users[0])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.blockedBy == null
+        && request.resource.data.lastMessageAt == null;
+      // Participants may block/unblock (only the blocker can unblock) and bump lastMessageAt.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.users
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['blockedBy', 'lastMessageAt'])
+        && (
+          request.resource.data.blockedBy == resource.data.blockedBy ||
+          (resource.data.blockedBy == null && request.resource.data.blockedBy == request.auth.uid) ||
+          (resource.data.blockedBy == request.auth.uid && request.resource.data.blockedBy == null)
+        )
+        && (
+          request.resource.data.lastMessageAt == resource.data.lastMessageAt ||
+          request.resource.data.lastMessageAt == request.time
+        );
+      allow delete: if false;
+
+      // ---- Messages: only the two matched creators; never while the match is blocked.
+      match /messages/{messageId} {
+        allow read: if isParticipant(matchId);
+        allow create: if isParticipant(matchId)
+          && matchDoc(matchId).data.blockedBy == null
+          && request.resource.data.keys().hasOnly(['from', 'text', 'createdAt'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    // ---- Server-only collections (written by the service account, which bypasses rules).
+    match /entitlements/{doc} { allow read, write: if false; }
+    match /stripeSessions/{doc} { allow read, write: if false; }
+    match /referralCodes/{doc} { allow read, write: if false; }
+    match /referralClaims/{doc} { allow read, write: if false; }
+    match /referralRewards/{doc} { allow read, write: if false; }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

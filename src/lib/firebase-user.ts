@@ -1,5 +1,5 @@
 import { GoogleAuthProvider, browserPopupRedirectResolver, onAuthStateChanged, signInWithCredential, signInWithPopup, type User } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { deleteField, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
@@ -70,14 +70,15 @@ export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
     ref,
     {
       uid: user.uid,
-      email: user.email ?? null,
+      // Profiles are readable by other signed-in creators, so no email here.
+      email: deleteField(),
       displayName: profile.displayName || user.displayName || "",
       channel: profile.channel,
       channelId: profile.channelId ?? null,
       subscribers: profile.subscribers,
       avgViews: profile.avgViews,
       niches,
-      bio: profile.bio ?? "",
+      bio: (profile.bio ?? "").slice(0, 150),
       avatar: profile.avatar ?? user.photoURL ?? null,
       country: profile.country ?? "",
       state: profile.country === "us" ? (profile.state ?? null) : null,
@@ -87,4 +88,35 @@ export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
     },
     { merge: true },
   );
+}
+
+/** The signed-in creator's saved Firestore profile (used to restore after logout / on a new device). */
+export async function loadFirebaseProfile(): Promise<DeskProfile | null> {
+  const db = await firebaseDb();
+  const user = await restoredUser();
+  if (!db || !user) return null;
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists()) return null;
+  const data = snap.data() as Record<string, unknown>;
+  const niches = Array.isArray(data.niches) ? data.niches.filter((n): n is string => typeof n === "string") : [];
+  if (typeof data.channel !== "string" || niches.length === 0) return null;
+  const country = typeof data.country === "string" ? data.country : "";
+  return {
+    displayName: typeof data.displayName === "string" ? data.displayName : data.channel,
+    channel: data.channel,
+    channelId: typeof data.channelId === "string" ? data.channelId : undefined,
+    subscribers: typeof data.subscribers === "number" ? data.subscribers : 0,
+    avgViews: typeof data.avgViews === "number" ? data.avgViews : 0,
+    niches,
+    bio: typeof data.bio === "string" ? data.bio : "",
+    avatar: typeof data.avatar === "string" ? data.avatar : null,
+    country: country as DeskProfile["country"],
+    state: (typeof data.state === "string" ? data.state : null) as DeskProfile["state"],
+    county: typeof data.county === "string" ? data.county : "",
+  };
+}
+
+export async function currentFirebaseUid(): Promise<string | null> {
+  const user = await restoredUser();
+  return user?.uid ?? null;
 }

@@ -12,7 +12,17 @@ import {
   type UsState,
 } from "@/data/creators";
 import { defaultPitch, todayKey } from "@/lib/format";
-import { clearPlusLocal, clearPlusOnServer, fetchPlusFromServer, grantPlusOnServer, readPlusLocal, writePlusLocal } from "@/lib/youtube/plus-client";
+import { clearPlusLocal, readPlusLocal, spendPitchOnServer, writePlusLocal } from "@/lib/youtube/plus-client";
+import { deleteSwipe, deleteSwipes, recordSwipe, updateSwipeNote, type RemoteSwipe } from "@/lib/collab";
+
+export type DeskSelf = { channel: string; subscribers: number; niches: string[] };
+
+const noteTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function reportSync(error: unknown) {
+  const message = error instanceof Error ? error.message : "Could not sync with the server.";
+  useDeck.getState().setAuthError(message);
+}
 
 export type Direction = "pass" | "pitch";
 export type SortKey = "fit" | "views" | "subs";
@@ -171,6 +181,14 @@ type DeckState = Persisted & {
   usedToday: () => number;
   members: Creator[];
   membersStatus: MembersStatus;
+  me: DeskSelf | null;
+  setMe: (me: DeskSelf | null) => void;
+  matched: string[];
+  setMatched: (ids: string[]) => void;
+  setRemoteSwipes: (remote: RemoteSwipe[]) => void;
+  setPurchasedPitches: (count: number) => void;
+  onMatch: ((creatorId: string) => void) | null;
+  setOnMatch: (fn: ((creatorId: string) => void) | null) => void;
   authError: string | null;
   setMembers: (members: Creator[], status: MembersStatus) => void;
   setAuthError: (message: string | null) => void;
@@ -206,14 +224,6 @@ export const useDeck = create<DeckState>((set, get) => ({
         persist(get());
       }
     }
-    void fetchPlusFromServer().then((serverUntil) => {
-      if (!serverUntil || serverUntil <= Date.now()) return;
-      writePlusLocal(serverUntil);
-      if (!get().premium || (get().premiumUntil ?? 0) < serverUntil) {
-        set({ premium: true, premiumUntil: serverUntil });
-        persist(get());
-      }
-    });
   },
   toggleNiche: (niche) => {
     const next = normalizeFilterNiche(niche);
@@ -285,7 +295,7 @@ export const useDeck = create<DeckState>((set, get) => ({
       return;
     }
     const notes = { ...get().notes };
-    if (direction === "pitch" && !notes[creatorId]) notes[creatorId] = defaultPitch(creator);
+    if (direction === "pitch" && !notes[creatorId]) notes[creatorId] = defaultPitch(creator, get().me);
     const usedBonus =
       direction === "pitch" &&
       !get().premium &&
@@ -305,6 +315,12 @@ export const useDeck = create<DeckState>((set, get) => ({
       extraPitches: usedBonus ? Math.max(0, get().extraPitches - 1) : get().extraPitches,
     });
     persist(get());
+    if (usedBonus) void spendPitchOnServer();
+    void recordSwipe(creatorId, direction, direction === "pitch" ? (notes[creatorId] ?? "") : "")
+      .then(({ matched }) => {
+        if (matched) get().onMatch?.(creatorId);
+      })
+      .catch(reportSync);
   },
   undo: () => {
     const swipes = get().swipes;
@@ -317,6 +333,7 @@ export const useDeck = create<DeckState>((set, get) => ({
       announcement: creator ? `Brought ${creator.channel} back.` : "Undid the last swipe.",
     });
     persist(get());
+    void deleteSwipe(last.creatorId).catch(reportSync);
   },
   removeSwipe: (creatorId) => {
     const creator = get().members.find((item) => item.id === creatorId);
@@ -325,14 +342,31 @@ export const useDeck = create<DeckState>((set, get) => ({
       announcement: creator ? `Pulled the pitch for ${creator.channel}.` : "",
     });
     persist(get());
+    void deleteSwipe(creatorId).catch(reportSync);
   },
   resetSwipes: () => {
-    set({ swipes: [], announcement: "The desk is reset. Every channel is back in the deck." });
+    // Matched creators stay matched; everyone else goes back in the deck.
+    const keep = new Set(get().matched);
+    const removed = get().swipes.filter((swipe) => !keep.has(swipe.creatorId)).map((swipe) => swipe.creatorId);
+    set({
+      swipes: get().swipes.filter((swipe) => keep.has(swipe.creatorId)),
+      announcement: "The desk is reset. Every unmatched channel is back in the deck.",
+    });
     persist(get());
+    void deleteSwipes(removed).catch(reportSync);
   },
   setNote: (creatorId, note) => {
     set({ notes: { ...get().notes, [creatorId]: note } });
     persist(get());
+    const pending = noteTimers.get(creatorId);
+    if (pending) clearTimeout(pending);
+    noteTimers.set(
+      creatorId,
+      setTimeout(() => {
+        noteTimers.delete(creatorId);
+        void updateSwipeNote(creatorId, note).catch(() => {});
+      }, 800),
+    );
   },
   openPremium: (gate = null) => set({ premiumOpen: true, gate: gate ?? null }),
   closePremium: () => set({ premiumOpen: false, gate: null }),
@@ -350,19 +384,13 @@ export const useDeck = create<DeckState>((set, get) => ({
       announcement:
         announcement ??
         (premium
-          ? premiumUntil
-            ? "Premium Unlocked for 30 Days"
-            : "Plus is on for this preview."
+          ? "Plus is on."
           : "Reverted to the free desk."),
     });
     persist(get());
-    if (premium && premiumUntil) {
-      writePlusLocal(premiumUntil);
-      void grantPlusOnServer(premiumUntil);
-    } else if (!premium) {
-      clearPlusLocal();
-      void clearPlusOnServer();
-    }
+    // Display cache only. Plus itself lives on the server (Stripe / tester comp / invites).
+    if (premium && premiumUntil) writePlusLocal(premiumUntil);
+    else if (!premium) clearPlusLocal();
   },
   usedToday: () => pitchesToday(get().swipes),
   addExtraPitch: () => {
@@ -390,6 +418,33 @@ export const useDeck = create<DeckState>((set, get) => ({
   },
   members: [],
   membersStatus: "idle",
+  me: null,
+  setMe: (me) => set({ me }),
+  matched: [],
+  setMatched: (ids) => set({ matched: ids }),
+  onMatch: null,
+  setOnMatch: (fn) => set({ onMatch: fn }),
+  setPurchasedPitches: (count) => {
+    set({ extraPitches: Math.max(0, Math.floor(count)) });
+    persist(get());
+  },
+  setRemoteSwipes: (remote) => {
+    const local = new Map(get().swipes.map((swipe) => [swipe.creatorId, swipe]));
+    const swipes: Swipe[] = remote
+      .slice()
+      .sort((a, b) => a.at - b.at)
+      .map((item) => ({
+        creatorId: item.to,
+        direction: item.direction,
+        day: item.day,
+        at: item.at,
+        bonus: local.get(item.to)?.bonus,
+      }));
+    const notes = { ...get().notes };
+    for (const item of remote) if (item.direction === "pitch" && item.note) notes[item.to] = item.note;
+    set({ swipes, notes });
+    persist(get());
+  },
   authError: null,
   setMembers: (members, status) => set({ members, membersStatus: status }),
   setAuthError: (message) => set({ authError: message }),

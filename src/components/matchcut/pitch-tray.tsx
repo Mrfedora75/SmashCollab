@@ -1,4 +1,4 @@
-import { CREATORS, bracketOf } from "@/data/creators";
+import { bracketOf } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
 
@@ -15,7 +15,7 @@ export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: st
       {heading ? (
         <div className="border-b border-line px-5 py-4">
           <h2 className="font-display text-2xl leading-tight">Pitches</h2>
-          <p className="mt-1 text-sm text-muted">Queued on this desk. Nothing is emailed.</p>
+          <p className="mt-1 text-sm text-muted">They see your pitch in their inbox. If they pitch back, you match.</p>
         </div>
       ) : null}
       {pitches.length === 0 ? (
@@ -25,7 +25,7 @@ export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: st
       ) : (
         <ul className="flex flex-col gap-4 overflow-y-auto p-5">
           {pitches.map((swipe) => {
-            const creator = members.find((item) => item.id === swipe.creatorId) ?? CREATORS.find((item) => item.id === swipe.creatorId);
+            const creator = members.find((item) => item.id === swipe.creatorId);
             if (!creator) return null;
             const tier = bracketOf(creator.subscribers);
             return (
