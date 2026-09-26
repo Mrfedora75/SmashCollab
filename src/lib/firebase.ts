@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { browserLocalPersistence, getAuth, initializeAuth, type Auth } from "firebase/auth";
+import { browserLocalPersistence, browserPopupRedirectResolver, getAuth, initializeAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 export type FirebaseWebConfig = {
@@ -99,7 +99,10 @@ function authFor(app: FirebaseApp): Auth {
     auth = getAuth(app);
   } else {
     try {
-      auth = initializeAuth(app, { persistence: browserLocalPersistence });
+      auth = initializeAuth(app, {
+        persistence: browserLocalPersistence,
+        popupRedirectResolver: browserPopupRedirectResolver,
+      });
     } catch {
       auth = getAuth(app);
     }

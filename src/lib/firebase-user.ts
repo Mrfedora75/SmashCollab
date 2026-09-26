@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signInWithPopup, type User } from "firebase/auth";
+import { GoogleAuthProvider, browserPopupRedirectResolver, onAuthStateChanged, signInWithCredential, signInWithPopup, type User } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
@@ -49,7 +49,8 @@ export async function signInToFirebase(): Promise<User> {
     // Fall through to the Firebase Google popup.
   }
 
-  const signedIn = await signInWithPopup(auth, new GoogleAuthProvider());
+  const provider = new GoogleAuthProvider();
+  const signedIn = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
   return signedIn.user;
 }
 
