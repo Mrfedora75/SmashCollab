@@ -33,7 +33,7 @@ export function FilterPanel() {
     niches.length > 0 || minBracket !== 0 || maxBracket !== BRACKETS.length - 1 || sort !== "fit";
   const rangeLabel =
     minBracket === maxBracket
-      ? `Only ${BRACKETS[minBracket].label} · ${BRACKETS[minBracket].range}`
+      ? BRACKETS[minBracket].label
       : `${BRACKETS[minBracket].label} to ${BRACKETS[maxBracket].label}`;
   const customNiches = niches.filter((niche) => !(NICHES as readonly string[]).includes(niche));
 
@@ -138,9 +138,10 @@ export function FilterPanel() {
             </div>
           </div>
         )}
-        <div className="mt-1 flex justify-between text-xs text-muted">
-          <span>Nano</span>
-          <span>Flagship</span>
+        <div className="mt-1 flex justify-between gap-2 text-xs text-muted">
+          <span>{BRACKETS[0].label}</span>
+          <span className="text-center">{BRACKETS[1].label}</span>
+          <span className="text-right">{BRACKETS[BRACKETS.length - 1].label}</span>
         </div>
       </div>
 

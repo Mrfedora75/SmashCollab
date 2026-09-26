@@ -128,19 +128,22 @@ export const VIEWER = {
 };
 
 export const BRACKETS = [
-  { id: "nano", label: "Nano", range: "Under 10K", min: 0, max: 10_000 },
-  { id: "micro", label: "Micro", range: "10K–50K", min: 10_000, max: 50_000 },
-  { id: "rising", label: "Rising", range: "50K–250K", min: 50_000, max: 250_000 },
-  { id: "established", label: "Established", range: "250K–1M", min: 250_000, max: 1_000_000 },
-  { id: "flagship", label: "Flagship", range: "1M+", min: 1_000_000, max: Number.POSITIVE_INFINITY },
+  { id: "micro", label: "Under 10K Subs", range: "Under 10K", min: 0, max: 10_000 },
+  { id: "rising", label: "10K – 100K Subs", range: "10K–100K", min: 10_000, max: 100_000 },
+  { id: "flagship", label: "100K+ Subs", range: "100K+", min: 100_000, max: Number.POSITIVE_INFINITY },
 ] as const;
 
 export const FREE_DAILY = 4;
+export const PLUS_SUBSCRIBER_MIN = 1_000_000;
 export const FLAGSHIP_INDEX = BRACKETS.length - 1;
 
 export function bracketIndex(subscribers: number): number {
   const index = BRACKETS.findIndex((bracket) => subscribers >= bracket.min && subscribers < bracket.max);
   return index === -1 ? FLAGSHIP_INDEX : index;
+}
+
+export function isPlusChannel(subscribers: number): boolean {
+  return subscribers >= PLUS_SUBSCRIBER_MIN;
 }
 
 export function bracketOf(subscribers: number) {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { RotateCcw, Send, X } from "lucide-react";
-import { FLAGSHIP_INDEX, FREE_DAILY, bracketIndex } from "@/data/creators";
+import { FREE_DAILY, isPlusChannel } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck, visibleCreators, type Direction } from "@/lib/deck-store";
 import { CardFace } from "@/components/matchcut/card-face";
@@ -92,7 +92,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
 
   const passOpacity = leaving === "pass" ? 1 : Math.max(0, Math.min(1, -offset.x / 90));
   const pitchOpacity = leaving === "pitch" ? 1 : Math.max(0, Math.min(1, offset.x / 90));
-  const locked = !!top && !premium && bracketIndex(top.subscribers) === FLAGSHIP_INDEX;
+  const locked = !!top && !premium && isPlusChannel(top.subscribers);
   const transform = leaving
     ? `translateX(${leaving === "pitch" ? "130%" : "-130%"}) rotate(${leaving === "pitch" ? 12 : -12}deg)`
     : `translate(${offset.x}px, ${offset.y}px) rotate(${offset.x / 18}deg)`;
@@ -122,7 +122,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
               <CardFace
                 creator={creator}
                 asHeading={false}
-                locked={!premium && bracketIndex(creator.subscribers) === FLAGSHIP_INDEX}
+                locked={!premium && isPlusChannel(creator.subscribers)}
               />
             </div>
           );

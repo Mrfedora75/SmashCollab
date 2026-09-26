@@ -68,7 +68,7 @@ export function DiscoveryFilters({ open, onOpenChange }: { open: boolean; onOpen
   const sizeLabel = anySize
     ? "Any Size"
     : minBracket === maxBracket
-      ? `${BRACKETS[minBracket].label} · ${BRACKETS[minBracket].range}`
+      ? BRACKETS[minBracket].label
       : `${BRACKETS[minBracket].label} to ${BRACKETS[maxBracket].label}`;
 
   const needsState = location === "us" || location === "us-state";
@@ -160,9 +160,10 @@ export function DiscoveryFilters({ open, onOpenChange }: { open: boolean; onOpen
                 <div className="h-1.5 w-full rounded-full bg-line" />
               </div>
             )}
-            <div className="mt-1 flex justify-between text-xs text-muted">
-              <span>Nano</span>
-              <span>Flagship</span>
+            <div className="mt-1 flex justify-between gap-3 text-xs text-muted">
+              <span>{BRACKETS[0].label}</span>
+              <span className="text-center">{BRACKETS[1].label}</span>
+              <span className="text-right">{BRACKETS[BRACKETS.length - 1].label}</span>
             </div>
           </section>
 

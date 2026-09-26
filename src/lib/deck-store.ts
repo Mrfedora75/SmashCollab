@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import {
   BRACKETS,
-  FLAGSHIP_INDEX,
+  isPlusChannel,
   FREE_DAILY,
   LOCATIONS,
   US_STATES,
@@ -270,7 +270,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     ) {
       return "limit";
     }
-    if (direction === "pitch" && !state.premium && bracketIndex(creator.subscribers) === FLAGSHIP_INDEX) {
+    if (direction === "pitch" && !state.premium && isPlusChannel(creator.subscribers)) {
       return "flagship";
     }
     return null;
