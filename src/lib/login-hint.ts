@@ -1,10 +1,12 @@
 /**
  * "Continue as @channel" hint: the ONLY thing kept on this device after logout.
  *
- * It is display-only and non-sensitive (channel handle, name, a public https
- * photo URL, Firebase uid). It never contains tokens, emails, chats, or drafts,
- * and it grants nothing: tapping Continue still requires a real Google sign-in,
- * and the server decides from its own records whether the channel is verified.
+ * It holds only the channel handle, display name, a public https photo URL and
+ * the Google account email (used as `login_hint` so Google skips the account
+ * picker). It never contains tokens, chats, drafts, or bio, and it grants
+ * nothing: tapping Continue still requires a real Google sign-in, and the
+ * server decides from its own records (uid + verified email) whether the
+ * channel is verified. The email is a UX hint only.
  */
 export const LOGIN_HINT_KEY = "smash-login-hint";
 
@@ -12,7 +14,8 @@ export type LoginHint = {
   channel: string;
   displayName: string;
   avatar: string | null;
-  uid: string | null;
+  /** Google account email, passed to Google as login_hint. */
+  email: string | null;
 };
 
 type KV = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -31,22 +34,28 @@ function safeAvatar(value: unknown): string | null {
   }
 }
 
+/** A plausible email address (lower-cased), or null. */
+function safeEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const email = value.trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
 /** Normalise untrusted input into a hint, or null if there is nothing useful to show. */
 export function toLoginHint(input: {
   channel?: unknown;
   displayName?: unknown;
   avatar?: unknown;
-  uid?: unknown;
+  email?: unknown;
 } | null | undefined): LoginHint | null {
   if (!input) return null;
   const channel = clip(input.channel, 100);
   if (!channel) return null;
-  const uid = clip(input.uid, 128);
   return {
     channel,
     displayName: clip(input.displayName, 100) || channel,
     avatar: safeAvatar(input.avatar),
-    uid: uid || null,
+    email: safeEmail(input.email),
   };
 }
 

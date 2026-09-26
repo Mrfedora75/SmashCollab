@@ -15,6 +15,7 @@ import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { syncProfileOnServer } from "@/lib/collab";
 import { fillFromSaved, profileFromDoc } from "@/lib/profile-merge";
 import { isStorableAvatar } from "@/lib/avatar";
+import { clearServerSession } from "@/lib/youtube/client-logout";
 
 export function describeAuthError(error: unknown): string {
   if (error && typeof error === "object") {
@@ -261,10 +262,19 @@ function authCode(error: unknown): string {
  *
  * Pass an Auth that is already initialised (see firebaseAuth) so the popup
  * opens straight from the tap and is not blocked.
+ *
+ * `loginHint` (the remembered account email) makes Google go straight to that
+ * account instead of the "Choose an account" picker. It is only a UX hint: the
+ * server checks the signed-in uid and verified email against its own records.
  */
-export async function continueWithGoogle(auth: Auth): Promise<ContinueResult> {
+export function googleProviderFor(loginHint: string | null | undefined): GoogleAuthProvider {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
+  provider.setCustomParameters(loginHint ? { login_hint: loginHint } : { prompt: "select_account" });
+  return provider;
+}
+
+export async function continueWithGoogle(auth: Auth, loginHint?: string | null): Promise<ContinueResult> {
+  const provider = googleProviderFor(loginHint);
   let user: User;
   try {
     user = (await signInWithPopup(auth, provider)).user;
@@ -274,8 +284,18 @@ export async function continueWithGoogle(auth: Auth): Promise<ContinueResult> {
     if (code === "auth/popup-blocked") throw new Error("Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.");
     throw error;
   }
+  // Once the server has re-issued session cookies, a bail-out must expire them again.
+  let serverSession = false;
+  let signedOut = false;
   const bail = async () => {
-    await signOut(auth).catch(() => {});
+    if (!signedOut) {
+      signedOut = true;
+      await signOut(auth).catch(() => {});
+    }
+    if (serverSession) {
+      serverSession = false;
+      await clearServerSession();
+    }
   };
   try {
     const token = await user.getIdToken();
@@ -297,6 +317,7 @@ export async function continueWithGoogle(auth: Auth): Promise<ContinueResult> {
       if (data.needsVerify) return { status: "needsVerify" };
       throw new Error(data.error || `Could not sign you in (${res.status}).`);
     }
+    serverSession = true;
     const profile = await loadFirebaseProfile();
     // An unfinished profile (or one saved for another channel) goes through the normal flow.
     if (!profile || (profile.channelId && profile.channelId !== data.channelId)) {

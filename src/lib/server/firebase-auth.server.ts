@@ -30,6 +30,8 @@ export type FirebaseIdentity = {
   emailVerified: boolean;
   /** When the user last actually signed in (seconds since epoch). */
   authTime?: number;
+  /** firebase.sign_in_provider from the token, e.g. "google.com" or "custom". */
+  signInProvider?: string | null;
 };
 
 export async function verifyFirebaseIdToken(token: string): Promise<FirebaseIdentity | null> {
@@ -46,7 +48,10 @@ export async function verifyFirebaseIdToken(token: string): Promise<FirebaseIden
     const authTime = typeof payload.auth_time === "number" ? payload.auth_time : Number.NaN;
     if (!Number.isFinite(authTime) || authTime > Date.now() / 1000 + 60) return null;
     const email = typeof payload.email === "string" && payload.email ? payload.email.trim().toLowerCase() : null;
-    return { uid, email, emailVerified: payload.email_verified === true, authTime };
+    const firebaseClaim = payload.firebase as { sign_in_provider?: unknown } | undefined;
+    const signInProvider =
+      firebaseClaim && typeof firebaseClaim.sign_in_provider === "string" ? firebaseClaim.sign_in_provider : null;
+    return { uid, email, emailVerified: payload.email_verified === true, authTime, signInProvider };
   } catch {
     return null;
   }

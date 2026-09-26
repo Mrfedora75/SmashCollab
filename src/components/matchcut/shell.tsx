@@ -19,6 +19,7 @@ import { InviteModal } from "@/components/matchcut/invite-modal";
 import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
+import { saveLoginHint } from "@/lib/login-hint";
 import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
 import { fillFromSaved, reverifiedAvatar, reverifiedDisplayName } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
@@ -274,6 +275,9 @@ export function MatchcutApp() {
           });
           return;
         }
+        // Keep the "Continue as" hint in step with the account actually signed in (Continue,
+        // a different Google account, or a full YouTube verification).
+        saveLoginHint({ channel: current.channel, displayName: current.displayName, avatar: current.avatar, email: user.email });
         void firebaseDb().then((db) => {
           if (!db || ticket !== request) return;
           const onError = (error: unknown) => useDeck.getState().setAuthError(describeAuthError(error));

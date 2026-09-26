@@ -1,5 +1,5 @@
 import { LegalLinks } from "@/components/site-footer";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, Youtube } from "lucide-react";
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
@@ -33,6 +33,10 @@ export function CreateProfile({
   const returning = loadProfile();
   const [hint, setHint] = useState<LoginHint | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
+  // Double-tap guard: a second tap would open a second popup, and the cancelled first one
+  // would flip the screen back to "connect" while the real sign-in is still running.
+  const continuing = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const saved = returning ? null : loadLoginHint();
@@ -70,17 +74,26 @@ export function CreateProfile({
   }
 
   async function continueAs() {
+    if (continuing.current) return;
     setError(null);
     if (!auth) {
       setError("Still getting sign-in ready. Try again in a moment.");
       return;
     }
-    const pending = continueWithGoogle(auth);
+    continuing.current = true;
+    setBusy(true);
+    const release = () => {
+      continuing.current = false;
+      setBusy(false);
+    };
+    // login_hint: Google goes straight to the remembered account (no account picker).
+    const pending = continueWithGoogle(auth, hint?.email ?? null);
     setLoadingLabel("Signing in");
     setPhase("loading");
     try {
       const result = await pending;
       if (result.status === "cancelled") {
+        release();
         setPhase("connect");
         return;
       }
@@ -96,6 +109,7 @@ export function CreateProfile({
       void syncStripeAccount();
       onComplete(result.profile);
     } catch (error) {
+      release();
       setPhase("connect");
       setError(describeAuthError(error));
     }
@@ -183,6 +197,8 @@ export function CreateProfile({
                     onClick={() => {
                       void continueAs();
                     }}
+                    disabled={busy}
+                    aria-busy={busy}
                     className="press flex h-14 w-full items-center gap-3 rounded-control bg-accent px-4 text-left text-on-accent"
                   >
                     {hint.avatar ? (
@@ -211,6 +227,7 @@ export function CreateProfile({
                   <button
                     type="button"
                     onClick={useDifferentAccount}
+                    disabled={busy}
                     className="press mx-auto mt-3 flex h-11 items-center justify-center rounded-control border border-cream-deep px-6 text-sm font-medium"
                   >
                     Use a different account

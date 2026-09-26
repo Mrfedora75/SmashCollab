@@ -65,6 +65,17 @@ function clientIp(request: Request): string {
 }
 
 /**
+ * The caller's email, only if the token says it is verified (email_verified).
+ * sign_in_provider is deliberately NOT enough: a user can change their
+ * Firebase account email via the Auth REST API and a later Google sign-in
+ * still reports provider=google.com with that unverified email.
+ */
+export function trustedEmail(identity: FirebaseIdentity): string | null {
+  if (!identity.email) return null;
+  return identity.emailVerified ? identity.email.toLowerCase() : null;
+}
+
+/**
  * The YouTube identity linked to this Firebase user, from server-trusted
  * storage only, or null when the creator has to verify via YouTube.
  */
@@ -76,8 +87,10 @@ export async function linkedAccountFor(identity: FirebaseIdentity): Promise<YtAc
   // The channel must still be linked to this uid (a channel can move to another account).
   if (!record || record.uid !== identity.uid) return null;
   // Same rule as linking: the YouTube grant and the Firebase account are the same Google account.
-  if (record.email && identity.email && record.email.toLowerCase() !== identity.email.toLowerCase()) return null;
-  const email = record.email ?? (identity.emailVerified ? identity.email : null);
+  // Only a Google-verified email counts; an unverified one never matches.
+  const trusted = trustedEmail(identity);
+  if (record.email && trusted !== record.email.toLowerCase()) return null;
+  const email = record.email ?? trusted;
   return { channelId, channel: record.channel, email };
 }
 
@@ -90,6 +103,8 @@ export async function handleRestoreRequest(request: Request): Promise<Response> 
     return json({ error: "Sign in with Google again.", needsVerify: false }, 401);
   }
 
+  // Own buckets (restore-ip:/restore-uid:), separate from the custom-token route's ip:/ch: keys;
+  // only the in-memory limiter helper is reused.
   if (rateLimited(`restore-ip:${clientIp(request)}`) || rateLimited(`restore-uid:${identity.uid}`)) {
     return json({ error: "Too many sign-in attempts. Wait a few minutes and try again.", needsVerify: false }, 429);
   }
