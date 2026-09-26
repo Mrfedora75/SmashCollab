@@ -50,12 +50,16 @@ export function CreateProfile({
 
   async function enterDesk(profile: DeskProfile, back: "connect" | "ready") {
     setError(null);
-    setLoadingLabel("Signing in with Google");
+    setLoadingLabel(back === "connect" ? "Signing in" : "Saving your channel");
     setPhase("loading");
     saveProfile(profile);
     try {
       await signInToFirebase();
-      await saveFirebaseUser(profile);
+      try {
+        await saveFirebaseUser(profile);
+      } catch {
+        // The desk still opens. Firestore sync waits for the saved Google session.
+      }
       onComplete(profile);
     } catch (error) {
       setPhase(back);

@@ -26,11 +26,11 @@ async function restoredUser(): Promise<User | null> {
   });
 }
 
-export async function signInToFirebase(): Promise<User> {
+export async function signInToFirebase(options?: { popup?: boolean }): Promise<User | null> {
   const existing = await restoredUser();
   if (existing) return existing;
   const auth = await firebaseAuth();
-  if (!auth) throw new Error("Firebase is not configured.");
+  if (!auth) return null;
 
   try {
     const res = await fetch("/api/firebase/session", {
@@ -38,7 +38,7 @@ export async function signInToFirebase(): Promise<User> {
       headers: { Accept: "application/json" },
     });
     if (res.ok) {
-      const data = (await res.json()) as { idToken?: string };
+      const data = (await res.json()) as { idToken?: string | null };
       if (data.idToken) {
         const credential = GoogleAuthProvider.credential(data.idToken);
         const signedIn = await signInWithCredential(auth, credential);
@@ -46,9 +46,10 @@ export async function signInToFirebase(): Promise<User> {
       }
     }
   } catch {
-    // Fall through to the Firebase Google popup.
+    // No YouTube token is available. Do not open a second Google window.
   }
 
+  if (!options?.popup) return null;
   const provider = new GoogleAuthProvider();
   const signedIn = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
   return signedIn.user;

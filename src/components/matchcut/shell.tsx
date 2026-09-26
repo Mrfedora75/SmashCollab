@@ -18,7 +18,7 @@ import { loadDeskMemory, saveDeskMemory } from "@/components/matchcut/desk-memor
 import { InviteModal } from "@/components/matchcut/invite-modal";
 import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import { saveFirebaseUser, describeAuthError } from "@/lib/firebase-user";
 import { loadMemberCreators } from "@/lib/members";
 import { firebaseAuth } from "@/lib/firebase";
@@ -158,9 +158,6 @@ export function MatchcutApp() {
   }, [memoryReady, pending, accepted, threads, blocked, reviews]);
 
   function logOut() {
-    void firebaseAuth().then((auth) => {
-      if (auth) void signOut(auth).catch(() => {});
-    });
     useDeck.getState().setMembers([], "auth");
     useDeck.getState().setAuthError(null);
     clearSession();
