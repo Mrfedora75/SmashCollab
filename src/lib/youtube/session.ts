@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import { env } from "@/lib/env.server";
+import { env, isDeployed } from "@/lib/env.server";
 import { getGoogleClientSecret, isSecureRequest } from "./config";
 
 export const YT_STATE_COOKIE = "yt_oauth_state";
@@ -13,14 +13,38 @@ export type VerifiedYouTubeChannel = {
   subscribers: number;
   avgViews: number;
   avatar: string | null;
+  /** Google-verified email of the account that authorized, if any. */
+  email: string | null;
 };
 
+/**
+ * Key for the YouTube session cookies (state, verified channel, account).
+ * Deployed builds never fall back to a hard-coded secret: a missing secret
+ * fails closed instead of issuing forgeable cookies.
+ */
 export function getYoutubeSigningKey(): Uint8Array {
-  const secret =
-    getGoogleClientSecret() ??
-    env("BETTER_AUTH_SECRET") ??
-    "smashcollab-youtube-dev-secret";
+  const secret = getGoogleClientSecret() ?? (isDeployed() ? undefined : "smashcollab-youtube-dev-secret");
+  if (!secret) throw new Error("GOOGLE_CLIENT_SECRET is not configured.");
   return new TextEncoder().encode(secret);
+}
+
+/**
+ * Keys that can verify the `matchcut_plus` cookie, newest first. New cookies
+ * are signed with PLUS_COOKIE_SECRET; the YouTube key is a temporary fallback
+ * so cookies issued before the switch keep working (and is used for signing
+ * only until PLUS_COOKIE_SECRET is set).
+ */
+export function getPlusCookieKeys(): Uint8Array[] {
+  const keys: Uint8Array[] = [];
+  const dedicated = env("PLUS_COOKIE_SECRET");
+  if (dedicated) keys.push(new TextEncoder().encode(dedicated));
+  try {
+    keys.push(getYoutubeSigningKey());
+  } catch {
+    // no fallback key available
+  }
+  if (keys.length === 0) throw new Error("PLUS_COOKIE_SECRET is not configured.");
+  return keys;
 }
 
 export function parseCookieHeader(request: Request): Record<string, string> {
@@ -76,6 +100,7 @@ export async function signVerifiedChannel(
     subscribers: channel.subscribers,
     avgViews: channel.avgViews,
     avatar: channel.avatar,
+    email: channel.email,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -106,6 +131,7 @@ export async function readVerifiedChannel(
       subscribers: Math.max(0, Math.floor(subscribers)),
       avgViews: Number.isFinite(avgViews) ? Math.max(0, Math.floor(avgViews)) : 0,
       avatar,
+      email: typeof payload.email === "string" && payload.email ? payload.email : null,
     };
   } catch {
     return null;

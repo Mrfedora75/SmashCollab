@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   buildYtAccountCookie,
-  plusForChannel,
+  plusCookieFor,
+  resolvePlus,
   signYtAccount,
 } from "@/lib/youtube/plus-entitlement";
 import {
@@ -30,15 +31,17 @@ export const Route = createFileRoute("/api/youtube/me")({
           );
         }
 
-        const plus = await plusForChannel(request, channel.channelId);
-        const accountToken = await signYtAccount(channel.channelId);
+        const account = { channelId: channel.channelId, channel: channel.channel, email: channel.email };
+        const plus = await resolvePlus(request, account);
+        const accountToken = await signYtAccount(channel.channelId, channel.channel, channel.email);
 
         const headers = new Headers({ "Cache-Control": "no-store" });
         // One-shot handoff: clear short-lived verified channel cookie.
         headers.append("Set-Cookie", clearCookie(request, YT_CHANNEL_COOKIE));
-        // Keep a longer-lived account identity for Plus grant/restore.
+        // Longer-lived signed identity for billing and Plus restore.
         headers.append("Set-Cookie", buildYtAccountCookie(request, accountToken));
-        // Do NOT clear matchcut_plus.
+        const plusCookie = await plusCookieFor(request, account, plus);
+        if (plusCookie) headers.append("Set-Cookie", plusCookie);
 
         return Response.json(
           {
@@ -48,8 +51,8 @@ export const Route = createFileRoute("/api/youtube/me")({
             subscribers: channel.subscribers,
             avgViews: channel.avgViews,
             avatar: channel.avatar,
-            premium: plus != null,
-            premiumUntil: plus?.premiumUntil ?? null,
+            premium: plus.premium,
+            premiumUntil: plus.premiumUntil,
           },
           { headers },
         );

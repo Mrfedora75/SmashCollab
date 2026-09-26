@@ -12,57 +12,23 @@ const PERKS = [
   "Your note sits above the cold-email pile",
 ];
 
-const PROMO_CODES = new Set(["BETA", "FREETRIAL"]);
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
-
 export function PremiumModal() {
   const open = useDeck((state) => state.premiumOpen && state.gate !== "limit");
   const gate = useDeck((state) => state.gate);
   const premium = useDeck((state) => state.premium);
   const closePremium = useDeck((state) => state.closePremium);
-  const setPremium = useDeck((state) => state.setPremium);
+  const premiumUntil = useDeck((state) => state.premiumUntil);
   const [plan, setPlan] = useState<"month" | "year">("month");
-  const [done, setDone] = useState(false);
-  const [redeemed, setRedeemed] = useState(false);
-  const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState("");
-  const [yearFree, setYearFree] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setDone(false);
-      setRedeemed(false);
       setPlan("month");
-      setCode("");
-      setCodeError("");
-      setYearFree(false);
       setCheckoutError("");
       setCheckingOut(false);
     }
   }, [open]);
-
-  function applyCode() {
-    if (code.trim().toLowerCase() === "mrfedora") {
-      setCodeError("");
-      setYearFree(true);
-      setPremium(true, Date.now() + YEAR_MS, "1 Year Free Applied!");
-      return;
-    }
-    const normalized = code.trim().toUpperCase();
-    if (!PROMO_CODES.has(normalized)) {
-      setCodeError("That code isn't active.");
-      setYearFree(false);
-      return;
-    }
-    setCodeError("");
-    setYearFree(false);
-    setRedeemed(true);
-    setDone(true);
-    setPremium(true, Date.now() + THIRTY_DAYS_MS);
-  }
 
   const lead =
     gate === "limit"
@@ -71,7 +37,7 @@ export function PremiumModal() {
         ? "Free accounts can only pitch channels under 5,000 subscribers. Plus unlocks pitches to channels with 5,000 or more."
         : "Pitch the channels that don't answer cold emails.";
 
-  const title = redeemed ? "Premium Unlocked for 30 Days" : premium && !done ? "You're on Plus" : "Unlimited cuts";
+  const title = premium ? "You're on Plus" : "Unlimited pitches";
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && closePremium()}>
@@ -83,11 +49,11 @@ export function PremiumModal() {
               <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">Smash Collab Plus</p>
               <Dialog.Title className="mt-1 font-display text-3xl leading-tight">{title}</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-strong">
-                {redeemed
-                  ? "Unlimited swipes are on for the next 30 days, including pitches to channels with 5,000 or more subscribers."
-                  : premium && !done
-                    ? "Daily swipes are unlimited, including pitches to channels with 5,000 or more subscribers."
-                    : lead}
+                {premium
+                  ? `Daily swipes are unlimited, including pitches to channels with 5,000 or more subscribers.${
+                      premiumUntil ? ` Active through ${new Date(premiumUntil).toLocaleDateString()}.` : ""
+                    }`
+                  : lead}
               </Dialog.Description>
             </div>
             <Dialog.Close
@@ -98,14 +64,8 @@ export function PremiumModal() {
             </Dialog.Close>
           </div>
 
-          {done || (premium && !done && !yearFree) ? (
+          {premium ? (
             <div className="mt-6">
-              {done && !redeemed ? (
-                <p className="text-sm leading-relaxed text-muted-strong">
-                  Plus is on for this preview. The daily cap is gone, and you can pitch channels with 5,000 or more subscribers. No
-                  charge was made.
-                </p>
-              ) : null}
               <ul className="mt-4 space-y-2">
                 {PERKS.map((perk) => (
                   <li key={perk} className="flex items-start gap-2 text-sm">
@@ -121,18 +81,6 @@ export function PremiumModal() {
               >
                 Back to the desk
               </button>
-              {premium ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPremium(false);
-                    closePremium();
-                  }}
-                  className="press mt-2 h-11 w-full text-sm text-muted-strong"
-                >
-                  Revert to Free
-                </button>
-              ) : null}
             </div>
           ) : (
             <div className="mt-6">
@@ -174,46 +122,7 @@ export function PremiumModal() {
               <p className="mt-4 text-sm text-muted-strong">
                 Free includes {FREE_DAILY} pitches a day, only to channels under 5,000 subscribers.
               </p>
-              <form
-                className="mt-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  applyCode();
-                }}
-              >
-                <label htmlFor="promo-code" className="text-sm font-medium">
-                  Promo Code
-                </label>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    id="promo-code"
-                    value={code}
-                    onChange={(event) => {
-                      setCode(event.target.value);
-                      if (codeError) setCodeError("");
-                    }}
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="h-12 min-w-0 flex-1 rounded-control border border-cream-deep bg-cream px-3 text-sm text-ink-text"
-                  />
-                  <button
-                    type="submit"
-                    className="press h-12 shrink-0 rounded-control border border-ink-text px-4 text-sm font-medium"
-                  >
-                    Apply
-                  </button>
-                </div>
-                {yearFree ? (
-                  <p className="mt-2 text-sm font-medium text-status-accepted" role="status">
-                    1 Year Free Applied!
-                  </p>
-                ) : null}
-                {codeError ? (
-                  <p className="mt-2 text-sm text-accent-deep" role="alert">
-                    {codeError}
-                  </p>
-                ) : null}
-              </form>
+              <p className="mt-3 text-sm text-muted-strong">Have a promo code? Enter it on the secure Stripe checkout page.</p>
               <button
                 type="button"
                 disabled={checkingOut}

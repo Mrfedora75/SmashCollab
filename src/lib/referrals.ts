@@ -1,5 +1,4 @@
 export const PENDING_REF_KEY = "matchcut-pending-ref";
-export const REFEREE_ID_KEY = "matchcut-referee-id";
 export const REF_CLAIMED_KEY = "matchcut-ref-claimed";
 export const REFERRAL_PLUS_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -37,19 +36,10 @@ export function captureReferralFromUrl(): void {
   if (!localStorage.getItem("matchcut-profile")) {
     localStorage.setItem(PENDING_REF_KEY, code);
   }
-  document.cookie = `matchcut_ref=${encodeURIComponent(code)}; Path=/; Max-Age=2592000; SameSite=Lax`;
 }
 
-function refereeId(channelId?: string): string {
-  if (channelId && channelId.trim()) return channelId.trim();
-  const existing = localStorage.getItem(REFEREE_ID_KEY);
-  if (existing) return existing;
-  const created = `local-${crypto.randomUUID()}`;
-  localStorage.setItem(REFEREE_ID_KEY, created);
-  return created;
-}
-
-export async function claimPendingReferral(channel: string, channelId?: string): Promise<number | null> {
+/** Claim a pending invite as the verified creator in this session. Returns the invite Plus end time. */
+export async function claimPendingReferral(channel: string): Promise<number | null> {
   const code = localStorage.getItem(PENDING_REF_KEY);
   if (!code || localStorage.getItem(REF_CLAIMED_KEY) === "1") return null;
   if (referralCode(channel) === code) {
@@ -61,23 +51,25 @@ export async function claimPendingReferral(channel: string, channelId?: string):
       method: "POST",
       credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ code, refereeId: refereeId(channelId) }),
+      body: JSON.stringify({ code }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { refereePlusUntil?: number; already?: boolean };
+    if (res.status === 401 || res.status >= 500) return null; // try again next sign-in
     localStorage.setItem(REF_CLAIMED_KEY, "1");
     localStorage.removeItem(PENDING_REF_KEY);
-    return typeof data.refereePlusUntil === "number" && data.already !== true ? data.refereePlusUntil : null;
+    if (!res.ok) return null;
+    const data = (await res.json()) as { refereePlusUntil?: number; already?: boolean };
+    return typeof data.refereePlusUntil === "number" && data.refereePlusUntil > 0 && data.already !== true
+      ? data.refereePlusUntil
+      : null;
   } catch {
     return null;
   }
 }
 
-export async function fetchReferralStatus(channel: string): Promise<ReferralStatus | null> {
-  const code = referralCode(channel);
-  if (!code) return null;
+/** Invite status for the signed-in creator (the server derives the code from the verified session). */
+export async function fetchReferralStatus(): Promise<ReferralStatus | null> {
   try {
-    const res = await fetch(`/api/referrals?code=${encodeURIComponent(code)}`, {
+    const res = await fetch("/api/referrals", {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
     });
