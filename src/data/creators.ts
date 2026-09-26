@@ -134,7 +134,7 @@ export const BRACKETS = [
 ] as const;
 
 export const FREE_DAILY = 4;
-export const PLUS_SUBSCRIBER_MIN = 1_000_000;
+export const PLUS_SUBSCRIBER_MIN = 5_000;
 export const FLAGSHIP_INDEX = BRACKETS.length - 1;
 
 export function bracketIndex(subscribers: number): number {

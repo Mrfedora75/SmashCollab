@@ -8,7 +8,7 @@ import { startStripeCheckout } from "@/lib/stripe-client";
 
 const PERKS = [
   "Unlimited daily swipes",
-  "Pitch flagship channels, 1M and up",
+  "Pitch channels with 5,000 subscribers or more",
   "Your note sits above the cold-email pile",
 ];
 
@@ -68,7 +68,7 @@ export function PremiumModal() {
     gate === "limit"
       ? `Today's ${FREE_DAILY} free swipes are used.`
       : gate === "flagship"
-        ? "Flagship channels only take a Plus pitch."
+        ? "Free accounts can only pitch channels under 5,000 subscribers. Plus unlocks pitches to channels with 5,000 or more."
         : "Pitch the channels that don't answer cold emails.";
 
   const title = redeemed ? "Premium Unlocked for 30 Days" : premium && !done ? "You're on Plus" : "Unlimited cuts";
@@ -84,9 +84,9 @@ export function PremiumModal() {
               <Dialog.Title className="mt-1 font-display text-3xl leading-tight">{title}</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-strong">
                 {redeemed
-                  ? "Unlimited swipes and flagship pitches are on for the next 30 days."
+                  ? "Unlimited swipes are on for the next 30 days, including pitches to channels with 5,000 or more subscribers."
                   : premium && !done
-                    ? "Daily swipes are unlimited, and flagship pitches are open."
+                    ? "Daily swipes are unlimited, including pitches to channels with 5,000 or more subscribers."
                     : lead}
               </Dialog.Description>
             </div>
@@ -102,7 +102,7 @@ export function PremiumModal() {
             <div className="mt-6">
               {done && !redeemed ? (
                 <p className="text-sm leading-relaxed text-muted-strong">
-                  Plus is on for this preview. The daily cap is gone, and you can pitch flagship channels. No
+                  Plus is on for this preview. The daily cap is gone, and you can pitch channels with 5,000 or more subscribers. No
                   charge was made.
                 </p>
               ) : null}
@@ -172,7 +172,7 @@ export function PremiumModal() {
                 ))}
               </ul>
               <p className="mt-4 text-sm text-muted-strong">
-                Free includes {FREE_DAILY} pitches a day. Flagship channels stay view-only.
+                Free includes {FREE_DAILY} pitches a day, only to channels under 5,000 subscribers.
               </p>
               <form
                 className="mt-5"

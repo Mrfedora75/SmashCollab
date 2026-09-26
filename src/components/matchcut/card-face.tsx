@@ -101,7 +101,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
           {locked ? (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-accent-deep">
               <Lock className="size-3.5" aria-hidden="true" />
-              Plus to pitch this flagship channel
+              Free accounts can't pitch channels with 5,000 or more subscribers. Plus unlocks this pitch.
             </p>
           ) : null}
         </div>
