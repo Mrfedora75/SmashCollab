@@ -9,7 +9,12 @@ import {
   type DeskProfile,
   type VerifiedChannel,
 } from "@/components/matchcut/onboarding-storage";
-import { saveFirebaseUser, signInToFirebase, describeAuthError, isNeedsVerify } from "@/lib/firebase-user";
+import type { Auth } from "firebase/auth";
+import { continueWithGoogle, saveFirebaseUser, signInToFirebase, describeAuthError, isNeedsVerify } from "@/lib/firebase-user";
+import { firebaseAuth } from "@/lib/firebase";
+import { clearLoginHint, loadLoginHint, type LoginHint } from "@/lib/login-hint";
+import { useDeck } from "@/lib/deck-store";
+import { syncStripeAccount } from "@/lib/stripe-client";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
 
 export function CreateProfile({
@@ -26,6 +31,15 @@ export function CreateProfile({
   const [verified, setVerified] = useState<VerifiedChannel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const returning = loadProfile();
+  const [hint, setHint] = useState<LoginHint | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
+
+  useEffect(() => {
+    const saved = returning ? null : loadLoginHint();
+    setHint(saved);
+    // Initialise Firebase Auth ahead of the tap so the Google window opens straight away (not popup-blocked).
+    if (saved) void firebaseAuth().then(setAuth).catch(() => setAuth(null));
+  }, []);
 
   useEffect(() => {
     if (!verifiedChannel) return;
@@ -47,6 +61,44 @@ export function CreateProfile({
     setLoadingLabel("Connecting to YouTube");
     setPhase("loading");
     window.location.assign("/api/youtube/start");
+  }
+
+  function useDifferentAccount() {
+    clearLoginHint();
+    setHint(null);
+    startYouTubeVerify();
+  }
+
+  async function continueAs() {
+    setError(null);
+    if (!auth) {
+      setError("Still getting sign-in ready. Try again in a moment.");
+      return;
+    }
+    const pending = continueWithGoogle(auth);
+    setLoadingLabel("Signing in");
+    setPhase("loading");
+    try {
+      const result = await pending;
+      if (result.status === "cancelled") {
+        setPhase("connect");
+        return;
+      }
+      if (result.status === "needsVerify") {
+        // No verified channel on file for this Google account: do the full YouTube verification.
+        startYouTubeVerify();
+        return;
+      }
+      saveProfile(result.profile);
+      if (result.premium && result.premiumUntil && result.premiumUntil > Date.now()) {
+        useDeck.getState().setPremium(true, result.premiumUntil, "Plus restored for this YouTube channel.");
+      }
+      void syncStripeAccount();
+      onComplete(result.profile);
+    } catch (error) {
+      setPhase("connect");
+      setError(describeAuthError(error));
+    }
   }
 
   async function enterDesk(profile: DeskProfile, back: "connect" | "ready") {
@@ -91,7 +143,7 @@ export function CreateProfile({
         >
           <p className="text-xs font-medium tracking-widest text-muted-strong">Smash Collab</p>
           <Dialog.Title className="mt-2 font-display text-3xl leading-tight">
-            {returning && phase === "connect" ? "Welcome back" : "Create Your Profile"}
+            {(returning || hint) && phase === "connect" ? "Welcome back" : "Create Your Profile"}
           </Dialog.Title>
           <Dialog.Description className="sr-only">
             Connect your YouTube channel with Google, then choose the niches you pitch in.
@@ -124,6 +176,48 @@ export function CreateProfile({
                   </button>
                 </div>
               ) : null}
+              {!returning && hint ? (
+                <div className="mx-auto max-w-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void continueAs();
+                    }}
+                    className="press flex h-14 w-full items-center gap-3 rounded-control bg-accent px-4 text-left text-on-accent"
+                  >
+                    {hint.avatar ? (
+                      <img
+                        src={hint.avatar}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        className="size-9 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream text-sm font-medium text-ink-text"
+                      >
+                        {(hint.displayName || hint.channel).replace(/^@/, "").charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">Continue as {hint.channel}</span>
+                      {hint.displayName && hint.displayName !== hint.channel ? (
+                        <span className="block truncate text-xs opacity-80">{hint.displayName}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                  <p className="mt-2 text-xs text-muted-strong">Sign in with Google. No need to verify your channel again.</p>
+                  <button
+                    type="button"
+                    onClick={useDifferentAccount}
+                    className="press mx-auto mt-3 flex h-11 items-center justify-center rounded-control border border-cream-deep px-6 text-sm font-medium"
+                  >
+                    Use a different account
+                  </button>
+                </div>
+              ) : null}
+              {!returning && hint ? null : (
               <button
                 type="button"
                 onClick={startYouTubeVerify}
@@ -136,6 +230,7 @@ export function CreateProfile({
                 <Youtube className="size-4" aria-hidden="true" />
                 Verify via YouTube
               </button>
+              )}
               <div className="mx-auto mt-4 max-w-sm">
                 <OauthNotice text="We use official Google OAuth for secure sign-in. Creating a basic profile is completely free. We never store your Google password, and any Plus upgrades are securely processed via Stripe." />
                 <LegalLinks className="mt-3" />
