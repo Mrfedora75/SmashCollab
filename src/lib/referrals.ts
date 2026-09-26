@@ -21,7 +21,8 @@ export function referralCode(channel: string): string {
 
 export function referralLink(channel: string): string {
   const code = referralCode(channel);
-  return `https://smash-collab.vercel.app/?ref=${encodeURIComponent(code || "creator")}`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://smashcollab.com";
+  return `${origin}/?ref=${encodeURIComponent(code || "creator")}`;
 }
 
 export function captureReferralFromUrl(): void {
