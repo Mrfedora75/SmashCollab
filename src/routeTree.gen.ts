@@ -14,6 +14,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiPitchRouteImport } from './routes/api/pitch'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
+import { Route as ApiAuthRestoreRouteImport } from './routes/api/auth/restore'
 import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
 import { Route as ApiFirebaseCustomTokenRouteImport } from './routes/api/firebase/custom-token'
 import { Route as ApiFirebaseSessionRouteImport } from './routes/api/firebase/session'
@@ -52,6 +53,11 @@ const ApiPitchRoute = ApiPitchRouteImport.update({
 const ApiReferralsRoute = ApiReferralsRouteImport.update({
   id: '/api/referrals',
   path: '/api/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRestoreRoute = ApiAuthRestoreRouteImport.update({
+  id: '/api/auth/restore',
+  path: '/api/auth/restore',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFirebaseConfigRoute = ApiFirebaseConfigRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/pitch'
     | '/api/referrals'
+    | '/api/auth/restore'
     | '/api/firebase/config'
     | '/api/firebase/custom-token'
     | '/api/firebase/session'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/pitch'
     | '/api/referrals'
+    | '/api/auth/restore'
     | '/api/firebase/config'
     | '/api/firebase/custom-token'
     | '/api/firebase/session'
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/pitch'
     | '/api/referrals'
+    | '/api/auth/restore'
     | '/api/firebase/config'
     | '/api/firebase/custom-token'
     | '/api/firebase/session'
@@ -261,6 +273,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiPitchRoute: typeof ApiPitchRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
+  ApiAuthRestoreRoute: typeof ApiAuthRestoreRoute
   ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
   ApiFirebaseCustomTokenRoute: typeof ApiFirebaseCustomTokenRoute
   ApiFirebaseSessionRoute: typeof ApiFirebaseSessionRoute
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       path: '/api/referrals'
       fullPath: '/api/referrals'
       preLoaderRoute: typeof ApiReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/restore': {
+      id: '/api/auth/restore'
+      path: '/api/auth/restore'
+      fullPath: '/api/auth/restore'
+      preLoaderRoute: typeof ApiAuthRestoreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/firebase/config': {
@@ -421,6 +441,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiPitchRoute: ApiPitchRoute,
   ApiReferralsRoute: ApiReferralsRoute,
+  ApiAuthRestoreRoute: ApiAuthRestoreRoute,
   ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,
   ApiFirebaseCustomTokenRoute: ApiFirebaseCustomTokenRoute,
   ApiFirebaseSessionRoute: ApiFirebaseSessionRoute,

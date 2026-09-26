@@ -1,4 +1,13 @@
-import { GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signInWithCustomToken, type User } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithCustomToken,
+  signInWithPopup,
+  signOut,
+  type Auth,
+  type User,
+} from "firebase/auth";
 import { deleteField, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
@@ -233,4 +242,76 @@ export async function loadFirebaseProfile(): Promise<DeskProfile | null> {
 export async function currentFirebaseUid(): Promise<string | null> {
   const user = await restoredUser();
   return user?.uid ?? null;
+}
+
+export type ContinueResult =
+  | { status: "restored"; profile: DeskProfile; channelId: string; premium: boolean; premiumUntil: number | null }
+  | { status: "needsVerify" }
+  | { status: "cancelled" };
+
+function authCode(error: unknown): string {
+  return error && typeof error === "object" && "code" in error ? String(error.code) : "";
+}
+
+/**
+ * "Continue as @channel": a plain Google sign-in (Firebase popup), then the
+ * server restores the YouTube-verified session from its own records
+ * (POST /api/auth/restore). No YouTube re-verify when the account already has
+ * a verified channel; { status: "needsVerify" } when it does not.
+ *
+ * Pass an Auth that is already initialised (see firebaseAuth) so the popup
+ * opens straight from the tap and is not blocked.
+ */
+export async function continueWithGoogle(auth: Auth): Promise<ContinueResult> {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  let user: User;
+  try {
+    user = (await signInWithPopup(auth, provider)).user;
+  } catch (error) {
+    const code = authCode(error);
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return { status: "cancelled" };
+    if (code === "auth/popup-blocked") throw new Error("Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.");
+    throw error;
+  }
+  const bail = async () => {
+    await signOut(auth).catch(() => {});
+  };
+  try {
+    const token = await user.getIdToken();
+    const res = await fetch("/api/auth/restore", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      restored?: boolean;
+      channelId?: string;
+      premium?: boolean;
+      premiumUntil?: number | null;
+      error?: string;
+      needsVerify?: boolean;
+    };
+    if (!res.ok || data.restored !== true || typeof data.channelId !== "string") {
+      await bail();
+      if (data.needsVerify) return { status: "needsVerify" };
+      throw new Error(data.error || `Could not sign you in (${res.status}).`);
+    }
+    const profile = await loadFirebaseProfile();
+    // An unfinished profile (or one saved for another channel) goes through the normal flow.
+    if (!profile || (profile.channelId && profile.channelId !== data.channelId)) {
+      await bail();
+      return { status: "needsVerify" };
+    }
+    return {
+      status: "restored",
+      profile: { ...profile, channelId: data.channelId },
+      channelId: data.channelId,
+      premium: data.premium === true,
+      premiumUntil: typeof data.premiumUntil === "number" ? data.premiumUntil : null,
+    };
+  } catch (error) {
+    await bail();
+    throw error;
+  }
 }

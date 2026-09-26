@@ -28,6 +28,8 @@ export type FirebaseIdentity = {
   uid: string;
   email: string | null;
   emailVerified: boolean;
+  /** When the user last actually signed in (seconds since epoch). */
+  authTime?: number;
 };
 
 export async function verifyFirebaseIdToken(token: string): Promise<FirebaseIdentity | null> {
@@ -44,7 +46,7 @@ export async function verifyFirebaseIdToken(token: string): Promise<FirebaseIden
     const authTime = typeof payload.auth_time === "number" ? payload.auth_time : Number.NaN;
     if (!Number.isFinite(authTime) || authTime > Date.now() / 1000 + 60) return null;
     const email = typeof payload.email === "string" && payload.email ? payload.email.trim().toLowerCase() : null;
-    return { uid, email, emailVerified: payload.email_verified === true };
+    return { uid, email, emailVerified: payload.email_verified === true, authTime };
   } catch {
     return null;
   }

@@ -30,7 +30,8 @@ export function buildGoogleAuthUrl(request: Request, state: string): string | nu
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", YOUTUBE_SCOPES);
   url.searchParams.set("access_type", "offline");
-  url.searchParams.set("prompt", "consent");
+  // select_account: always let the creator pick which Google account / channel to verify.
+  url.searchParams.set("prompt", "consent select_account");
   url.searchParams.set("include_granted_scopes", "true");
   url.searchParams.set("state", state);
   return url.toString();
