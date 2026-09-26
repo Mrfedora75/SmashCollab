@@ -64,11 +64,15 @@ function clientIp(request: Request): string {
   );
 }
 
-/** The caller's email, only if Google verified it (email_verified or a Google sign-in). */
+/**
+ * The caller's email, only if the token says it is verified (email_verified).
+ * sign_in_provider is deliberately NOT enough: a user can change their
+ * Firebase account email via the Auth REST API and a later Google sign-in
+ * still reports provider=google.com with that unverified email.
+ */
 export function trustedEmail(identity: FirebaseIdentity): string | null {
   if (!identity.email) return null;
-  if (identity.emailVerified || identity.signInProvider === "google.com") return identity.email.toLowerCase();
-  return null;
+  return identity.emailVerified ? identity.email.toLowerCase() : null;
 }
 
 /**

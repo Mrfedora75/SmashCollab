@@ -286,8 +286,12 @@ export async function continueWithGoogle(auth: Auth, loginHint?: string | null):
   }
   // Once the server has re-issued session cookies, a bail-out must expire them again.
   let serverSession = false;
+  let signedOut = false;
   const bail = async () => {
-    await signOut(auth).catch(() => {});
+    if (!signedOut) {
+      signedOut = true;
+      await signOut(auth).catch(() => {});
+    }
     if (serverSession) {
       serverSession = false;
       await clearServerSession();

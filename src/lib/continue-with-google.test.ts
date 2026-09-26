@@ -108,6 +108,13 @@ describe("continueWithGoogle", () => {
     expect(calls.map((c) => c.url)).toEqual(["/api/auth/restore", "/api/youtube/logout"]);
   });
 
+  it("signs out once on a failed restore", async () => {
+    stubFetch({ status: 503, body: { error: "down", needsVerify: false } });
+    await expect(continueWithGoogle(auth)).rejects.toThrow("down");
+    expect(state.signOuts).toBe(1);
+    expect(calls.map((c) => c.url)).toEqual(["/api/auth/restore"]);
+  });
+
   it("does not call logout when the server never restored anything", async () => {
     stubFetch({ status: 404, body: { error: "x", needsVerify: true } });
     expect((await continueWithGoogle(auth)).status).toBe("needsVerify");

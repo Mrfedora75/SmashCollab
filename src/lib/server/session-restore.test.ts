@@ -177,8 +177,24 @@ describe("POST /api/auth/restore (Continue as @channel)", () => {
     expect(unverified.cookies).toEqual([]);
     // No email on the token while the channel has one on file: refused.
     expect((await post({ token: await idToken("uid-1", { email: null }) })).status).toBe(404);
-    // A Google sign-in counts as verified even if email_verified is missing.
-    expect((await post({ token: await idToken("uid-1", { emailVerified: false, provider: "google.com" }) })).status).toBe(200);
+    // provider=google.com alone does not make an email verified.
+    expect((await post({ token: await idToken("uid-1", { emailVerified: false, provider: "google.com" }) })).status).toBe(404);
+    expect((await post({ token: await idToken("uid-1", { emailVerified: true, provider: "google.com" }) })).status).toBe(200);
+  });
+
+  it("never lets an unverified email from a google.com sign-in reach the cookie or comp check", async () => {
+    // Attack: account email changed via the Auth REST API, then a Google popup sign-in.
+    process.env.PLUS_COMP_EMAILS = "boss@example.com";
+    link("uid-1", "UCme", { email: null });
+    const res = await post({
+      token: await idToken("uid-1", { email: "boss@example.com", emailVerified: false, provider: "google.com" }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.premium).toBe(false);
+    expect((await readYtAccount(res.cookie("yt_account")))?.email).toBeNull();
+    expect(await readPlusEntitlement(res.cookie("matchcut_plus"))).toBeNull();
+    expect(JSON.stringify(res.cookies)).not.toContain("boss");
+    expect(store.get("users/uid-1")?.plus).not.toBe(true);
   });
 
   it("does not use an unverified token email for comp Plus", async () => {

@@ -33,7 +33,11 @@ export function clearSessionStorageOnly() {
   }
 }
 
-/** Expire every server session cookie (yt_account, Plus, ...). Best-effort. */
+/**
+ * Expire every server session cookie (yt_account, Plus, ...). Best-effort and
+ * server-only: it does not touch localStorage / sessionStorage (callers that
+ * need a local wipe use clearSessionStorageOnly).
+ */
 export async function clearServerSession(): Promise<void> {
   try {
     await fetch("/api/youtube/logout", {
@@ -42,7 +46,7 @@ export async function clearServerSession(): Promise<void> {
       headers: { Accept: "application/json" },
     });
   } catch {
-    // Best-effort: still wipe local state if the network call fails.
+    // Best-effort: a network failure here must not block the caller.
   }
 }
 
