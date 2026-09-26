@@ -463,35 +463,49 @@ export function MatchcutApp() {
         {announcement}
       </p>
       <header className="border-b border-line">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-          <Mark className="size-8 shrink-0 text-cream" />
-          {signedIn && profile?.avatar ? (
-            <img
-              src={profile.avatar}
-              alt=""
-              className="size-8 shrink-0 rounded-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : null}
-          <div className="min-w-0">
-            <p className="font-display text-2xl leading-none">Smash Collab</p>
-            {signedIn && profile ? (
-              <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted">
-                <span className="shrink-0">{pitching.channel}</span>
-                {premium ? <PlusBadge size={14} /> : null}
-                <span className="truncate">
-                  · {formatCount(pitching.subscribers)} · {pitching.niches.join(" & ")}
-                </span>
-              </p>
-            ) : (
-              <button type="button" onClick={() => setSignedIn(false)} className="press mt-1 text-xs font-medium text-cream">
-                Sign In
-              </button>
-            )}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Mark className="size-10 shrink-0 text-cream" />
+            <p className="font-display text-[1.75rem] leading-none">Smash Collab</p>
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          {signedIn && profile ? (
+            <div className="flex min-w-0 basis-full items-center gap-3 sm:basis-auto sm:flex-1">
+              {profile.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt=""
+                  className="size-14 shrink-0 rounded-full object-cover ring-2 ring-accent ring-offset-2 ring-offset-ink sm:size-12"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="flex size-14 shrink-0 items-center justify-center rounded-full bg-ink-soft font-display text-2xl text-cream ring-2 ring-accent ring-offset-2 ring-offset-ink sm:size-12"
+                >
+                  {pitching.channel.replace(/^@/, "").charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="flex min-w-0 items-center gap-1.5 text-[15px] leading-snug font-semibold text-cream sm:text-base">
+                  <span className="truncate" title={pitching.channel}>
+                    {pitching.channel}
+                  </span>
+                  {premium ? <PlusBadge size={20} /> : null}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-cream/75">
+                  {formatCount(pitching.subscribers)} subscribers
+                  {pitching.niches.length > 0 ? ` · ${pitching.niches.join(" & ")}` : ""}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setSignedIn(false)} className="press text-sm font-medium text-cream">
+              Sign In
+            </button>
+          )}
+          <div className="flex w-full flex-wrap items-center gap-1.5 min-[400px]:gap-2 sm:ml-auto sm:w-auto sm:justify-end sm:gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-sm">{premium ? "Unlimited pitches" : pitchLabel}</p>
+              <p className="whitespace-nowrap text-sm">{premium ? "Unlimited pitches" : pitchLabel}</p>
               {!premium ? (
                 <div className="mt-1 ml-auto h-1 w-24 overflow-hidden rounded-full bg-line" aria-hidden="true">
                   <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
@@ -501,7 +515,7 @@ export function MatchcutApp() {
             <button
               type="button"
               onClick={() => setInboxOpen(true)}
-              className="press hidden h-11 items-center rounded-control border border-line px-3 text-sm sm:inline-flex"
+              className="press hidden h-11 items-center whitespace-nowrap rounded-control border border-line px-3 text-sm sm:inline-flex"
             >
               Matches & Messages
             </button>
@@ -517,7 +531,7 @@ export function MatchcutApp() {
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="press hidden h-11 items-center gap-2 rounded-control border border-line px-3 text-sm sm:inline-flex"
+                className="press hidden h-11 items-center gap-2 whitespace-nowrap rounded-control border border-line px-3 text-sm sm:inline-flex"
               >
                 <Search className="size-4" aria-hidden="true" />
                 Member Search
@@ -527,15 +541,16 @@ export function MatchcutApp() {
               <button
                 type="button"
                 onClick={() => setInviteOpen(true)}
-                className="press h-11 rounded-control border border-line px-3 text-sm"
+                className="press h-11 flex-1 whitespace-nowrap rounded-control border border-line px-2.5 text-[13px] min-[400px]:px-3 min-[400px]:text-sm sm:flex-none"
               >
-                Invite Creators
+                <span className="sm:hidden">Invite</span>
+                <span className="hidden sm:inline">Invite Creators</span>
               </button>
             ) : null}
             <button
               type="button"
               onClick={() => openPremium(null)}
-              className="press h-11 rounded-control bg-accent px-4 text-sm font-medium text-on-accent"
+              className="press h-11 flex-1 whitespace-nowrap rounded-control bg-accent px-3 text-[13px] min-[400px]:px-4 min-[400px]:text-sm font-medium text-on-accent sm:flex-none"
             >
               {premium ? "Plus" : "Upgrade"}
             </button>
@@ -543,7 +558,7 @@ export function MatchcutApp() {
               <button
                 type="button"
                 onClick={() => setDashboardOpen(true)}
-                className="press h-11 rounded-control border border-line px-3 text-sm"
+                className="press h-11 flex-1 whitespace-nowrap rounded-control border border-line px-2.5 text-[13px] min-[400px]:px-3 min-[400px]:text-sm sm:flex-none"
               >
                 My Profile
               </button>
@@ -552,7 +567,7 @@ export function MatchcutApp() {
               <button
                 type="button"
                 onClick={logOut}
-                className="press h-11 rounded-control border border-line px-3 text-sm"
+                className="press h-11 flex-1 whitespace-nowrap rounded-control border border-line px-2.5 text-[13px] min-[400px]:px-3 min-[400px]:text-sm sm:flex-none"
               >
                 Log Out
               </button>
@@ -560,7 +575,7 @@ export function MatchcutApp() {
             <button
               type="button"
               onClick={() => setPrefsOpen(true)}
-              className="press flex size-11 items-center justify-center rounded-full border border-line"
+              className="press flex size-11 shrink-0 items-center justify-center rounded-full border border-line"
               aria-label="Settings"
             >
               <Settings className="size-4" aria-hidden="true" />
