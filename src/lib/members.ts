@@ -54,6 +54,7 @@ export async function loadMemberCreators(self: { channelId?: string; channel?: s
 }> {
   const db = await firebaseDb();
   const auth = await firebaseAuth();
+  await auth?.authStateReady();
   const user = auth?.currentUser ?? null;
   if (!db || !user) return { members: [], status: "auth" };
   const snap = await getDocs(collection(db, "users"));

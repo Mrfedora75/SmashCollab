@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { browserLocalPersistence, getAuth, setPersistence, type Auth } from "firebase/auth";
+import { browserLocalPersistence, getAuth, initializeAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 export type FirebaseWebConfig = {
@@ -89,13 +89,30 @@ export function ensureFirebase(): Promise<FirebaseApp | null> {
   return appPromise;
 }
 
+const authByApp = new WeakMap<FirebaseApp, Auth>();
+
+function authFor(app: FirebaseApp): Auth {
+  const cached = authByApp.get(app);
+  if (cached) return cached;
+  let auth: Auth;
+  if (typeof window === "undefined") {
+    auth = getAuth(app);
+  } else {
+    try {
+      auth = initializeAuth(app, { persistence: browserLocalPersistence });
+    } catch {
+      auth = getAuth(app);
+    }
+  }
+  authByApp.set(app, auth);
+  return auth;
+}
+
 export async function firebaseAuth(): Promise<Auth | null> {
   const app = await ensureFirebase();
   if (!app) return null;
-  const auth = getAuth(app);
-  if (typeof window !== "undefined") {
-    await setPersistence(auth, browserLocalPersistence);
-  }
+  const auth = authFor(app);
+  await auth.authStateReady();
   return auth;
 }
 
