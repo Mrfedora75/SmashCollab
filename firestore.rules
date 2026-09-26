@@ -30,6 +30,16 @@ service cloud.firestore {
               'bio', 'avatar', 'country', 'state', 'county', 'createdAt', 'updatedAt'];
     }
 
+    // Profile photo: an https URL (YouTube / Google photo) or a small uploaded
+    // JPEG/PNG/WebP data URL, at most 60,000 characters (see src/lib/avatar.ts).
+    function validAvatar(data) {
+      return !('avatar' in data) || data.avatar == null
+        || (data.avatar is string
+            && data.avatar.size() <= 60000
+            && (data.avatar.matches('https://.*')
+                || data.avatar.matches('data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+')));
+    }
+
     function validProfile(data, uid) {
       return data.uid == uid
         && data.channel is string
@@ -41,7 +51,7 @@ service cloud.firestore {
         && optionalString(data, 'displayName', 100)
         && optionalString(data, 'channelId', 64)
         && optionalString(data, 'bio', 150)
-        && optionalString(data, 'avatar', 1000)
+        && validAvatar(data)
         && optionalString(data, 'country', 20)
         && optionalString(data, 'state', 40)
         && optionalString(data, 'county', 40);

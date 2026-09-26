@@ -4,6 +4,7 @@
  */
 import { PROFILE_COUNTRIES, US_STATES, type ProfileCountry, type UsState } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
+import { isUploadedAvatar } from "@/lib/avatar";
 
 function str(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -68,4 +69,33 @@ export function fillFromSaved(local: DeskProfile, saved: Record<string, unknown>
     if (!next.county?.trim() && str(saved.county).trim()) next.county = str(saved.county).slice(0, 40);
   }
   return next;
+}
+
+/**
+ * Display name to keep after a YouTube re-verify. The name is owner-editable
+ * (profile dashboard), so a saved name for the same channel wins over the
+ * Google account name / channel title that verification reports. The verified
+ * name is only used when nothing is saved or the profile belongs to another channel.
+ */
+export function reverifiedDisplayName(
+  existing: Pick<DeskProfile, "displayName" | "channelId">,
+  verified: { displayName: string; channelId: string },
+): string {
+  const sameChannel = !existing.channelId || existing.channelId === verified.channelId;
+  const saved = existing.displayName?.trim() ?? "";
+  if (sameChannel && saved) return saved;
+  return verified.displayName || saved;
+}
+
+/**
+ * Photo to keep after a YouTube re-verify: a photo the creator uploaded for the
+ * same channel wins over the channel thumbnail that verification reports.
+ */
+export function reverifiedAvatar(
+  existing: Pick<DeskProfile, "avatar" | "channelId">,
+  verified: { avatar: string | null; channelId: string },
+): string | null {
+  const sameChannel = !existing.channelId || existing.channelId === verified.channelId;
+  if (sameChannel && isUploadedAvatar(existing.avatar)) return existing.avatar;
+  return verified.avatar ?? (sameChannel ? existing.avatar : null);
 }

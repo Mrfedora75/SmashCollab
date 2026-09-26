@@ -20,7 +20,7 @@ import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
-import { fillFromSaved } from "@/lib/profile-merge";
+import { fillFromSaved, reverifiedAvatar, reverifiedDisplayName } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
 import { utcDayKey } from "@/lib/pitch-policy";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
@@ -154,14 +154,14 @@ export function MatchcutApp() {
         }
         if (existing && existing.niches.length > 0) {
           const next: DeskProfile = {
-            displayName: verified.displayName || existing.displayName,
+            displayName: reverifiedDisplayName(existing, verified),
             channel: verified.channel,
             channelId: verified.channelId,
             subscribers: verified.subscribers,
             avgViews: verified.avgViews,
             niches: existing.niches,
             bio: existing.bio,
-            avatar: verified.avatar ?? existing.avatar,
+            avatar: reverifiedAvatar(existing, verified),
             country: existing.country,
             state: existing.state,
             county: existing.county,
@@ -738,7 +738,20 @@ export function MatchcutApp() {
         onSave={async (next) => {
           setProfile(next);
           // Throws (and the dashboard shows why) if the account did not get the change.
-          await saveFirebaseUser(next, { mode: "edit" });
+          // A photo that could not be saved does not fail the save: the text fields are kept
+          // and the dashboard shows a photo-only message.
+          let photoError: string | undefined;
+          const saved = await saveFirebaseUser(next, {
+            mode: "edit",
+            onPhotoNotSaved: (message) => {
+              photoError = message;
+            },
+          });
+          if (photoError) {
+            saveProfile(saved);
+            setProfile(saved);
+          }
+          return photoError;
         }}
       />
     ) : null}

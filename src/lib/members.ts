@@ -2,6 +2,7 @@ import { collection, getDocs } from "firebase/firestore";
 import type { Creator, ProfileCountry, UsState } from "@/data/creators";
 import { PROFILE_COUNTRIES, US_STATES } from "@/data/creators";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
+import { isDisplayableAvatar } from "@/lib/avatar";
 
 const FALLBACK_THUMB =
   "data:image/svg+xml;utf8," +
@@ -19,7 +20,7 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
   const niches = Array.isArray(data.niches)
     ? data.niches.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
-  const avatar = typeof data.avatar === "string" && /^https?:\/\//.test(data.avatar) ? data.avatar : null;
+  const avatar = isDisplayableAvatar(data.avatar) ? data.avatar : null;
   const bio = typeof data.bio === "string" ? data.bio.trim() : "";
   const name = typeof data.displayName === "string" ? data.displayName.trim() : "";
   const country = PROFILE_COUNTRIES.some((item) => item.id === data.country) ? (data.country as ProfileCountry) : "";

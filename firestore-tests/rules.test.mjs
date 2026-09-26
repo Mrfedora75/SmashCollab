@@ -32,6 +32,15 @@ await t("owner can't overwrite profile without server fields", assertFails(setDo
 await t("new profile without subscribers ok", assertSucceeds(setDoc(doc(B, "users/bob"), prof("bob"))));
 await t("bob can't grant himself plus", assertFails(setDoc(doc(B, "users/bob"), { plus: true, plusUntil: 9e12 }, { merge: true })));
 
+// ---- profile photo: https URL or small image data URL
+const jpeg = (n) => "data:image/jpeg;base64," + "A".repeat(n);
+await t("avatar https ok", assertSucceeds(setDoc(doc(A, "users/alice"), { ...prof("alice"), avatar: "https://yt3.ggpht.com/x" }, { merge: true })));
+await t("avatar small jpeg data URL ok", assertSucceeds(setDoc(doc(A, "users/alice"), { ...prof("alice"), avatar: jpeg(40000) }, { merge: true })));
+await t("avatar over 60000 chars denied", assertFails(setDoc(doc(A, "users/alice"), { ...prof("alice"), avatar: jpeg(60000) }, { merge: true })));
+await t("avatar non-image data URL denied", assertFails(setDoc(doc(A, "users/alice"), { ...prof("alice"), avatar: "data:text/html;base64,PGgxPg==" }, { merge: true })));
+await t("avatar plain http denied", assertFails(setDoc(doc(A, "users/alice"), { ...prof("alice"), avatar: "http://x/y.jpg" }, { merge: true })));
+await t("avatar null ok", assertSucceeds(setDoc(doc(A, "users/alice"), { ...prof("alice"), avatar: null }, { merge: true })));
+
 // ---- legacy email field: may only be deleted, never set or changed
 await server((db) => setDoc(doc(db, "users/dave"), { ...prof("dave"), updatedAt: Timestamp.now(), email: "d@old.example", subscriberCount: 50, plus: false }));
 const D = env.authenticatedContext("dave").firestore();
