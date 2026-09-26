@@ -9,6 +9,7 @@ import { OauthNotice } from "@/components/matchcut/oauth-notice";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
 import { useDeck } from "@/lib/deck-store";
 import { describeAuthError, isNeedsVerify, startYouTubeVerify } from "@/lib/firebase-user";
+import { AVATAR_TARGET_CHARS, isStorableAvatar } from "@/lib/avatar";
 
 const BIO_LIMIT = 150;
 
@@ -21,27 +22,45 @@ function initials(name: string) {
     .join("");
 }
 
+/**
+ * Square-crops and re-encodes an uploaded photo as a small JPEG data URL that fits the
+ * Firestore avatar limit (see src/lib/avatar.ts), stepping size and quality down as needed.
+ */
 function readAvatar(file: File) {
   return new Promise<string>((resolve, reject) => {
     const image = new Image();
     const url = URL.createObjectURL(file);
     image.onload = () => {
-      const size = 256;
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        URL.revokeObjectURL(url);
-        reject(new Error("canvas"));
+      URL.revokeObjectURL(url);
+      const side = Math.min(image.width, image.height);
+      if (!side) {
+        reject(new Error("image"));
         return;
       }
-      const side = Math.min(image.width, image.height);
       const sx = (image.width - side) / 2;
       const sy = (image.height - side) / 2;
-      context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+      for (const size of [256, 192, 160, 128, 96]) {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("canvas"));
+          return;
+        }
+        // JPEG has no alpha: paint a background so transparent PNGs don't turn black.
+        context.fillStyle = "#1c1410";
+        context.fillRect(0, 0, size, size);
+        context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
+        for (const quality of [0.82, 0.7, 0.55]) {
+          const data = canvas.toDataURL("image/jpeg", quality);
+          if (data.length <= AVATAR_TARGET_CHARS && isStorableAvatar(data)) {
+            resolve(data);
+            return;
+          }
+        }
+      }
+      reject(new Error("too-large"));
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
@@ -61,7 +80,8 @@ export function CreatorDashboard({
   profile: DeskProfile;
   onOpenChange: (open: boolean) => void;
   /** Saves to the creator's account (Firestore); rejects if it did not save. */
-  onSave: (profile: DeskProfile) => Promise<void>;
+  /** Resolves with a photo-only message when the photo was not saved (the rest was). */
+  onSave: (profile: DeskProfile) => Promise<string | void>;
 }) {
   const plus = useDeck((state) => state.premium);
   const [displayName, setDisplayName] = useState(profile.displayName);
@@ -407,7 +427,11 @@ export function CreatorDashboard({
               setSaveError(null);
               setSaving(true);
               try {
-                await onSave(next);
+                const photoProblem = await onSave(next);
+                if (photoProblem) {
+                  setAvatar(profile.avatar);
+                  setPhotoError(`Name and bio saved, but the photo was not: ${photoProblem}`);
+                }
                 setSaved(true);
               } catch (error) {
                 setSaveError({

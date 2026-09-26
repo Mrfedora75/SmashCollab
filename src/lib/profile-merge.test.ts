@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillFromSaved, profileFromDoc, reverifiedDisplayName } from "@/lib/profile-merge";
+import { fillFromSaved, profileFromDoc, reverifiedAvatar, reverifiedDisplayName } from "@/lib/profile-merge";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 
 const fresh: DeskProfile = {
@@ -70,5 +70,22 @@ describe("reverifiedDisplayName (re-verify never overwrites an edited name)", ()
 
   it("uses the verified name when nothing is saved", () => {
     expect(reverifiedDisplayName({ displayName: "  ", channelId: "UCw" }, verified)).toBe(verified.displayName);
+  });
+});
+
+describe("reverifiedAvatar (re-verify never overwrites an uploaded photo)", () => {
+  const uploaded = "data:image/jpeg;base64,AAAA";
+  const verified = { avatar: "https://yt3.ggpht.com/thumb", channelId: "UCw" };
+
+  it("keeps an uploaded photo for the same channel", () => {
+    expect(reverifiedAvatar({ avatar: uploaded, channelId: "UCw" }, verified)).toBe(uploaded);
+  });
+
+  it("refreshes a YouTube thumbnail from verification", () => {
+    expect(reverifiedAvatar({ avatar: "https://old/thumb", channelId: "UCw" }, verified)).toBe(verified.avatar);
+  });
+
+  it("never carries another channel's photo", () => {
+    expect(reverifiedAvatar({ avatar: uploaded, channelId: "UCother" }, { avatar: null, channelId: "UCw" })).toBeNull();
   });
 });

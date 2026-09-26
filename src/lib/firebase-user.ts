@@ -5,6 +5,7 @@ import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { syncProfileOnServer } from "@/lib/collab";
 import { fillFromSaved, profileFromDoc } from "@/lib/profile-merge";
+import { isStorableAvatar } from "@/lib/avatar";
 
 export function describeAuthError(error: unknown): string {
   if (error && typeof error === "object") {
@@ -143,7 +144,11 @@ async function requireUser(): Promise<User> {
  */
 export async function saveFirebaseUser(
   profile: DeskProfile,
-  options: { mode?: "edit" | "onboarding" } = {},
+  options: {
+    mode?: "edit" | "onboarding";
+    /** Called when the photo could not be saved; everything else was saved. */
+    onPhotoNotSaved?: (message: string) => void;
+  } = {},
 ): Promise<DeskProfile> {
   const db = await firebaseDb();
   if (!db) throw new Error("Firebase is not configured.");
@@ -156,37 +161,62 @@ export async function saveFirebaseUser(
   }
   const ref = doc(db, "users", user.uid);
   const existing = await getDoc(ref);
+  const savedData = existing.exists() ? (existing.data() as Record<string, unknown>) : null;
   const merged =
-    options.mode === "onboarding" && existing.exists()
-      ? fillFromSaved(profile, existing.data() as Record<string, unknown>)
+    options.mode === "onboarding" && savedData
+      ? fillFromSaved(profile, savedData)
       : profile;
   const niches = merged.niches.flatMap((item) => {
     const next = normalizeFilterNiche(item);
     return next ? [next] : [];
   }).filter((item, index, all) => all.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index);
-  await setDoc(
-    ref,
-    {
-      uid: user.uid,
-      // Profiles are readable by other signed-in creators, so no email here.
-      email: deleteField(),
-      displayName: merged.displayName || user.displayName || "",
-      channel: merged.channel,
-      channelId: merged.channelId ?? null,
-      // Subscriber count is written by the server from the YouTube Data API (see /api/profile/sync).
-      avgViews: merged.avgViews,
-      niches,
-      bio: (merged.bio ?? "").slice(0, 150),
-      avatar: merged.avatar ?? user.photoURL ?? null,
-      country: merged.country ?? "",
-      state: merged.country === "us" ? (merged.state ?? null) : null,
-      county: merged.county?.trim().slice(0, 40) ?? "",
-      updatedAt: serverTimestamp(),
-      ...(existing.exists() ? {} : { createdAt: serverTimestamp() }),
-    },
-    { merge: true },
-  );
+  const savedAvatar = typeof savedData?.avatar === "string" ? savedData.avatar : null;
+  const avatar = merged.avatar ?? user.photoURL ?? null;
+  const fields: Record<string, unknown> = {
+    uid: user.uid,
+    // Profiles are readable by other signed-in creators, so no email here.
+    email: deleteField(),
+    displayName: merged.displayName || user.displayName || "",
+    channel: merged.channel,
+    channelId: merged.channelId ?? null,
+    // Subscriber count is written by the server from the YouTube Data API (see /api/profile/sync).
+    avgViews: merged.avgViews,
+    niches,
+    bio: (merged.bio ?? "").slice(0, 150),
+    avatar,
+    country: merged.country ?? "",
+    state: merged.country === "us" ? (merged.state ?? null) : null,
+    county: merged.county?.trim().slice(0, 40) ?? "",
+    updatedAt: serverTimestamp(),
+    ...(existing.exists() ? {} : { createdAt: serverTimestamp() }),
+  };
+  // A photo must never sink the name / bio save: leave the saved photo as it is when the
+  // new one is not storable, or when the rules refuse it.
+  let photoError: string | null = null;
+  const withoutPhoto = () => {
+    const rest = { ...fields };
+    delete rest.avatar;
+    return rest;
+  };
+  const photoChanged = avatar !== savedAvatar;
+  if (photoChanged && !isStorableAvatar(avatar)) {
+    photoError = "That photo is too large or not a supported image. Try a different photo.";
+    await setDoc(ref, withoutPhoto(), { merge: true });
+  } else {
+    try {
+      await setDoc(ref, fields, { merge: true });
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      if (!photoChanged || code !== "permission-denied") throw error;
+      await setDoc(ref, withoutPhoto(), { merge: true });
+      photoError = "Your account did not accept that photo. Try a different photo.";
+    }
+  }
   await syncProfileOnServer();
+  if (photoError) {
+    options.onPhotoNotSaved?.(photoError);
+    return { ...merged, niches, avatar: savedAvatar };
+  }
   return { ...merged, niches };
 }
 
