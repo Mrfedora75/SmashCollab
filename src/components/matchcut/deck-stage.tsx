@@ -101,7 +101,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
     <div className="mx-auto flex w-full max-w-sm flex-col px-4 py-2 sm:py-4">
       <p className="mb-3 text-center text-sm text-muted">
         {unseen.length > 0
-          ? `${unseen.length} in this cut · pitching as ${channel}`
+          ? `${unseen.length} in your deck · pitching as ${channel}`
           : `Pitching as ${channel} · ${formatCount(subscribers)}`}
       </p>
 
@@ -175,10 +175,10 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                   : membersStatus === "error"
                     ? "Couldn't load creators"
                     : members.length === 0
-                      ? "No creators yet"
+                      ? "You're early!"
                       : matchCount === 0
                         ? "Nothing in this bracket."
-                        : "That's the cut."}
+                        : "That's everyone for now."}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
               {authError
@@ -190,7 +190,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                   : membersStatus === "error"
                     ? "The member list did not load. Refresh and try again."
                     : members.length === 0
-                      ? "When another creator finishes their profile, they will show up here."
+                      ? "You're one of the first creators here. As other creators verify their channels they'll show up in your deck. Invite creators you'd like to work with!"
                       : matchCount === 0
                         ? "Widen the niches or the channel-size range to bring cards back."
                         : "You've passed or pitched everyone who matches. Reset swipes, or loosen the filters."}
