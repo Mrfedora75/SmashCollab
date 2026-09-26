@@ -20,6 +20,7 @@ import { Route as ApiStripeCheckoutRouteImport } from './routes/api/stripe/check
 import { Route as ApiStripeConfirmRouteImport } from './routes/api/stripe/confirm'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 import { Route as ApiFirebaseSessionRouteImport } from './routes/api/firebase/session'
+import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const ApiFirebaseSessionRoute = ApiFirebaseSessionRouteImport.update({
   path: '/api/firebase/session',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFirebaseConfigRoute = ApiFirebaseConfigRouteImport.update({
+  id: '/api/firebase/config',
+  path: '/api/firebase/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/api/stripe/confirm': typeof ApiStripeConfirmRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
+  '/api/firebase/config': typeof ApiFirebaseConfigRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/api/stripe/confirm': typeof ApiStripeConfirmRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
+  '/api/firebase/config': typeof ApiFirebaseConfigRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,13 +124,14 @@ export interface FileRoutesById {
   '/api/stripe/confirm': typeof ApiStripeConfirmRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
+  '/api/firebase/config': typeof ApiFirebaseConfigRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook' | '/api/firebase/session'
+    '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook' | '/api/firebase/session' | '/api/firebase/config'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook' | '/api/firebase/session'
+  to: '/' | '/api/youtube/callback' | '/api/youtube/me' | '/api/youtube/logout' | '/api/youtube/start' | '/api/plus/grant' | '/api/referrals' | '/api/stripe/checkout' | '/api/stripe/confirm' | '/api/stripe/webhook' | '/api/firebase/session' | '/api/firebase/config'
   id:
     | '__root__'
     | '/'
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/api/stripe/confirm'
     | '/api/stripe/webhook'
     | '/api/firebase/session'
+    | '/api/firebase/config'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -150,6 +160,7 @@ export interface RootRouteChildren {
   ApiStripeConfirmRoute: typeof ApiStripeConfirmRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   ApiFirebaseSessionRoute: typeof ApiFirebaseSessionRoute
+  ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -231,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFirebaseSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/firebase/config': {
+      id: '/api/firebase/config'
+      path: '/api/firebase/config'
+      fullPath: '/api/firebase/config'
+      preLoaderRoute: typeof ApiFirebaseConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStripeConfirmRoute: ApiStripeConfirmRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   ApiFirebaseSessionRoute: ApiFirebaseSessionRoute,
+  ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

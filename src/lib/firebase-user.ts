@@ -15,7 +15,7 @@ export function describeAuthError(error: unknown): string {
 }
 
 async function googleUser(): Promise<User> {
-  const auth = firebaseAuth();
+  const auth = await firebaseAuth();
   if (!auth) throw new Error("Firebase is not configured.");
   if (auth.currentUser) return auth.currentUser;
 
@@ -43,7 +43,7 @@ async function googleUser(): Promise<User> {
 }
 
 export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
-  const db = firebaseDb();
+  const db = await firebaseDb();
   if (!db) throw new Error("Firebase is not configured.");
   const user = await googleUser();
   const ref = doc(db, "users", user.uid);

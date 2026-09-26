@@ -158,8 +158,9 @@ export function MatchcutApp() {
   }, [memoryReady, pending, accepted, threads, blocked, reviews]);
 
   function logOut() {
-    const auth = firebaseAuth();
-    if (auth) void signOut(auth).catch(() => {});
+    void firebaseAuth().then((auth) => {
+      if (auth) void signOut(auth).catch(() => {});
+    });
     useDeck.getState().setMembers([], "auth");
     useDeck.getState().setAuthError(null);
     clearSession();
@@ -189,34 +190,41 @@ export function MatchcutApp() {
 
   useEffect(() => {
     if (!signedIn || !profile) return;
-    const auth = firebaseAuth();
-    if (!auth) {
-      useDeck.getState().setAuthError("Firebase is not configured.");
-      useDeck.getState().setMembers([], "auth");
-      return;
-    }
-    const current = profile;
-    let request = 0;
-    const stop = onAuthStateChanged(auth, (user) => {
-      const ticket = ++request;
-      if (!user) {
+    let stop = () => {};
+    let cancelled = false;
+    void firebaseAuth().then((auth) => {
+      if (cancelled) return;
+      if (!auth) {
+        useDeck.getState().setAuthError("Firebase is not configured.");
         useDeck.getState().setMembers([], "auth");
         return;
       }
-      useDeck.getState().setMembers([], "loading");
-      void loadMemberCreators({ channelId: current.channelId, channel: current.channel })
-        .then((result) => {
-          if (ticket !== request) return;
-          if (result.status === "ready") useDeck.getState().setAuthError(null);
-          useDeck.getState().setMembers(result.members, result.status);
-        })
-        .catch((error) => {
-          if (ticket !== request) return;
-          useDeck.getState().setAuthError(describeAuthError(error));
-          useDeck.getState().setMembers([], "error");
-        });
+      const current = profile;
+      let request = 0;
+      stop = onAuthStateChanged(auth, (user) => {
+        const ticket = ++request;
+        if (!user) {
+          useDeck.getState().setMembers([], "auth");
+          return;
+        }
+        useDeck.getState().setMembers([], "loading");
+        void loadMemberCreators({ channelId: current.channelId, channel: current.channel })
+          .then((result) => {
+            if (ticket !== request) return;
+            if (result.status === "ready") useDeck.getState().setAuthError(null);
+            useDeck.getState().setMembers(result.members, result.status);
+          })
+          .catch((error) => {
+            if (ticket !== request) return;
+            useDeck.getState().setAuthError(describeAuthError(error));
+            useDeck.getState().setMembers([], "error");
+          });
+      });
     });
-    return () => stop();
+    return () => {
+      cancelled = true;
+      stop();
+    };
   }, [signedIn, profile]);
 
   useEffect(() => {
