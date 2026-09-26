@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/site-footer";
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 
@@ -61,6 +62,7 @@ export function AgeGate({ age, onChoose }: { age: AgeChoice; onChoose: (next: "a
                   I am under 18
                 </button>
               </div>
+              <LegalLinks className="mt-4 text-center" />
             </>
           )}
         </Dialog.Content>

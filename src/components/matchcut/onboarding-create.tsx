@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/site-footer";
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, Youtube } from "lucide-react";
@@ -126,6 +127,7 @@ export function CreateProfile({
               </button>
               <div className="mx-auto mt-4 max-w-sm">
                 <OauthNotice text="We use official Google OAuth for secure sign-in. Creating a basic profile is completely free. We never store your Google password, and any premium upgrades are securely processed via Stripe." />
+                <LegalLinks className="mt-3" />
               </div>
             </div>
           ) : null}
