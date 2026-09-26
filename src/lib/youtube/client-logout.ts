@@ -33,12 +33,25 @@ export function clearSessionStorageOnly() {
   }
 }
 
+/** Expire every server session cookie (yt_account, Plus, ...). Best-effort. */
+export async function clearServerSession(): Promise<void> {
+  try {
+    await fetch("/api/youtube/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+  } catch {
+    // Best-effort: still wipe local state if the network call fails.
+  }
+}
+
 /** The "Continue as @channel" hint for the account that is signing out (display fields only). */
-function hintForLogout(uid: string | null): LoginHint | null {
+function hintForLogout(email: string | null): LoginHint | null {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
     const profile = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
-    return toLoginHint(profile ? { ...profile, uid } : null);
+    return toLoginHint(profile ? { ...profile, email } : null);
   } catch {
     return null;
   }
@@ -49,24 +62,16 @@ function hintForLogout(uid: string | null): LoginHint | null {
  * The only thing kept is the non-sensitive "Continue as @channel" hint.
  */
 export async function logoutAndReset(): Promise<void> {
-  let uid: string | null = null;
+  let email: string | null = null;
   try {
     const auth = await firebaseAuth();
-    uid = auth?.currentUser?.uid ?? null;
+    email = auth?.currentUser?.email ?? null;
     if (auth) await signOut(auth);
   } catch {
     // Best-effort: still clear everything else.
   }
-  const hint = hintForLogout(uid);
-  try {
-    await fetch("/api/youtube/logout", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-  } catch {
-    // Best-effort: still wipe local state if the network call fails.
-  }
+  const hint = hintForLogout(email);
+  await clearServerSession();
   clearSessionStorageOnly();
   if (hint) saveLoginHint(hint);
   localStorage.setItem(SESSION_KEY, "0");

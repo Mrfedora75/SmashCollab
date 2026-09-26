@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/firebase", () => ({
-  firebaseAuth: async () => ({ currentUser: { uid: "uid-1" } }),
+  firebaseAuth: async () => ({ currentUser: { uid: "uid-1", email: "me@example.com" } }),
 }));
 vi.mock("firebase/auth", () => ({ signOut: async () => {} }));
 
@@ -59,7 +59,7 @@ describe("logoutAndReset", () => {
     expect(session.map.size).toBe(0);
     expect(Array.from(local.map.keys()).sort()).toEqual(["matchcut-age", "matchcut-signed-in", "smash-login-hint"]);
     const hint = local.getItem("smash-login-hint")!;
-    expect(JSON.parse(hint)).toEqual({ channel: "@me", displayName: "Me", avatar: "https://yt3.ggpht.com/me.jpg", uid: "uid-1" });
-    for (const secret of ["secret", "ya29", "draft", "bio", "UCme"]) expect(hint).not.toContain(secret);
+    expect(JSON.parse(hint)).toEqual({ channel: "@me", displayName: "Me", avatar: "https://yt3.ggpht.com/me.jpg", email: "me@example.com" });
+    for (const secret of ["secret", "ya29", "draft", "bio", "UCme", "uid-1"]) expect(hint).not.toContain(secret);
   });
 });
