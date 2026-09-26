@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import { browserLocalPersistence, getAuth, setPersistence, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 export type FirebaseWebConfig = {
@@ -91,7 +91,12 @@ export function ensureFirebase(): Promise<FirebaseApp | null> {
 
 export async function firebaseAuth(): Promise<Auth | null> {
   const app = await ensureFirebase();
-  return app ? getAuth(app) : null;
+  if (!app) return null;
+  const auth = getAuth(app);
+  if (typeof window !== "undefined") {
+    await setPersistence(auth, browserLocalPersistence);
+  }
+  return auth;
 }
 
 export async function firebaseDb(): Promise<Firestore | null> {

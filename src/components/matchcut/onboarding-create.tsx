@@ -8,7 +8,7 @@ import {
   type DeskProfile,
   type VerifiedChannel,
 } from "@/components/matchcut/onboarding-storage";
-import { saveFirebaseUser, describeAuthError } from "@/lib/firebase-user";
+import { saveFirebaseUser, signInToFirebase, describeAuthError } from "@/lib/firebase-user";
 import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
 
 export function CreateProfile({
@@ -54,6 +54,7 @@ export function CreateProfile({
     setPhase("loading");
     saveProfile(profile);
     try {
+      await signInToFirebase();
       await saveFirebaseUser(profile);
       onComplete(profile);
     } catch (error) {

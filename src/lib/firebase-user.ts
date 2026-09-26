@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, signInWithCredential, signInWithPopup, type User } from "firebase/auth";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signInWithPopup, type User } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
@@ -14,10 +14,23 @@ export function describeAuthError(error: unknown): string {
   return error instanceof Error ? error.message : "Sign-in failed.";
 }
 
-async function googleUser(): Promise<User> {
+async function restoredUser(): Promise<User | null> {
+  const auth = await firebaseAuth();
+  if (!auth) return null;
+  if (auth.currentUser) return auth.currentUser;
+  return new Promise((resolve) => {
+    const stop = onAuthStateChanged(auth, (user) => {
+      stop();
+      resolve(user);
+    });
+  });
+}
+
+export async function signInToFirebase(): Promise<User> {
+  const existing = await restoredUser();
+  if (existing) return existing;
   const auth = await firebaseAuth();
   if (!auth) throw new Error("Firebase is not configured.");
-  if (auth.currentUser) return auth.currentUser;
 
   try {
     const res = await fetch("/api/firebase/session", {
@@ -36,16 +49,15 @@ async function googleUser(): Promise<User> {
     // Fall through to the Firebase Google popup.
   }
 
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
-  const signedIn = await signInWithPopup(auth, provider);
+  const signedIn = await signInWithPopup(auth, new GoogleAuthProvider());
   return signedIn.user;
 }
 
 export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
   const db = await firebaseDb();
   if (!db) throw new Error("Firebase is not configured.");
-  const user = await googleUser();
+  const user = await restoredUser();
+  if (!user) throw new Error("You are not signed in. Sign in again before saving.");
   const ref = doc(db, "users", user.uid);
   const existing = await getDoc(ref);
   const niches = profile.niches.flatMap((item) => {
