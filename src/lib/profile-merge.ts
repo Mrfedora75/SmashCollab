@@ -69,3 +69,19 @@ export function fillFromSaved(local: DeskProfile, saved: Record<string, unknown>
   }
   return next;
 }
+
+/**
+ * Display name to keep after a YouTube re-verify. The name is owner-editable
+ * (profile dashboard), so a saved name for the same channel wins over the
+ * Google account name / channel title that verification reports. The verified
+ * name is only used when nothing is saved or the profile belongs to another channel.
+ */
+export function reverifiedDisplayName(
+  existing: Pick<DeskProfile, "displayName" | "channelId">,
+  verified: { displayName: string; channelId: string },
+): string {
+  const sameChannel = !existing.channelId || existing.channelId === verified.channelId;
+  const saved = existing.displayName?.trim() ?? "";
+  if (sameChannel && saved) return saved;
+  return verified.displayName || saved;
+}

@@ -20,7 +20,7 @@ import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
-import { fillFromSaved } from "@/lib/profile-merge";
+import { fillFromSaved, reverifiedDisplayName } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
 import { utcDayKey } from "@/lib/pitch-policy";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
@@ -154,7 +154,7 @@ export function MatchcutApp() {
         }
         if (existing && existing.niches.length > 0) {
           const next: DeskProfile = {
-            displayName: verified.displayName || existing.displayName,
+            displayName: reverifiedDisplayName(existing, verified),
             channel: verified.channel,
             channelId: verified.channelId,
             subscribers: verified.subscribers,

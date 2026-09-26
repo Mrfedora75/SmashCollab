@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillFromSaved, profileFromDoc } from "@/lib/profile-merge";
+import { fillFromSaved, profileFromDoc, reverifiedDisplayName } from "@/lib/profile-merge";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 
 const fresh: DeskProfile = {
@@ -50,5 +50,25 @@ describe("profileFromDoc", () => {
   it("returns null for unfinished profiles", () => {
     expect(profileFromDoc({ channel: "@w", niches: [] })).toBeNull();
     expect(profileFromDoc(null)).toBeNull();
+  });
+});
+
+describe("reverifiedDisplayName (re-verify never overwrites an edited name)", () => {
+  const verified = { displayName: "Warren Area Society of Paranormal", channelId: "UCw" };
+
+  it("keeps the saved name for the same channel", () => {
+    expect(reverifiedDisplayName({ displayName: "Mr. Fedora", channelId: "UCw" }, verified)).toBe("Mr. Fedora");
+  });
+
+  it("keeps the saved name when the saved profile has no channel id yet", () => {
+    expect(reverifiedDisplayName({ displayName: "Mr. Fedora" }, verified)).toBe("Mr. Fedora");
+  });
+
+  it("uses the verified name for a different channel", () => {
+    expect(reverifiedDisplayName({ displayName: "Someone Else", channelId: "UCother" }, verified)).toBe(verified.displayName);
+  });
+
+  it("uses the verified name when nothing is saved", () => {
+    expect(reverifiedDisplayName({ displayName: "  ", channelId: "UCw" }, verified)).toBe(verified.displayName);
   });
 });
