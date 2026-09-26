@@ -12,8 +12,9 @@ import {
   type UsState,
 } from "@/data/creators";
 import { defaultPitch, todayKey } from "@/lib/format";
-import { clearPlusLocal, readPlusLocal, spendPitchOnServer, writePlusLocal } from "@/lib/youtube/plus-client";
-import { deleteSwipe, deleteSwipes, recordSwipe, updateSwipeNote, type RemoteSwipe } from "@/lib/collab";
+import { clearPlusLocal, readPlusLocal, writePlusLocal } from "@/lib/youtube/plus-client";
+import { PitchError, deleteSwipe, deleteSwipes, recordPass, sendPitch, updateSwipeNote, type RemoteSwipe } from "@/lib/collab";
+import { utcDayKey } from "@/lib/pitch-policy";
 
 export type DeskSelf = { channel: string; subscribers: number; niches: string[] };
 
@@ -57,6 +58,12 @@ const KEY = "matchcut-v1";
 
 function pitchesToday(swipes: Swipe[], day = todayKey()): number {
   return swipes.filter((swipe) => swipe.day === day && swipe.direction === "pitch").length;
+}
+
+/** Free pitches used today: the larger of what this browser saw and the server's counter. */
+function freeUsedToday(state: Pick<DeckState, "swipes" | "serverFree">): number {
+  const server = state.serverFree && state.serverFree.day === utcDayKey() ? state.serverFree.count : 0;
+  return Math.max(pitchesToday(state.swipes), server);
 }
 
 function isStoredNiche(value: unknown): value is string {
@@ -152,6 +159,11 @@ type DeckState = Persisted & {
   hydrated: boolean;
   premiumOpen: boolean;
   gate: Gate | null;
+  /** Friendly reason from the server when it refused a pitch. */
+  gateMessage: string | null;
+  /** Server's free-pitch counter (UTC day). */
+  serverFree: { day: string; count: number } | null;
+  setServerFree: (day: string, count: number) => void;
   announcement: string;
   hydrate: () => void;
   toggleNiche: (niche: string) => void;
@@ -210,6 +222,12 @@ export const useDeck = create<DeckState>((set, get) => ({
   hydrated: false,
   premiumOpen: false,
   gate: null,
+  gateMessage: null,
+  serverFree: null,
+  setServerFree: (day, count) => {
+    if (!day) return;
+    set({ serverFree: { day, count: Math.max(0, Math.floor(count)) } });
+  },
   announcement: "",
   hydrate: () => {
     if (get().hydrated) return;
@@ -272,17 +290,10 @@ export const useDeck = create<DeckState>((set, get) => ({
   },
   gateFor: (creator, direction) => {
     const state = get();
-    if (
-      direction === "pitch" &&
-      !state.premium &&
-      pitchesToday(state.swipes) >= FREE_DAILY &&
-      state.extraPitches <= 0
-    ) {
-      return "limit";
-    }
-    if (direction === "pitch" && !state.premium && isPlusChannel(creator.subscribers)) {
-      return "flagship";
-    }
+    // Display-only pre-check; the server (POST /api/pitch) makes the real decision.
+    if (direction !== "pitch" || state.premium || state.extraPitches > 0) return null;
+    if (isPlusChannel(creator.subscribers)) return "flagship";
+    if (freeUsedToday(state) >= FREE_DAILY) return "limit";
     return null;
   },
   commit: (creatorId, direction) => {
@@ -291,36 +302,47 @@ export const useDeck = create<DeckState>((set, get) => ({
     if (get().swipes.some((swipe) => swipe.creatorId === creatorId)) return;
     const gate = get().gateFor(creator, direction);
     if (gate) {
-      set({ premiumOpen: true, gate });
+      set({ premiumOpen: true, gate, gateMessage: null });
       return;
     }
     const notes = { ...get().notes };
     if (direction === "pitch" && !notes[creatorId]) notes[creatorId] = defaultPitch(creator, get().me);
-    const usedBonus =
-      direction === "pitch" &&
-      !get().premium &&
-      pitchesToday(get().swipes) >= FREE_DAILY;
-    const swipes = [
-      ...get().swipes,
-      { creatorId, direction, day: todayKey(), at: Date.now(), bonus: usedBonus || undefined },
-    ];
+    const at = Date.now();
+    const swipes = [...get().swipes, { creatorId, direction, day: todayKey(), at }];
     const announcement =
       direction === "pitch"
         ? `Pitch queued for ${creator.channel}.`
         : `Passed on ${creator.channel}.`;
-    set({
-      swipes,
-      notes,
-      announcement,
-      extraPitches: usedBonus ? Math.max(0, get().extraPitches - 1) : get().extraPitches,
-    });
+    set({ swipes, notes, announcement });
     persist(get());
-    if (usedBonus) void spendPitchOnServer();
-    void recordSwipe(creatorId, direction, direction === "pitch" ? (notes[creatorId] ?? "") : "")
-      .then(({ matched }) => {
-        if (matched) get().onMatch?.(creatorId);
+    if (direction === "pass") {
+      void recordPass(creatorId).catch(reportSync);
+      return;
+    }
+    void sendPitch(creatorId, notes[creatorId] ?? "")
+      .then((outcome) => {
+        set({ extraPitches: outcome.pitchCredits });
+        get().setServerFree(outcome.day, outcome.freeUsedToday);
+        persist(get());
+        if (outcome.matched) get().onMatch?.(creatorId);
       })
-      .catch(reportSync);
+      .catch((error: unknown) => {
+        // The server refused or failed: put the card back in the deck.
+        set({
+          swipes: get().swipes.filter((swipe) => !(swipe.creatorId === creatorId && swipe.at === at)),
+          announcement: `Pitch to ${creator.channel} was not sent.`,
+        });
+        persist(get());
+        if (error instanceof PitchError && (error.code === "over_limit" || error.code === "target_unverified" || error.code === "daily_limit")) {
+          set({
+            premiumOpen: true,
+            gate: error.code === "daily_limit" ? "limit" : "flagship",
+            gateMessage: error.message,
+          });
+          return;
+        }
+        reportSync(error);
+      });
   },
   undo: () => {
     const swipes = get().swipes;
@@ -329,7 +351,6 @@ export const useDeck = create<DeckState>((set, get) => ({
     const creator = get().members.find((item) => item.id === last.creatorId);
     set({
       swipes: swipes.slice(0, -1),
-      extraPitches: last.bonus ? get().extraPitches + 1 : get().extraPitches,
       announcement: creator ? `Brought ${creator.channel} back.` : "Undid the last swipe.",
     });
     persist(get());
@@ -368,8 +389,8 @@ export const useDeck = create<DeckState>((set, get) => ({
       }, 800),
     );
   },
-  openPremium: (gate = null) => set({ premiumOpen: true, gate: gate ?? null }),
-  closePremium: () => set({ premiumOpen: false, gate: null }),
+  openPremium: (gate = null) => set({ premiumOpen: true, gate: gate ?? null, gateMessage: null }),
+  closePremium: () => set({ premiumOpen: false, gate: null, gateMessage: null }),
   setPremium: (premium, until = null, announcement) => {
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     // Bare Upgrade (no until) still gets 30 days so server Plus can persist across logout.
@@ -392,7 +413,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     if (premium && premiumUntil) writePlusLocal(premiumUntil);
     else if (!premium) clearPlusLocal();
   },
-  usedToday: () => pitchesToday(get().swipes),
+  usedToday: () => freeUsedToday(get()),
   addExtraPitch: () => {
     set({ extraPitches: get().extraPitches + 1, announcement: "1 extra pitch is ready." });
     persist(get());

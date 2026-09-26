@@ -3,6 +3,7 @@ import { deleteField, doc, getDoc, serverTimestamp, setDoc } from "firebase/fire
 import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
+import { syncProfileOnServer } from "@/lib/collab";
 
 export function describeAuthError(error: unknown): string {
   if (error && typeof error === "object") {
@@ -75,7 +76,7 @@ export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
       displayName: profile.displayName || user.displayName || "",
       channel: profile.channel,
       channelId: profile.channelId ?? null,
-      subscribers: profile.subscribers,
+      // Subscriber count is written by the server from the YouTube Data API (see /api/profile/sync).
       avgViews: profile.avgViews,
       niches,
       bio: (profile.bio ?? "").slice(0, 150),
@@ -88,6 +89,7 @@ export async function saveFirebaseUser(profile: DeskProfile): Promise<void> {
     },
     { merge: true },
   );
+  await syncProfileOnServer();
 }
 
 /** The signed-in creator's saved Firestore profile (used to restore after logout / on a new device). */
@@ -105,7 +107,12 @@ export async function loadFirebaseProfile(): Promise<DeskProfile | null> {
     displayName: typeof data.displayName === "string" ? data.displayName : data.channel,
     channel: data.channel,
     channelId: typeof data.channelId === "string" ? data.channelId : undefined,
-    subscribers: typeof data.subscribers === "number" ? data.subscribers : 0,
+    subscribers:
+      typeof data.subscriberCount === "number"
+        ? data.subscriberCount
+        : typeof data.subscribers === "number"
+          ? data.subscribers
+          : 0,
     avgViews: typeof data.avgViews === "number" ? data.avgViews : 0,
     niches,
     bio: typeof data.bio === "string" ? data.bio : "",

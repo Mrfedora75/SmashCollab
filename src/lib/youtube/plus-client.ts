@@ -62,16 +62,3 @@ export async function fetchPlusFromServer(): Promise<ServerPlus | null> {
     return null;
   }
 }
-
-export async function spendPitchOnServer(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/plus/spend-pitch", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}

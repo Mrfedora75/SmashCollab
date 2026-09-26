@@ -6,6 +6,8 @@ import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { saveProfile, type DeskProfile } from "@/components/matchcut/onboarding";
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
+import { useDeck } from "@/lib/deck-store";
 
 const BIO_LIMIT = 150;
 
@@ -59,6 +61,7 @@ export function CreatorDashboard({
   onOpenChange: (open: boolean) => void;
   onSave: (profile: DeskProfile) => void;
 }) {
+  const plus = useDeck((state) => state.premium);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [channel, setChannel] = useState(profile.channel);
   const [bio, setBio] = useState(profile.bio);
@@ -157,6 +160,11 @@ export function CreatorDashboard({
               </label>
             </div>
           </div>
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-center font-medium">
+            <span>{profile.channel}</span>
+            {plus ? <PlusBadge size={18} /> : null}
+          </p>
+          {plus ? <p className="mt-1 text-center text-xs text-muted">Smash Collab Plus member</p> : null}
           {photoError ? (
             <p className="mt-2 text-center text-sm text-accent" role="alert">
               {photoError}

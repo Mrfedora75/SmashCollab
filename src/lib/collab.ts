@@ -1,9 +1,9 @@
 /**
  * Real collab data in Firestore (client SDK, guarded by firestore.rules).
  *
- *   users/{uid}                      public creator profile (owner writes)
- *   swipes/{fromUid}_{toUid}         Pass / Pitch (owner writes; target can read pitches)
- *   matches/{uidA}_{uidB}            created only when both pitched each other
+ *   users/{uid}                      public creator profile (owner writes; some fields server-only)
+ *   swipes/{fromUid}_{toUid}         Pass (owner writes) / Pitch (server writes via POST /api/pitch)
+ *   matches/{uidA}_{uidB}            created by the server when both pitched each other
  *   matches/{id}/messages/{msgId}    readable/writable by the two participants only
  */
 import {
@@ -11,7 +11,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -25,6 +24,7 @@ import {
 } from "firebase/firestore";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { todayKey } from "@/lib/format";
+import { PITCH_MESSAGES, type PitchRefusal } from "@/lib/pitch-policy";
 
 export type Direction = "pass" | "pitch";
 
@@ -78,46 +78,101 @@ export async function loadMySwipes(): Promise<RemoteSwipe[]> {
   });
 }
 
-/** Record a Pass/Pitch. A pitch back to someone who already pitched you creates the match. */
-export async function recordSwipe(to: string, direction: Direction, note: string): Promise<{ matched: boolean }> {
+export type PitchErrorCode = PitchRefusal | "auth" | "invalid" | "no_profile" | "not_found" | "unavailable";
+
+export class PitchError extends Error {
+  constructor(
+    message: string,
+    readonly code: PitchErrorCode,
+  ) {
+    super(message);
+    this.name = "PitchError";
+  }
+}
+
+export type PitchOutcome = {
+  matched: boolean;
+  usedCredit: boolean;
+  pitchCredits: number;
+  freeUsedToday: number;
+  day: string;
+};
+
+async function idToken(): Promise<string> {
+  const auth = await firebaseAuth();
+  const user = auth?.currentUser;
+  if (!user) throw new PitchError("Sign in again to sync your desk.", "auth");
+  return user.getIdToken();
+}
+
+/**
+ * Send a pitch through the server, which checks the free-pitch limits, spends a
+ * $1 pitch credit if needed, and creates the match if they already pitched you.
+ */
+export async function sendPitch(to: string, note: string): Promise<PitchOutcome> {
+  const token = await idToken();
+  let res: Response;
+  try {
+    res = await fetch("/api/pitch", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ to, note: note.slice(0, NOTE_MAX) }),
+    });
+  } catch {
+    throw new PitchError("Could not reach the server. Check your connection and try again.", "unavailable");
+  }
+  const data = (await res.json().catch(() => ({}))) as Partial<PitchOutcome> & { error?: string; code?: PitchErrorCode };
+  if (!res.ok) {
+    const code = data.code ?? "unavailable";
+    const known = code === "over_limit" || code === "target_unverified" || code === "daily_limit";
+    throw new PitchError(known ? PITCH_MESSAGES[code] : (data.error ?? "Could not send that pitch."), code);
+  }
+  return {
+    matched: data.matched === true,
+    usedCredit: data.usedCredit === true,
+    pitchCredits: typeof data.pitchCredits === "number" ? data.pitchCredits : 0,
+    freeUsedToday: typeof data.freeUsedToday === "number" ? data.freeUsedToday : 0,
+    day: typeof data.day === "string" ? data.day : "",
+  };
+}
+
+export type ProfileSync = { linked: boolean; subscriberCount: number | null; plus: boolean; day: string; freeUsedToday: number };
+
+/** Ask the server to write the verified subscriber count and Plus status onto my profile. */
+export async function syncProfileOnServer(): Promise<ProfileSync | null> {
+  try {
+    const token = await idToken();
+    const res = await fetch("/api/profile/sync", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Partial<ProfileSync>;
+    return {
+      linked: data.linked === true,
+      subscriberCount: typeof data.subscriberCount === "number" ? data.subscriberCount : null,
+      plus: data.plus === true,
+      day: typeof data.day === "string" ? data.day : "",
+      freeUsedToday: typeof data.freeUsedToday === "number" ? data.freeUsedToday : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Record a Pass (browser write). Pitches go through sendPitch. */
+export async function recordPass(to: string): Promise<void> {
   const { db, uid } = await ctx();
   if (to === uid) throw new Error("You can't swipe on yourself.");
   await setDoc(doc(db, "swipes", `${uid}_${to}`), {
     from: uid,
     to,
-    direction,
-    note: note.slice(0, NOTE_MAX),
+    direction: "pass",
+    note: "",
     createdAt: serverTimestamp(),
   });
-  if (direction !== "pitch") return { matched: false };
-  return { matched: await tryCreateMatch(uid, to) };
-}
-
-async function tryCreateMatch(uid: string, other: string): Promise<boolean> {
-  const db = await firebaseDb();
-  if (!db) return false;
-  try {
-    // Readable only if it exists and is a pitch aimed at us (see firestore.rules).
-    const theirs = await getDoc(doc(db, "swipes", `${other}_${uid}`));
-    if (!theirs.exists() || theirs.data().direction !== "pitch") return false;
-  } catch {
-    return false;
-  }
-  const id = pairId(uid, other);
-  const ref = doc(db, "matches", id);
-  try {
-    const existing = await getDoc(ref);
-    if (existing.exists()) return true;
-    await setDoc(ref, {
-      users: [uid, other].sort(),
-      createdAt: serverTimestamp(),
-      blockedBy: null,
-      lastMessageAt: null,
-    });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export async function deleteSwipe(to: string): Promise<void> {

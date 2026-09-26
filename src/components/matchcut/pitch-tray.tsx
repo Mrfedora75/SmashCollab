@@ -1,6 +1,7 @@
 import { bracketOf } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: string; heading?: boolean }) {
   const swipes = useDeck((state) => state.swipes);
@@ -37,7 +38,10 @@ export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: st
                     className="h-14 w-24 shrink-0 rounded-control object-cover"
                   />
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{creator.channel}</p>
+                    <p className="flex min-w-0 items-center gap-1 font-medium">
+                      <span className="truncate">{creator.channel}</span>
+                      {creator.plus ? <PlusBadge /> : null}
+                    </p>
                     <p className="text-sm text-muted">
                       {tier.label} · {formatCount(creator.subscribers)}
                     </p>

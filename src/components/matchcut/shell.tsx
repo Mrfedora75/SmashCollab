@@ -21,11 +21,13 @@ import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } fro
 import { onAuthStateChanged } from "firebase/auth";
 import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase } from "@/lib/firebase-user";
 import { loadMemberCreators } from "@/lib/members";
+import { utcDayKey } from "@/lib/pitch-policy";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
 import {
   loadMySwipes,
   sendMessage,
+  syncProfileOnServer,
   setMatchBlocked,
   watchInbound,
   watchMatches,
@@ -41,6 +43,7 @@ import { Inbox, ChatThread } from "@/components/matchcut/inbox";
 import { ReviewModal, type SavedReview } from "@/components/matchcut/review-modal";
 import { PreferencesModal } from "@/components/matchcut/preferences";
 import { CreatorDashboard } from "@/components/matchcut/dashboard";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 export function MatchcutApp() {
   const hydrate = useDeck((state) => state.hydrate);
@@ -252,6 +255,10 @@ export function MatchcutApp() {
           unwatch.push(watchInbound(db, user.uid, setInbound, onError));
           unwatch.push(watchMatches(db, user.uid, setMatches, onError));
         });
+        // Server writes the verified subscriber count + Plus flag onto this profile and reports today's free pitches.
+        void syncProfileOnServer().then((sync) => {
+          if (sync && ticket === request) useDeck.getState().setServerFree(sync.day, sync.freeUsedToday);
+        });
         void loadMySwipes()
           .then((remote) => {
             if (ticket === request) useDeck.getState().setRemoteSwipes(remote);
@@ -390,7 +397,11 @@ export function MatchcutApp() {
   }
 
   const extraPitches = useDeck((state) => state.extraPitches);
-  const pitchesToday = swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length;
+  const serverFree = useDeck((state) => state.serverFree);
+  const pitchesToday = Math.max(
+    swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length,
+    serverFree && serverFree.day === utcDayKey() ? serverFree.count : 0,
+  );
   const dailyCap = FREE_DAILY;
   const remaining = Math.max(0, dailyCap - pitchesToday) + (premium ? 0 : extraPitches);
   const pitchLabel = remaining === 1 ? "1 pitch left" : `${remaining} pitches left`;
@@ -435,8 +446,12 @@ export function MatchcutApp() {
           <div className="min-w-0">
             <p className="font-display text-2xl leading-none">Smash Collab</p>
             {signedIn && profile ? (
-              <p className="mt-1 truncate text-xs text-muted">
-                {pitching.channel} · {formatCount(pitching.subscribers)} · {pitching.niches.join(" & ")}
+              <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted">
+                <span className="shrink-0">{pitching.channel}</span>
+                {premium ? <PlusBadge size={14} /> : null}
+                <span className="truncate">
+                  · {formatCount(pitching.subscribers)} · {pitching.niches.join(" & ")}
+                </span>
               </p>
             ) : (
               <button type="button" onClick={() => setSignedIn(false)} className="press mt-1 text-xs font-medium text-cream">

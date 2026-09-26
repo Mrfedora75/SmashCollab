@@ -117,6 +117,8 @@ export type Creator = {
   openTo: string;
   fit: number;
   rating: number;
+  /** Smash Collab Plus member (from the server-written profile field). */
+  plus?: boolean;
 };
 
 export const BRACKETS = [

@@ -6,6 +6,7 @@ import { type AcceptedCollab, type ChatMessage, type InboundPitch } from "@/data
 import type { SavedReview } from "@/components/matchcut/review-modal";
 import { StarRow } from "@/components/matchcut/stars";
 import { cn } from "@/lib/cn";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 export type OutboundPitch = {
   creatorId: string;
@@ -114,7 +115,7 @@ export function Inbox({
                             <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/80 px-4 text-center">
                               <Lock className="size-5 text-cream" aria-hidden="true" />
                               <span className="text-sm leading-relaxed">
-                                Upgrade to Premium to see who pitched you and reply.
+                                Upgrade to Plus to see who pitched you and reply.
                               </span>
                             </span>
                           </button>
@@ -126,7 +127,10 @@ export function Inbox({
                         <div className="flex gap-3">
                           <img src={creator.thumb} alt="" className="h-14 w-24 shrink-0 rounded-control object-cover" />
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{creator.channel}</p>
+                            <p className="flex min-w-0 items-center gap-1 font-medium">
+                              <span className="truncate">{creator.channel}</span>
+                              {creator.plus ? <PlusBadge /> : null}
+                            </p>
                             <p className="text-sm text-muted">
                               {creator.name} · {pitch.ago}
                             </p>
@@ -171,8 +175,10 @@ export function Inbox({
                       <li key={collab.id} className="rounded-card border border-line bg-ink-soft p-3">
                         <button type="button" onClick={() => onOpen(collab.id)} className="press w-full text-left">
                           <p className="font-medium">{collab.title}</p>
-                          <p className="mt-1 text-sm text-muted">
-                            {creator.channel} · {collab.when}
+                          <p className="mt-1 flex flex-wrap items-center gap-1 text-sm text-muted">
+                            <span>{creator.channel}</span>
+                            {creator.plus ? <PlusBadge /> : null}
+                            <span>· {collab.when}</span>
                           </p>
                           <p className="mt-2 text-sm leading-relaxed">{collab.summary}</p>
                           <p className="mt-2 text-sm text-cream">Open thread</p>
@@ -212,7 +218,10 @@ export function Inbox({
                   return (
                     <li key={pitch.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="min-w-0 truncate font-medium">{creator.channel}</p>
+                        <p className="flex min-w-0 items-center gap-1 font-medium">
+                          <span className="truncate">{creator.channel}</span>
+                          {creator.plus ? <PlusBadge /> : null}
+                        </p>
                         <p className={cn("shrink-0 text-sm font-medium", acceptedPitch ? "text-status-accepted" : "text-status-pending")}>
                           {acceptedPitch ? "Accepted" : "Pending"}
                         </p>
@@ -268,7 +277,10 @@ export function ChatThread({
           <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
             <div className="min-w-0">
               <Dialog.Title className="truncate font-display text-2xl">{collab?.title ?? "Thread"}</Dialog.Title>
-              <p className="truncate text-sm text-muted">{creator ? creator.channel : "Collab thread"}</p>
+              <p className="flex min-w-0 items-center gap-1 text-sm text-muted">
+                <span className="truncate">{creator ? creator.channel : "Collab thread"}</span>
+                {creator?.plus ? <PlusBadge /> : null}
+              </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Dialog.Close

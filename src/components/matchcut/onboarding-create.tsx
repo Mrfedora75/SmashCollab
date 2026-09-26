@@ -126,7 +126,7 @@ export function CreateProfile({
                 Verify via YouTube
               </button>
               <div className="mx-auto mt-4 max-w-sm">
-                <OauthNotice text="We use official Google OAuth for secure sign-in. Creating a basic profile is completely free. We never store your Google password, and any premium upgrades are securely processed via Stripe." />
+                <OauthNotice text="We use official Google OAuth for secure sign-in. Creating a basic profile is completely free. We never store your Google password, and any Plus upgrades are securely processed via Stripe." />
                 <LegalLinks className="mt-3" />
               </div>
             </div>

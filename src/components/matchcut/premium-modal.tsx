@@ -18,6 +18,8 @@ export function PremiumModal() {
   const premium = useDeck((state) => state.premium);
   const closePremium = useDeck((state) => state.closePremium);
   const premiumUntil = useDeck((state) => state.premiumUntil);
+  const gateMessage = useDeck((state) => state.gateMessage);
+  const [buyingPitch, setBuyingPitch] = useState(false);
   const [plan, setPlan] = useState<"month" | "year">("month");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
@@ -27,11 +29,13 @@ export function PremiumModal() {
       setPlan("month");
       setCheckoutError("");
       setCheckingOut(false);
+      setBuyingPitch(false);
     }
   }, [open]);
 
-  const lead =
-    gate === "limit"
+  const lead = gateMessage
+    ? gateMessage
+    : gate === "limit"
       ? `Today's ${FREE_DAILY} free swipes are used.`
       : gate === "flagship"
         ? "Free accounts can only pitch channels under 5,000 subscribers. Plus unlocks pitches to channels with 5,000 or more."
@@ -137,6 +141,22 @@ export function PremiumModal() {
               >
                 {checkingOut ? "Opening checkout" : plan === "year" ? "Continue with Annual" : "Continue with Monthly"}
               </button>
+              {gate === "flagship" ? (
+                <button
+                  type="button"
+                  disabled={buyingPitch}
+                  onClick={() => {
+                    setBuyingPitch(true);
+                    void startStripeCheckout("pitch").then((error) => {
+                      setBuyingPitch(false);
+                      setCheckoutError(error ?? "");
+                    });
+                  }}
+                  className="press mt-2 h-12 w-full rounded-control border border-ink-text text-sm font-medium disabled:opacity-60"
+                >
+                  {buyingPitch ? "Opening checkout" : "Buy 1 Pitch for $1.00"}
+                </button>
+              ) : null}
               {checkoutError ? (
                 <p className="mt-2 text-sm text-accent-deep" role="alert">
                   {checkoutError}

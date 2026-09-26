@@ -9,6 +9,7 @@ export function OutOfSwipes() {
   const open = useDeck((state) => state.premiumOpen && state.gate === "limit");
   const closePremium = useDeck((state) => state.closePremium);
   const openPremium = useDeck((state) => state.openPremium);
+  const gateMessage = useDeck((state) => state.gateMessage);
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,7 +29,7 @@ export function OutOfSwipes() {
             <div>
               <Dialog.Title className="font-display text-3xl leading-tight">Out of Swipes</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-strong">
-                Today's {FREE_DAILY} free pitches are used.
+                {gateMessage ?? `Today's ${FREE_DAILY} free pitches are used.`}
               </Dialog.Description>
             </div>
             <Dialog.Close
