@@ -10,6 +10,8 @@ import {
   buildYtAccountCookie,
   signYtAccount,
 } from "@/lib/youtube/plus-entitlement";
+import { isStorageConfigured } from "@/lib/server/firestore.server";
+import { recordVerifiedChannel } from "@/lib/server/public-profile.server";
 import {
   buildCookie,
   clearCookie,
@@ -74,6 +76,16 @@ export const Route = createFileRoute("/api/youtube/callback")({
         const channelResult = await fetchVerifiedChannel(tokenResult.accessToken);
         if ("reason" in channelResult) {
           return redirectError(request, home, channelResult.reason);
+        }
+
+        // Subscriber count straight from the YouTube Data API, stored server-side only.
+        // The profile picks it up via /api/profile/sync once the creator is signed in to Firebase.
+        if (isStorageConfigured()) {
+          try {
+            await recordVerifiedChannel(channelResult);
+          } catch {
+            // Non-fatal: sign-in still works; pitches to this channel stay limited until it re-verifies.
+          }
         }
 
         const signedChannel = await signVerifiedChannel(channelResult);

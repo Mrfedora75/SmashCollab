@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { applyCheckoutSession, fetchCheckoutSession } from "@/lib/stripe-billing.server";
 import { plusCookieFor, requestAccount, resolvePlus } from "@/lib/youtube/plus-entitlement";
+import { syncPublicPlus } from "@/lib/server/public-profile.server";
 
 /**
  * Success-redirect handler. Re-fetches the Checkout Session from Stripe with
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/api/stripe/confirm")({
           const result = await applyCheckoutSession(session);
           const paid = result.applied || result.reason === "already-applied";
           const status = await resolvePlus(request, account);
+          if (status.storage === "ok") await syncPublicPlus(account.channelId, status);
           const headers = new Headers({ ...noStore, "Content-Type": "application/json" });
           const cookie = await plusCookieFor(request, account, status);
           if (cookie) headers.append("Set-Cookie", cookie);

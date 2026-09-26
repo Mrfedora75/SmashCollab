@@ -7,6 +7,7 @@ import {
   verifyStripeSignature,
   type StripeSubscription,
 } from "@/lib/stripe-billing.server";
+import { syncPublicPlus } from "@/lib/server/public-profile.server";
 
 type StripeEvent = {
   id?: string;
@@ -48,11 +49,12 @@ export const Route = createFileRoute("/api/stripe/webhook")({
           ) {
             // Re-fetch so we act on Stripe's current view of the session.
             const session = await fetchCheckoutSession(object.id);
-            await applyCheckoutSession(session);
+            const result = await applyCheckoutSession(session);
+            if (result.kind === "plus") await syncPublicPlus(result.channelId);
           } else if (event.type === "customer.subscription.updated" && object) {
-            await applySubscriptionEvent(object, false);
+            if (await applySubscriptionEvent(object, false)) await syncPublicPlus(object.metadata?.channelId?.trim());
           } else if (event.type === "customer.subscription.deleted" && object) {
-            await applySubscriptionEvent(object, true);
+            if (await applySubscriptionEvent(object, true)) await syncPublicPlus(object.metadata?.channelId?.trim());
           }
         } catch {
           // Non-2xx makes Stripe retry later (e.g. storage briefly unavailable).

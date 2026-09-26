@@ -67,6 +67,11 @@ export function isStorageConfigured(): boolean {
   return readServiceAccount() != null;
 }
 
+/** Firebase project id (for verifying Firebase Auth ID tokens). */
+export function firebaseProjectId(): string | null {
+  return readServiceAccount()?.project_id || env("VITE_FIREBASE_PROJECT_ID") || null;
+}
+
 let tokenCache: { token: string; exp: number } | null = null;
 
 async function accessToken(account: ServiceAccount): Promise<string> {
@@ -159,10 +164,11 @@ export function safeDocId(id: string): string {
 
 // ---- operations -----------------------------------------------------------
 
-export async function getDocument(path: string): Promise<Record<string, Plain> | null> {
+export async function getDocument(path: string, transaction?: string): Promise<Record<string, Plain> | null> {
   const acct = account();
   const token = await accessToken(acct);
-  const res = await fetch(`https://firestore.googleapis.com/v1/${databaseRoot(acct)}/${path}`, {
+  const query = transaction ? `?transaction=${encodeURIComponent(transaction)}` : "";
+  const res = await fetch(`https://firestore.googleapis.com/v1/${databaseRoot(acct)}/${path}${query}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 404) return null;
@@ -178,9 +184,21 @@ export type Write = {
   /** Atomic server-side transforms applied after `fields`. */
   increment?: Record<string, number>;
   maximum?: Record<string, number>;
-  /** "absent" = fail the whole commit if the document already exists. */
-  precondition?: "absent";
+  /** Fields set to the commit's server time (a Firestore timestamp, like serverTimestamp()). */
+  serverTime?: string[];
+  /**
+   * "absent" = fail the whole commit if the document already exists.
+   * "exists" = fail the whole commit if the document does not exist (never create it).
+   */
+  precondition?: "absent" | "exists";
 };
+
+export class TransactionAbortedError extends Error {
+  constructor() {
+    super("Firestore transaction was aborted (contention).");
+    this.name = "TransactionAbortedError";
+  }
+}
 
 export class PreconditionFailedError extends Error {
   constructor() {
@@ -190,7 +208,7 @@ export class PreconditionFailedError extends Error {
 }
 
 /** Atomic multi-document commit. Throws PreconditionFailedError on a failed precondition. */
-export async function commit(writes: Write[]): Promise<void> {
+export async function commit(writes: Write[], transaction?: string): Promise<void> {
   const acct = account();
   const token = await accessToken(acct);
   const root = databaseRoot(acct);
@@ -204,13 +222,18 @@ export async function commit(writes: Write[]): Promise<void> {
       for (const [fieldPath, value] of Object.entries(write.maximum ?? {})) {
         updateTransforms.push({ fieldPath, maximum: encode(Math.trunc(value)) });
       }
+      for (const fieldPath of write.serverTime ?? []) {
+        updateTransforms.push({ fieldPath, setToServerValue: "REQUEST_TIME" });
+      }
       return {
         update: { name, fields: encodeFields(write.fields) },
         updateMask: { fieldPaths: Object.keys(write.fields).map((f) => `\`${f}\``) },
         ...(updateTransforms.length ? { updateTransforms } : {}),
         ...(write.precondition === "absent" ? { currentDocument: { exists: false } } : {}),
+        ...(write.precondition === "exists" ? { currentDocument: { exists: true } } : {}),
       };
     }),
+    ...(transaction ? { transaction } : {}),
   };
   const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
     method: "POST",
@@ -219,8 +242,78 @@ export async function commit(writes: Write[]): Promise<void> {
   });
   if (res.ok) return;
   const err = (await res.json().catch(() => ({}))) as { error?: { status?: string } };
+  if (err.error?.status === "ABORTED") throw new TransactionAbortedError();
+  if (err.error?.status === "NOT_FOUND" && writes.some((write) => write.precondition === "exists")) {
+    throw new PreconditionFailedError();
+  }
   if (res.status === 409 || err.error?.status === "ALREADY_EXISTS" || err.error?.status === "FAILED_PRECONDITION") {
     throw new PreconditionFailedError();
   }
   throw new Error(`Firestore write failed (${res.status}).`);
+}
+
+async function beginTransaction(): Promise<string> {
+  const acct = account();
+  const token = await accessToken(acct);
+  const res = await fetch(`https://firestore.googleapis.com/v1/${databaseRoot(acct)}:beginTransaction`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ options: { readWrite: {} } }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { transaction?: string };
+  if (!res.ok || !data.transaction) throw new Error(`Firestore transaction failed to start (${res.status}).`);
+  return data.transaction;
+}
+
+async function rollback(transaction: string): Promise<void> {
+  try {
+    const acct = account();
+    const token = await accessToken(acct);
+    await fetch(`https://firestore.googleapis.com/v1/${databaseRoot(acct)}:rollback`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ transaction }),
+    });
+  } catch {
+    // best effort
+  }
+}
+
+export type TransactionContext = {
+  get: (path: string) => Promise<Record<string, Plain> | null>;
+};
+
+/**
+ * Read-write transaction: `body` reads through `tx.get` (documents are locked
+ * until commit) and returns the writes to commit plus a result. Retried on
+ * contention. If `body` throws, the transaction is rolled back and the error
+ * is rethrown.
+ */
+export async function runTransaction<T>(
+  body: (tx: TransactionContext) => Promise<{ writes: Write[]; result: T }>,
+  attempts = 4,
+): Promise<T> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const transaction = await beginTransaction();
+    let planned: { writes: Write[]; result: T };
+    try {
+      planned = await body({ get: (path) => getDocument(path, transaction) });
+    } catch (error) {
+      await rollback(transaction);
+      throw error;
+    }
+    try {
+      if (planned.writes.length === 0) {
+        await rollback(transaction);
+        return planned.result;
+      }
+      await commit(planned.writes, transaction);
+      return planned.result;
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof TransactionAbortedError)) throw error;
+    }
+  }
+  throw lastError ?? new TransactionAbortedError();
 }

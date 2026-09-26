@@ -3,6 +3,7 @@ import { referralCode } from "@/lib/referrals";
 import { claimReferral, referralStatus, registerReferralCode } from "@/lib/referrals.server";
 import { StorageNotConfiguredError, isStorageConfigured } from "@/lib/server/firestore.server";
 import { requestAccount } from "@/lib/youtube/plus-entitlement";
+import { syncPublicPlus } from "@/lib/server/public-profile.server";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -37,6 +38,10 @@ export const Route = createFileRoute("/api/referrals")({
         }
         try {
           const result = await claimReferral(body.code, account);
+          if (result.ok && !result.already) {
+            await syncPublicPlus(account.channelId);
+            if (result.inviterChannelId) await syncPublicPlus(result.inviterChannelId);
+          }
           return Response.json(result, { status: result.ok ? 200 : 422, headers: noStore });
         } catch (error) {
           const status = error instanceof StorageNotConfiguredError ? 503 : 502;

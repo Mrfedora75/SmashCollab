@@ -292,16 +292,6 @@ export async function applySubscriptionEvent(sub: StripeSubscription, deleted: b
   return true;
 }
 
-/** Spend one purchased pitch credit. Returns remaining credits, or null if none were left. */
-export async function spendPitchCredit(channelId: string): Promise<number | null> {
-  const current = await readEntitlement(channelId);
-  if (current.pitchCredits <= 0) return null;
-  await commit([
-    { path: entitlementPath(channelId), fields: { channelId, updatedAt: Date.now() }, increment: { pitchCredits: -1 } },
-  ]);
-  return current.pitchCredits - 1;
-}
-
 /** Grant invite Plus to the invited creator (does not shorten existing time). */
 export async function grantReferralPlus(channelId: string, until: number): Promise<void> {
   await commit([

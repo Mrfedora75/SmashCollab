@@ -157,6 +157,7 @@ export async function fetchVerifiedChannel(
     avgViews,
     avatar: thumb,
     email: google.email,
+    subscribersHidden: item.statistics?.hiddenSubscriberCount === true,
   };
 }
 

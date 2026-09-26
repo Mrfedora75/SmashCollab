@@ -41,6 +41,8 @@ export type ClaimResult = {
   ok: boolean;
   already: boolean;
   refereePlusUntil: number;
+  /** Channel that owns the invite code (its Plus was extended). */
+  inviterChannelId?: string | null;
   reason?: "self" | "unknown-code" | "invalid";
 };
 
@@ -77,5 +79,6 @@ export async function claimReferral(rawCode: string, referee: { channelId: strin
   }
   const refereePlusUntil = now + REFERRAL_PLUS_MS;
   await grantReferralPlus(referee.channelId, refereePlusUntil);
-  return { ok: true, already: false, refereePlusUntil };
+  const inviterChannelId = typeof owner.channelId === "string" ? owner.channelId : null;
+  return { ok: true, already: false, refereePlusUntil, inviterChannelId };
 }

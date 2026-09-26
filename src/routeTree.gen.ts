@@ -12,12 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiPitchRouteImport } from './routes/api/pitch'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
 import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
 import { Route as ApiFirebaseSessionRouteImport } from './routes/api/firebase/session'
 import { Route as ApiPlusGrantRouteImport } from './routes/api/plus/grant'
-import { Route as ApiPlusSpendPitchRouteImport } from './routes/api/plus/spend-pitch'
 import { Route as ApiPlusStatusRouteImport } from './routes/api/plus/status'
+import { Route as ApiProfileSyncRouteImport } from './routes/api/profile/sync'
 import { Route as ApiStripeCheckoutRouteImport } from './routes/api/stripe/checkout'
 import { Route as ApiStripeConfirmRouteImport } from './routes/api/stripe/confirm'
 import { Route as ApiStripeModeRouteImport } from './routes/api/stripe/mode'
@@ -42,6 +43,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPitchRoute = ApiPitchRouteImport.update({
+  id: '/api/pitch',
+  path: '/api/pitch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiReferralsRoute = ApiReferralsRouteImport.update({
   id: '/api/referrals',
   path: '/api/referrals',
@@ -62,14 +68,14 @@ const ApiPlusGrantRoute = ApiPlusGrantRouteImport.update({
   path: '/api/plus/grant',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPlusSpendPitchRoute = ApiPlusSpendPitchRouteImport.update({
-  id: '/api/plus/spend-pitch',
-  path: '/api/plus/spend-pitch',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPlusStatusRoute = ApiPlusStatusRouteImport.update({
   id: '/api/plus/status',
   path: '/api/plus/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProfileSyncRoute = ApiProfileSyncRouteImport.update({
+  id: '/api/profile/sync',
+  path: '/api/profile/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStripeCheckoutRoute = ApiStripeCheckoutRouteImport.update({
@@ -117,12 +123,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
-  '/api/plus/spend-pitch': typeof ApiPlusSpendPitchRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
+  '/api/profile/sync': typeof ApiProfileSyncRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
   '/api/stripe/confirm': typeof ApiStripeConfirmRoute
   '/api/stripe/mode': typeof ApiStripeModeRoute
@@ -136,12 +143,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
-  '/api/plus/spend-pitch': typeof ApiPlusSpendPitchRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
+  '/api/profile/sync': typeof ApiProfileSyncRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
   '/api/stripe/confirm': typeof ApiStripeConfirmRoute
   '/api/stripe/mode': typeof ApiStripeModeRoute
@@ -156,12 +164,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
-  '/api/plus/spend-pitch': typeof ApiPlusSpendPitchRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
+  '/api/profile/sync': typeof ApiProfileSyncRoute
   '/api/stripe/checkout': typeof ApiStripeCheckoutRoute
   '/api/stripe/confirm': typeof ApiStripeConfirmRoute
   '/api/stripe/mode': typeof ApiStripeModeRoute
@@ -177,12 +186,13 @@ export interface FileRouteTypes {
     | '/'
     | '/privacy'
     | '/terms'
+    | '/api/pitch'
     | '/api/referrals'
     | '/api/firebase/config'
     | '/api/firebase/session'
     | '/api/plus/grant'
-    | '/api/plus/spend-pitch'
     | '/api/plus/status'
+    | '/api/profile/sync'
     | '/api/stripe/checkout'
     | '/api/stripe/confirm'
     | '/api/stripe/mode'
@@ -196,12 +206,13 @@ export interface FileRouteTypes {
     | '/'
     | '/privacy'
     | '/terms'
+    | '/api/pitch'
     | '/api/referrals'
     | '/api/firebase/config'
     | '/api/firebase/session'
     | '/api/plus/grant'
-    | '/api/plus/spend-pitch'
     | '/api/plus/status'
+    | '/api/profile/sync'
     | '/api/stripe/checkout'
     | '/api/stripe/confirm'
     | '/api/stripe/mode'
@@ -215,12 +226,13 @@ export interface FileRouteTypes {
     | '/'
     | '/privacy'
     | '/terms'
+    | '/api/pitch'
     | '/api/referrals'
     | '/api/firebase/config'
     | '/api/firebase/session'
     | '/api/plus/grant'
-    | '/api/plus/spend-pitch'
     | '/api/plus/status'
+    | '/api/profile/sync'
     | '/api/stripe/checkout'
     | '/api/stripe/confirm'
     | '/api/stripe/mode'
@@ -235,12 +247,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiPitchRoute: typeof ApiPitchRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
   ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
   ApiFirebaseSessionRoute: typeof ApiFirebaseSessionRoute
   ApiPlusGrantRoute: typeof ApiPlusGrantRoute
-  ApiPlusSpendPitchRoute: typeof ApiPlusSpendPitchRoute
   ApiPlusStatusRoute: typeof ApiPlusStatusRoute
+  ApiProfileSyncRoute: typeof ApiProfileSyncRoute
   ApiStripeCheckoutRoute: typeof ApiStripeCheckoutRoute
   ApiStripeConfirmRoute: typeof ApiStripeConfirmRoute
   ApiStripeModeRoute: typeof ApiStripeModeRoute
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pitch': {
+      id: '/api/pitch'
+      path: '/api/pitch'
+      fullPath: '/api/pitch'
+      preLoaderRoute: typeof ApiPitchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/referrals': {
       id: '/api/referrals'
       path: '/api/referrals'
@@ -302,18 +322,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPlusGrantRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/plus/spend-pitch': {
-      id: '/api/plus/spend-pitch'
-      path: '/api/plus/spend-pitch'
-      fullPath: '/api/plus/spend-pitch'
-      preLoaderRoute: typeof ApiPlusSpendPitchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/plus/status': {
       id: '/api/plus/status'
       path: '/api/plus/status'
       fullPath: '/api/plus/status'
       preLoaderRoute: typeof ApiPlusStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/profile/sync': {
+      id: '/api/profile/sync'
+      path: '/api/profile/sync'
+      fullPath: '/api/profile/sync'
+      preLoaderRoute: typeof ApiProfileSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stripe/checkout': {
@@ -379,12 +399,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiPitchRoute: ApiPitchRoute,
   ApiReferralsRoute: ApiReferralsRoute,
   ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,
   ApiFirebaseSessionRoute: ApiFirebaseSessionRoute,
   ApiPlusGrantRoute: ApiPlusGrantRoute,
-  ApiPlusSpendPitchRoute: ApiPlusSpendPitchRoute,
   ApiPlusStatusRoute: ApiPlusStatusRoute,
+  ApiProfileSyncRoute: ApiProfileSyncRoute,
   ApiStripeCheckoutRoute: ApiStripeCheckoutRoute,
   ApiStripeConfirmRoute: ApiStripeConfirmRoute,
   ApiStripeModeRoute: ApiStripeModeRoute,

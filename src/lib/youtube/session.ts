@@ -15,6 +15,8 @@ export type VerifiedYouTubeChannel = {
   avatar: string | null;
   /** Google-verified email of the account that authorized, if any. */
   email: string | null;
+  /** True when the channel hides its subscriber count (only set right after the YouTube API read). */
+  subscribersHidden?: boolean;
 };
 
 /**

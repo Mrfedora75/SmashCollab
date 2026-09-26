@@ -165,12 +165,37 @@ export function isCompAccount(account: YtAccount): boolean {
 const COMP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function resolvePlus(request: Request, account: YtAccount): Promise<PlusStatus> {
-  const status = await resolvePaidPlus(request, account);
-  if (isCompAccount(account)) {
-    const compUntil = Date.now() + COMP_WINDOW_MS;
-    if (!status.premiumUntil || status.premiumUntil < compUntil) {
-      return { ...status, premium: true, premiumUntil: compUntil, source: "comp" };
-    }
+  // resolveStoredPlus already applies comp; this also covers the unconfigured / cookie-fallback paths.
+  return withComp(account, await resolvePaidPlus(request, account));
+}
+
+/**
+ * Plus for a channel straight from durable storage (paid Stripe time, invite
+ * time, invite rewards, tester comp). Throws if storage is unreachable. Used
+ * by server code that has no browser session (webhooks, pitch API).
+ */
+export async function resolveStoredPlus(account: YtAccount): Promise<PlusStatus> {
+  const ent = await readEntitlement(account.channelId);
+  const code = account.channel ? referralCode(account.channel) : "";
+  const reward = code ? await readReferralReward(code) : 0;
+  const referralUntil = Math.max(ent.referralPlusUntil, reward);
+  const until = Math.max(ent.plusUntil, referralUntil);
+  const premium = until > Date.now();
+  const status: PlusStatus = {
+    premium,
+    premiumUntil: premium ? until : null,
+    pitchCredits: ent.pitchCredits,
+    source: premium ? (ent.plusUntil >= referralUntil ? "stripe" : "referral") : null,
+    storage: "ok",
+  };
+  return withComp(account, status);
+}
+
+function withComp(account: YtAccount, status: PlusStatus): PlusStatus {
+  if (!isCompAccount(account)) return status;
+  const compUntil = Date.now() + COMP_WINDOW_MS;
+  if (!status.premiumUntil || status.premiumUntil < compUntil) {
+    return { ...status, premium: true, premiumUntil: compUntil, source: "comp" };
   }
   return status;
 }
@@ -180,19 +205,7 @@ async function resolvePaidPlus(request: Request, account: YtAccount): Promise<Pl
     return { premium: false, premiumUntil: null, pitchCredits: 0, source: null, storage: "unconfigured" };
   }
   try {
-    const ent = await readEntitlement(account.channelId);
-    const code = account.channel ? referralCode(account.channel) : "";
-    const reward = code ? await readReferralReward(code) : 0;
-    const referralUntil = Math.max(ent.referralPlusUntil, reward);
-    const until = Math.max(ent.plusUntil, referralUntil);
-    const premium = until > Date.now();
-    return {
-      premium,
-      premiumUntil: premium ? until : null,
-      pitchCredits: ent.pitchCredits,
-      source: premium ? (ent.plusUntil >= referralUntil ? "stripe" : "referral") : null,
-      storage: "ok",
-    };
+    return await resolveStoredPlus(account);
   } catch {
     const cookies = parseCookieHeader(request);
     const cached = await readPlusEntitlement(cookies[PLUS_COOKIE]);

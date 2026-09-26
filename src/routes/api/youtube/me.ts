@@ -5,6 +5,7 @@ import {
   resolvePlus,
   signYtAccount,
 } from "@/lib/youtube/plus-entitlement";
+import { syncPublicPlus } from "@/lib/server/public-profile.server";
 import {
   clearCookie,
   parseCookieHeader,
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/api/youtube/me")({
 
         const account = { channelId: channel.channelId, channel: channel.channel, email: channel.email };
         const plus = await resolvePlus(request, account);
+        if (plus.storage === "ok") await syncPublicPlus(account.channelId, plus);
         const accountToken = await signYtAccount(channel.channelId, channel.channel, channel.email);
 
         const headers = new Headers({ "Cache-Control": "no-store" });

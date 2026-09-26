@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { syncPublicPlus } from "@/lib/server/public-profile.server";
 import { isCompAccount, plusCookieFor, requestAccount, resolvePlus } from "@/lib/youtube/plus-entitlement";
 
 /**
@@ -21,6 +22,8 @@ export const Route = createFileRoute("/api/plus/grant")({
           return Response.json({ error: "Plus is available through checkout." }, { status: 403, headers: noStore });
         }
         const status = await resolvePlus(request, account);
+        // Keep the public Plus badge in step (covers comp grants and silent expiry).
+        if (status.storage === "ok") await syncPublicPlus(account.channelId, status);
         const headers = new Headers({ ...noStore, "Content-Type": "application/json" });
         const cookie = await plusCookieFor(request, account, status);
         if (cookie) headers.append("Set-Cookie", cookie);
