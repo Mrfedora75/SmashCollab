@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { RotateCcw, Send, X } from "lucide-react";
+import { RotateCcw, Send, X, Youtube } from "lucide-react";
 import { FREE_DAILY, isPlusChannel } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck, visibleCreators, type Direction } from "@/lib/deck-store";
 import { CardFace } from "@/components/matchcut/card-face";
+import { startYouTubeVerify } from "@/lib/firebase-user";
 
 const THRESHOLD = 110;
 
@@ -195,6 +196,16 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                         ? "Widen the niches or the channel-size range to bring cards back."
                         : "You've passed or pitched everyone who matches. Reset swipes, or loosen the filters."}
             </p>
+            {membersStatus === "auth" ? (
+              <button
+                type="button"
+                onClick={startYouTubeVerify}
+                className="press mx-auto mt-5 flex h-12 items-center justify-center gap-2 rounded-control bg-accent px-6 text-sm font-medium text-on-accent"
+              >
+                <Youtube className="size-4" aria-hidden="true" />
+                Verify via YouTube
+              </button>
+            ) : null}
           </div>
         )}
       </div>

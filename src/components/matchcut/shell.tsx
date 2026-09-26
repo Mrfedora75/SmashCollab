@@ -19,7 +19,8 @@ import { InviteModal } from "@/components/matchcut/invite-modal";
 import { MemberSearch } from "@/components/matchcut/member-search";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
-import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase } from "@/lib/firebase-user";
+import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
+import { fillFromSaved } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
 import { utcDayKey } from "@/lib/pitch-policy";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
@@ -134,15 +135,21 @@ export function MatchcutApp() {
         ) {
           useDeck.getState().setPremium(true, verified.premiumUntil, "Plus restored for this YouTube channel.");
         }
-        let existing = loadProfile();
-        if (!existing || existing.niches.length === 0) {
-          // Returning creator on a fresh device / after logout: restore the saved profile.
-          try {
-            await signInToFirebase();
-            const saved = await loadFirebaseProfile();
-            if (saved && (!saved.channelId || saved.channelId === verified.channelId)) existing = saved;
-          } catch {
-            // Fall through to the niche picker.
+        // Sign in to Firebase right away: the Google ID token cookie from this verification is
+        // one-shot and only lives ~10 minutes, so don't wait for the niche picker.
+        let signInError: unknown = null;
+        try {
+          await signInToFirebase();
+        } catch (error) {
+          signInError = error;
+        }
+        const local = loadProfile();
+        let existing = local && local.niches.length > 0 ? local : null;
+        if (!signInError) {
+          // Firestore is the source of truth for the profile; this device only fills gaps.
+          const saved = await loadFirebaseProfile().catch(() => null);
+          if (saved && (!saved.channelId || saved.channelId === verified.channelId)) {
+            existing = existing ? fillFromSaved(saved, existing as unknown as Record<string, unknown>) : saved;
           }
         }
         if (existing && existing.niches.length > 0) {
@@ -154,7 +161,7 @@ export function MatchcutApp() {
             avgViews: verified.avgViews,
             niches: existing.niches,
             bio: existing.bio,
-            avatar: verified.avatar,
+            avatar: verified.avatar ?? existing.avatar,
             country: existing.country,
             state: existing.state,
             county: existing.county,
@@ -162,9 +169,13 @@ export function MatchcutApp() {
           saveProfile(next);
           setProfile(next);
           setSignedIn(true);
-          void signInToFirebase()
-            .then(() => saveFirebaseUser(next))
-            .catch((error) => useDeck.getState().setAuthError(describeAuthError(error)));
+          if (signInError) {
+            useDeck.getState().setAuthError(describeAuthError(signInError));
+          } else {
+            void saveFirebaseUser(next, { mode: "onboarding" })
+              .then((saved) => saveProfile(saved))
+              .catch((error) => setToast(`Your profile was not saved to your account: ${describeAuthError(error)}`));
+          }
           void syncStripeAccount();
           setPendingChannel(null);
           setToast(`Connected ${next.channel}`);
@@ -212,10 +223,11 @@ export function MatchcutApp() {
     setReviewFor(null);
   }
 
-  function finishSignIn(next: DeskProfile) {
+  function finishSignIn(next: DeskProfile, warning?: string) {
     setProfile(next);
     setSignedIn(true);
     useDeck.getState().setAuthError(null);
+    if (warning) setToast(warning);
     void claimPendingReferral(next.channel).then((until) => {
       if (!until) return;
       // Re-read Plus from the server, which recorded the invite reward.
@@ -238,15 +250,28 @@ export function MatchcutApp() {
       const current = profile;
       let request = 0;
       let unwatch: Array<() => void> = [];
+      let restoreTried = false;
       const stopAuth = onAuthStateChanged(auth, (user) => {
         const ticket = ++request;
         for (const fn of unwatch) fn();
         unwatch = [];
         setMyUid(user?.uid ?? null);
         if (!user) {
-          useDeck.getState().setMembers([], "auth");
           setInbound([]);
           setMatches([]);
+          if (restoreTried) {
+            useDeck.getState().setMembers([], "auth");
+            return;
+          }
+          // No Firebase session in this browser: restore it silently from the verified-channel
+          // cookie (custom token). Success fires this listener again with the user.
+          restoreTried = true;
+          useDeck.getState().setMembers([], "loading");
+          void signInToFirebase().catch((error) => {
+            if (cancelled || ticket !== request) return;
+            if (!isNeedsVerify(error)) useDeck.getState().setAuthError(describeAuthError(error));
+            useDeck.getState().setMembers([], "auth");
+          });
           return;
         }
         void firebaseDb().then((db) => {
@@ -325,7 +350,8 @@ export function MatchcutApp() {
 
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2400);
+    // Longer messages (e.g. a failed save) stay up long enough to read.
+    const timer = window.setTimeout(() => setToast(null), toast.length > 60 ? 7000 : 2400);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
@@ -709,11 +735,10 @@ export function MatchcutApp() {
         open={dashboardOpen}
         profile={profile}
         onOpenChange={setDashboardOpen}
-        onSave={(next) => {
+        onSave={async (next) => {
           setProfile(next);
-          void saveFirebaseUser(next).catch((error) => {
-            useDeck.getState().setAuthError(describeAuthError(error));
-          });
+          // Throws (and the dashboard shows why) if the account did not get the change.
+          await saveFirebaseUser(next, { mode: "edit" });
         }}
       />
     ) : null}

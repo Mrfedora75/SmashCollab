@@ -100,6 +100,29 @@ async function accessToken(account: ServiceAccount): Promise<string> {
   return data.access_token;
 }
 
+const CUSTOM_TOKEN_AUDIENCE =
+  "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit";
+
+/**
+ * Firebase Auth custom token for `uid`, signed locally with the service-account
+ * key (the same format firebase-admin's createCustomToken produces). The browser
+ * exchanges it with signInWithCustomToken; it is only valid for one hour and
+ * only for that exchange. Throws StorageNotConfiguredError when no key is set.
+ */
+export async function signFirebaseCustomToken(uid: string): Promise<string> {
+  if (!uid || uid.length > 128) throw new Error("Invalid uid.");
+  const acct = account();
+  const key = await importPKCS8(acct.private_key, "RS256");
+  return new SignJWT({ uid })
+    .setProtectedHeader({ alg: "RS256", typ: "JWT" })
+    .setIssuer(acct.client_email)
+    .setSubject(acct.client_email)
+    .setAudience(CUSTOM_TOKEN_AUDIENCE)
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(key);
+}
+
 function account(): ServiceAccount {
   const acct = readServiceAccount();
   if (!acct) throw new StorageNotConfiguredError();

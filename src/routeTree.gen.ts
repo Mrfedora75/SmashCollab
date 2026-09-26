@@ -15,6 +15,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiPitchRouteImport } from './routes/api/pitch'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
 import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
+import { Route as ApiFirebaseCustomTokenRouteImport } from './routes/api/firebase/custom-token'
 import { Route as ApiFirebaseSessionRouteImport } from './routes/api/firebase/session'
 import { Route as ApiPlusGrantRouteImport } from './routes/api/plus/grant'
 import { Route as ApiPlusStatusRouteImport } from './routes/api/plus/status'
@@ -56,6 +57,11 @@ const ApiReferralsRoute = ApiReferralsRouteImport.update({
 const ApiFirebaseConfigRoute = ApiFirebaseConfigRouteImport.update({
   id: '/api/firebase/config',
   path: '/api/firebase/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFirebaseCustomTokenRoute = ApiFirebaseCustomTokenRouteImport.update({
+  id: '/api/firebase/custom-token',
+  path: '/api/firebase/custom-token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFirebaseSessionRoute = ApiFirebaseSessionRouteImport.update({
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
+  '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
+  '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/api/pitch': typeof ApiPitchRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
+  '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/pitch'
     | '/api/referrals'
     | '/api/firebase/config'
+    | '/api/firebase/custom-token'
     | '/api/firebase/session'
     | '/api/plus/grant'
     | '/api/plus/status'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/api/pitch'
     | '/api/referrals'
     | '/api/firebase/config'
+    | '/api/firebase/custom-token'
     | '/api/firebase/session'
     | '/api/plus/grant'
     | '/api/plus/status'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/api/pitch'
     | '/api/referrals'
     | '/api/firebase/config'
+    | '/api/firebase/custom-token'
     | '/api/firebase/session'
     | '/api/plus/grant'
     | '/api/plus/status'
@@ -250,6 +262,7 @@ export interface RootRouteChildren {
   ApiPitchRoute: typeof ApiPitchRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
   ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
+  ApiFirebaseCustomTokenRoute: typeof ApiFirebaseCustomTokenRoute
   ApiFirebaseSessionRoute: typeof ApiFirebaseSessionRoute
   ApiPlusGrantRoute: typeof ApiPlusGrantRoute
   ApiPlusStatusRoute: typeof ApiPlusStatusRoute
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/api/firebase/config'
       fullPath: '/api/firebase/config'
       preLoaderRoute: typeof ApiFirebaseConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/firebase/custom-token': {
+      id: '/api/firebase/custom-token'
+      path: '/api/firebase/custom-token'
+      fullPath: '/api/firebase/custom-token'
+      preLoaderRoute: typeof ApiFirebaseCustomTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/firebase/session': {
@@ -402,6 +422,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPitchRoute: ApiPitchRoute,
   ApiReferralsRoute: ApiReferralsRoute,
   ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,
+  ApiFirebaseCustomTokenRoute: ApiFirebaseCustomTokenRoute,
   ApiFirebaseSessionRoute: ApiFirebaseSessionRoute,
   ApiPlusGrantRoute: ApiPlusGrantRoute,
   ApiPlusStatusRoute: ApiPlusStatusRoute,

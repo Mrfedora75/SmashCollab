@@ -8,6 +8,7 @@ import { saveProfile, type DeskProfile } from "@/components/matchcut/onboarding"
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
 import { useDeck } from "@/lib/deck-store";
+import { describeAuthError, isNeedsVerify, startYouTubeVerify } from "@/lib/firebase-user";
 
 const BIO_LIMIT = 150;
 
@@ -59,7 +60,8 @@ export function CreatorDashboard({
   open: boolean;
   profile: DeskProfile;
   onOpenChange: (open: boolean) => void;
-  onSave: (profile: DeskProfile) => void;
+  /** Saves to the creator's account (Firestore); rejects if it did not save. */
+  onSave: (profile: DeskProfile) => Promise<void>;
 }) {
   const plus = useDeck((state) => state.premium);
   const [displayName, setDisplayName] = useState(profile.displayName);
@@ -73,6 +75,8 @@ export function CreatorDashboard({
   const [avatar, setAvatar] = useState<string | null>(profile.avatar);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<{ message: string; verify: boolean } | null>(null);
   const [photoError, setPhotoError] = useState("");
 
   useEffect(() => {
@@ -88,6 +92,8 @@ export function CreatorDashboard({
     setAvatar(profile.avatar);
     setMenuOpen(false);
     setSaved(false);
+    setSaving(false);
+    setSaveError(null);
     setPhotoError("");
   }, [open]);
 
@@ -382,8 +388,8 @@ export function CreatorDashboard({
           </div>
           <button
             type="button"
-            disabled={!canSave}
-            onClick={() => {
+            disabled={!canSave || saving}
+            onClick={async () => {
               const next: DeskProfile = {
                 ...profile,
                 displayName: displayName.trim(),
@@ -395,18 +401,45 @@ export function CreatorDashboard({
                 state: country === "us" && stateName ? stateName : null,
                 county: county.trim(),
               };
+              // Keep the edit on this device either way, but only say "saved" once the account has it.
               saveProfile(next);
-              onSave(next);
-              setSaved(true);
+              setSaved(false);
+              setSaveError(null);
+              setSaving(true);
+              try {
+                await onSave(next);
+                setSaved(true);
+              } catch (error) {
+                setSaveError({
+                  message: `Not saved to your account: ${describeAuthError(error)}`,
+                  verify: isNeedsVerify(error),
+                });
+              } finally {
+                setSaving(false);
+              }
             }}
             className="press mt-6 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent disabled:opacity-40"
           >
-            Save Changes
+            {saving ? "Saving…" : "Save Changes"}
           </button>
           {saved ? (
             <p className="mt-2 text-center text-sm text-cream" role="status">
               Changes saved.
             </p>
+          ) : null}
+          {saveError ? (
+            <div className="mt-2 text-center text-sm text-accent" role="alert">
+              <p>{saveError.message}</p>
+              {saveError.verify ? (
+                <button
+                  type="button"
+                  onClick={startYouTubeVerify}
+                  className="press mt-2 h-10 rounded-control border border-line px-4 text-sm font-medium text-cream"
+                >
+                  Verify via YouTube
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </Dialog.Content>
       </Dialog.Portal>
