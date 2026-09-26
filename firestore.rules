@@ -58,7 +58,10 @@ service cloud.firestore {
         && validProfile(request.resource.data, uid);
       allow update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientProfileKeys())
+        // 'email' may only be removed (legacy docs stored it); it can never be set or changed.
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientProfileKeys().concat(['email']))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
+            || !('email' in request.resource.data))
         && validProfile(request.resource.data, uid);
     }
 

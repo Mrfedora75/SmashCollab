@@ -1,5 +1,5 @@
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, setDoc, getDoc, getDocs, collection, query, where, addDoc, updateDoc, serverTimestamp, deleteDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, deleteField, getDoc, getDocs, collection, query, where, addDoc, updateDoc, serverTimestamp, deleteDoc, Timestamp } from "firebase/firestore";
 import { readFileSync } from "node:fs";
 const env = await initializeTestEnvironment({ projectId: "demo-smash", firestore: { rules: readFileSync(new URL("../firestore.rules", import.meta.url), "utf8"), host: "127.0.0.1", port: 8080 } });
 const A = env.authenticatedContext("alice").firestore();
@@ -31,6 +31,17 @@ await t("owner can't change verifiedChannelId", assertFails(updateDoc(doc(A, "us
 await t("owner can't overwrite profile without server fields", assertFails(setDoc(doc(A, "users/alice"), prof("alice"))));
 await t("new profile without subscribers ok", assertSucceeds(setDoc(doc(B, "users/bob"), prof("bob"))));
 await t("bob can't grant himself plus", assertFails(setDoc(doc(B, "users/bob"), { plus: true, plusUntil: 9e12 }, { merge: true })));
+
+// ---- legacy email field: may only be deleted, never set or changed
+await server((db) => setDoc(doc(db, "users/dave"), { ...prof("dave"), updatedAt: Timestamp.now(), email: "d@old.example", subscriberCount: 50, plus: false }));
+const D = env.authenticatedContext("dave").firestore();
+await t("legacy email: changing email denied", assertFails(setDoc(doc(D, "users/dave"), { ...prof("dave"), email: "new@x.y" }, { merge: true })));
+await t("legacy email: update not touching email still allowed", assertSucceeds(updateDoc(doc(D, "users/dave"), { bio: "hi" })));
+await t("legacy email: profile save that deletes email succeeds", assertSucceeds(setDoc(doc(D, "users/dave"), { ...prof("dave"), email: deleteField() }, { merge: true })));
+await t("no email: client can't add email", assertFails(setDoc(doc(D, "users/dave"), { email: "d@x.y" }, { merge: true })));
+await t("no email: client can't add email via update", assertFails(updateDoc(doc(A, "users/alice"), { email: "a@x.y" })));
+await t("no email: normal save (with deleteField no-op) works", assertSucceeds(setDoc(doc(A, "users/alice"), { ...prof("alice"), email: deleteField(), bio: "again" }, { merge: true })));
+await t("no email: plain update works", assertSucceeds(updateDoc(doc(B, "users/bob"), { bio: "plain" })));
 
 // ---- swipes: pitches are server-only
 const sw = (from, to, direction) => ({ from, to, direction, note: "hi", createdAt: serverTimestamp() });
