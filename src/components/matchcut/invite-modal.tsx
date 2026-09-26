@@ -19,7 +19,7 @@ export function InviteModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void fetchReferralStatus(channel).then((status) => {
+    void fetchReferralStatus().then((status) => {
       if (cancelled || !status) return;
       setInvites(status.invites);
     });

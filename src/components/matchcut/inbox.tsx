@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Lock, MoreVertical, X } from "lucide-react";
-import { CREATORS } from "@/data/creators";
+import type { Creator } from "@/data/creators";
 import { type AcceptedCollab, type ChatMessage, type InboundPitch } from "@/data/inbox";
 import type { SavedReview } from "@/components/matchcut/review-modal";
 import { StarRow } from "@/components/matchcut/stars";
 import { cn } from "@/lib/cn";
+import { PlusBadge } from "@/components/matchcut/plus-badge";
 
 export type OutboundPitch = {
   creatorId: string;
@@ -24,8 +25,10 @@ export function Inbox({
   onOpen,
   onReview,
   onUpgrade,
+  lookup,
   heading = true,
 }: {
+  lookup: (creatorId: string) => Creator | undefined;
   pending: InboundPitch[];
   accepted: AcceptedCollab[];
   outbound: OutboundPitch[];
@@ -46,10 +49,10 @@ export function Inbox({
       {heading ? (
         <div className="border-b border-line px-5 py-4">
           <h2 className="font-display text-2xl leading-tight">Matches & Messages</h2>
-          <p className="mt-1 text-sm text-muted">Pitches and collab threads stay on this desk.</p>
+          <p className="mt-1 text-sm text-muted">When you and another creator both pitch, you match and can message.</p>
         </div>
       ) : (
-        <p className="px-5 pt-4 text-sm text-muted">Pitches and collab threads stay on this desk.</p>
+        <p className="px-5 pt-4 text-sm text-muted">When you and another creator both pitch, you match and can message.</p>
       )}
       <div className="grid grid-cols-2 gap-1 px-5 pt-4" role="tablist" aria-label="Messages">
         <button
@@ -87,7 +90,7 @@ export function Inbox({
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
                   {pending.map((pitch) => {
-                    const creator = CREATORS.find((item) => item.id === pitch.creatorId);
+                    const creator = lookup(pitch.creatorId);
                     if (!creator) return null;
                     if (locked) {
                       return (
@@ -112,7 +115,7 @@ export function Inbox({
                             <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/80 px-4 text-center">
                               <Lock className="size-5 text-cream" aria-hidden="true" />
                               <span className="text-sm leading-relaxed">
-                                Upgrade to Premium to see who pitched you and reply.
+                                Upgrade to Plus to see who pitched you and reply.
                               </span>
                             </span>
                           </button>
@@ -124,7 +127,10 @@ export function Inbox({
                         <div className="flex gap-3">
                           <img src={creator.thumb} alt="" className="h-14 w-24 shrink-0 rounded-control object-cover" />
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{creator.channel}</p>
+                            <p className="flex min-w-0 items-center gap-1 font-medium">
+                              <span className="truncate">{creator.channel}</span>
+                              {creator.plus ? <PlusBadge /> : null}
+                            </p>
                             <p className="text-sm text-muted">
                               {creator.name} · {pitch.ago}
                             </p>
@@ -156,21 +162,23 @@ export function Inbox({
               )}
             </section>
             <section>
-              <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Accepted collaborations</h3>
+              <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Matches</h3>
               {accepted.length === 0 ? (
-                <p className="mt-3 text-sm text-muted">No accepted collabs yet.</p>
+                <p className="mt-3 text-sm text-muted">No matches yet. Pitch creators from the desk, or accept a pitch above.</p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
                   {accepted.map((collab) => {
-                    const creator = CREATORS.find((item) => item.id === collab.creatorId);
+                    const creator = lookup(collab.creatorId);
                     const review = reviews[collab.id];
                     if (!creator) return null;
                     return (
                       <li key={collab.id} className="rounded-card border border-line bg-ink-soft p-3">
                         <button type="button" onClick={() => onOpen(collab.id)} className="press w-full text-left">
                           <p className="font-medium">{collab.title}</p>
-                          <p className="mt-1 text-sm text-muted">
-                            {creator.channel} · {collab.when}
+                          <p className="mt-1 flex flex-wrap items-center gap-1 text-sm text-muted">
+                            <span>{creator.channel}</span>
+                            {creator.plus ? <PlusBadge /> : null}
+                            <span>· {collab.when}</span>
                           </p>
                           <p className="mt-2 text-sm leading-relaxed">{collab.summary}</p>
                           <p className="mt-2 text-sm text-cream">Open thread</p>
@@ -204,13 +212,16 @@ export function Inbox({
             ) : (
               <ul className="mt-3 flex flex-col gap-3">
                 {outbound.map((pitch) => {
-                  const creator = CREATORS.find((item) => item.id === pitch.creatorId);
+                  const creator = lookup(pitch.creatorId);
                   if (!creator) return null;
                   const acceptedPitch = pitch.status === "accepted";
                   return (
                     <li key={pitch.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="min-w-0 truncate font-medium">{creator.channel}</p>
+                        <p className="flex min-w-0 items-center gap-1 font-medium">
+                          <span className="truncate">{creator.channel}</span>
+                          {creator.plus ? <PlusBadge /> : null}
+                        </p>
                         <p className={cn("shrink-0 text-sm font-medium", acceptedPitch ? "text-status-accepted" : "text-status-pending")}>
                           {acceptedPitch ? "Accepted" : "Pending"}
                         </p>
@@ -232,13 +243,17 @@ export function Inbox({
 
 export function ChatThread({
   collab,
+  creator,
   messages,
+  error,
   onClose,
   onSend,
   onBlock,
 }: {
   collab: AcceptedCollab | null;
+  creator: Creator | undefined;
   messages: ChatMessage[];
+  error?: string | null;
   onClose: () => void;
   onSend: (text: string) => void;
   onBlock: () => void;
@@ -246,7 +261,6 @@ export function ChatThread({
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const creator = CREATORS.find((item) => item.id === collab?.creatorId);
 
   useEffect(() => {
     setDraft("");
@@ -263,7 +277,10 @@ export function ChatThread({
           <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
             <div className="min-w-0">
               <Dialog.Title className="truncate font-display text-2xl">{collab?.title ?? "Thread"}</Dialog.Title>
-              <p className="truncate text-sm text-muted">{creator ? creator.channel : "Collab thread"}</p>
+              <p className="flex min-w-0 items-center gap-1 text-sm text-muted">
+                <span className="truncate">{creator ? creator.channel : "Collab thread"}</span>
+                {creator?.plus ? <PlusBadge /> : null}
+              </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Dialog.Close
@@ -302,6 +319,14 @@ export function ChatThread({
             </div>
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
+            {error ? (
+              <p className="text-sm text-accent" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {messages.length === 0 && !error ? (
+              <p className="text-sm text-muted">You matched! Say hi and plan the collab.</p>
+            ) : null}
             {messages.map((message) => (
               <p
                 key={message.id}
@@ -335,6 +360,7 @@ export function ChatThread({
               id="chat-draft"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              maxLength={2000}
               placeholder="Coordinate the collab"
               className="h-12 min-w-0 flex-1 rounded-control border border-line bg-ink px-3 text-sm text-cream placeholder:text-muted"
             />

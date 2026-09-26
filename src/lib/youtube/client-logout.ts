@@ -1,62 +1,45 @@
-/** Client logout helpers — wipe matchcut/YouTube state; leave Grok broker alone. */
-import { PLUS_LOCAL_KEY } from "@/lib/youtube/plus-client";
+/** Client logout: Firebase sign-out + full local-data and cookie wipe. */
+import { signOut } from "firebase/auth";
+import { firebaseAuth } from "@/lib/firebase";
 
-const TERMS_KEY = "matchcut-terms";
 const PROFILE_KEY = "matchcut-profile";
 export const SESSION_KEY = "matchcut-signed-in";
+/** The 18+ answer is the only thing kept, so the age gate does not re-prompt. */
 const AGE_KEY = "matchcut-age";
 const DECK_KEY = "matchcut-v1";
 
-const LOGOUT_LOCAL_KEYS = [TERMS_KEY, PROFILE_KEY, SESSION_KEY, DECK_KEY] as const;
-
 /**
- * Wipe every matchcut / YouTube client artifact so the next visitor must sign in
- * from scratch. Keeps `matchcut-age` so the 18+ gate does not re-prompt.
- * Leaves Grok broker auth (`grok-auth.*` / better-auth) alone.
+ * Wipe every app / YouTube client artifact on this device. Profile, swipes,
+ * matches, and messages are restored from Firestore on the next sign-in, and
+ * Plus is restored from the server, so nothing paid-for is lost.
  */
 export function clearSessionStorageOnly() {
-  for (const key of LOGOUT_LOCAL_KEYS) {
-    localStorage.removeItem(key);
-  }
-
+  localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(DECK_KEY);
   for (let i = localStorage.length - 1; i >= 0; i -= 1) {
     const key = localStorage.key(i);
-    if (!key || key === AGE_KEY || key === PLUS_LOCAL_KEY) continue;
-    if (
-      key.startsWith("matchcut-") ||
-      key.startsWith("youtube-") ||
-      key.startsWith("yt_")
-    ) {
+    if (!key || key === AGE_KEY) continue;
+    if (key.startsWith("matchcut-") || key.startsWith("youtube-") || key.startsWith("yt_")) {
       localStorage.removeItem(key);
     }
   }
-
   for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
     const key = sessionStorage.key(i);
     if (!key) continue;
-    if (key.startsWith("grok-auth") || key.startsWith("better-auth")) continue;
-    if (
-      key.startsWith("matchcut-") ||
-      key.startsWith("youtube-") ||
-      key.startsWith("yt_") ||
-      key.includes("matchcut") ||
-      key.includes("youtube")
-    ) {
+    if (key.includes("matchcut") || key.includes("youtube") || key.startsWith("yt_")) {
       sessionStorage.removeItem(key);
     }
   }
 }
 
-/** @deprecated Prefer logoutAndReset; kept as storage wipe used before reload. */
-export function clearSession() {
-  clearSessionStorageOnly();
-}
-
-/**
- * End the YouTube session and lock the desk.
- * Profile, messages, blocked creators, pitches, and Plus time stay on this device.
- */
+/** Log out: sign out of Firebase, expire server cookies, wipe local data, reload. */
 export async function logoutAndReset(): Promise<void> {
+  try {
+    const auth = await firebaseAuth();
+    if (auth) await signOut(auth);
+  } catch {
+    // Best-effort: still clear everything else.
+  }
   try {
     await fetch("/api/youtube/logout", {
       method: "POST",
@@ -64,8 +47,9 @@ export async function logoutAndReset(): Promise<void> {
       headers: { Accept: "application/json" },
     });
   } catch {
-    // Best-effort: still lock the desk if the network call fails.
+    // Best-effort: still wipe local state if the network call fails.
   }
+  clearSessionStorageOnly();
   localStorage.setItem(SESSION_KEY, "0");
   window.location.assign("/");
 }

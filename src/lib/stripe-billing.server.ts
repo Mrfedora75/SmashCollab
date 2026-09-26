@@ -1,64 +1,60 @@
+/**
+ * Stripe billing (server only). Plus and extra pitches are granted ONLY from a
+ * Stripe Checkout Session that Stripe itself reports as paid — either via the
+ * signed webhook (`/api/stripe/webhook`) or by re-fetching the session from the
+ * Stripe API on the success redirect (`/api/stripe/confirm`). Entitlements are
+ * stored durably in Firestore, keyed by YouTube channel ID.
+ */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
-import { getSql } from "@/lib/db";
 import { env } from "@/lib/env.server";
+import {
+  PreconditionFailedError,
+  commit,
+  getDocument,
+  safeDocId,
+  type Plain,
+  type Write,
+} from "@/lib/server/firestore.server";
 
-const FILE = "/tmp/smash-stripe.json";
+export type Plan = "month" | "year" | "pitch";
 
-export type BillingAccount = {
+export type Entitlement = {
   channelId: string;
-  status: "plus" | "free";
-  plusUntil: number | null;
-  pitchesPurchased: number;
+  /** Paid Plus (Stripe subscription) end, ms epoch. */
+  plusUntil: number;
+  /** Plus granted for accepting an invite, ms epoch. */
+  referralPlusUntil: number;
+  /** Purchased, unused extra pitches. */
+  pitchCredits: number;
   customerId: string | null;
   subscriptionId: string | null;
 };
-
-type Ledger = {
-  accounts: Record<string, BillingAccount>;
-  sessions: string[];
-};
-
-const memory = globalThis as typeof globalThis & { __smashStripe?: Ledger };
-
-function emptyLedger(): Ledger {
-  return { accounts: {}, sessions: [] };
-}
-
-function readLedger(): Ledger {
-  if (memory.__smashStripe) return memory.__smashStripe;
-  try {
-    const parsed = JSON.parse(readFileSync(FILE, "utf8")) as Partial<Ledger>;
-    memory.__smashStripe = {
-      accounts: parsed.accounts && typeof parsed.accounts === "object" ? parsed.accounts : {},
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions.filter((id) => typeof id === "string") : [],
-    };
-  } catch {
-    memory.__smashStripe = emptyLedger();
-  }
-  return memory.__smashStripe;
-}
-
-function writeLedger(ledger: Ledger) {
-  memory.__smashStripe = ledger;
-  try {
-    writeFileSync(FILE, JSON.stringify(ledger));
-  } catch {
-    // The in-memory ledger still counts for this server instance.
-  }
-}
 
 export function stripeSecret(): string | undefined {
   return env("STRIPE_SECRET_KEY");
 }
 
-export function priceIdFor(plan: "month" | "year" | "pitch"): string | undefined {
+/** Mode from the key prefix only. Never log or return the key itself. */
+export function stripeMode(): "test" | "live" | "unknown" | "missing" {
+  const key = stripeSecret();
+  if (!key) return "missing";
+  if (/^(sk|rk)_test_/.test(key)) return "test";
+  if (/^(sk|rk)_live_/.test(key)) return "live";
+  return "unknown";
+}
+
+/** Live keys are refused unless the owner explicitly sets STRIPE_ALLOW_LIVE=true. */
+export function liveModeBlocked(): boolean {
+  return stripeMode() === "live" && env("STRIPE_ALLOW_LIVE") !== "true";
+}
+
+export function priceIdFor(plan: Plan): string | undefined {
   if (plan === "month") return env("STRIPE_PRICE_PLUS_MONTHLY");
   if (plan === "year") return env("STRIPE_PRICE_PLUS_ANNUAL");
   return env("STRIPE_PRICE_PITCH");
 }
 
-const PRICE_CACHE: Partial<Record<"month" | "year" | "pitch", string>> = {};
+const PRICE_CACHE: Partial<Record<Plan, string>> = {};
 
 const PRICE_LOOKUP = {
   month: "smash_plus_monthly",
@@ -72,7 +68,7 @@ const PRICE_AMOUNTS = {
   pitch: "100",
 } as const;
 
-export async function resolvePriceId(plan: "month" | "year" | "pitch"): Promise<string> {
+export async function resolvePriceId(plan: Plan): Promise<string> {
   const configured = priceIdFor(plan);
   if (configured) return configured;
   const cached = PRICE_CACHE[plan];
@@ -113,9 +109,12 @@ export async function resolvePriceId(plan: "month" | "year" | "pitch"): Promise<
   return price.id;
 }
 
+export class StripeRequestError extends Error {}
+
 export async function stripeRequest<T>(path: string, params?: URLSearchParams, method = "POST"): Promise<T> {
   const key = stripeSecret();
-  if (!key) throw new Error("Stripe is not configured.");
+  if (!key) throw new StripeRequestError("Stripe is not configured.");
+  if (liveModeBlocked()) throw new StripeRequestError("Live Stripe keys are disabled for this deployment.");
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
     method,
     headers: {
@@ -124,13 +123,14 @@ export async function stripeRequest<T>(path: string, params?: URLSearchParams, m
     },
     body: params,
   });
-  const data = (await res.json()) as T & { error?: { message?: string } };
+  const data = (await res.json().catch(() => ({}))) as T & { error?: { message?: string } };
   if (!res.ok) {
-    throw new Error(data.error?.message ?? "Stripe request failed.");
+    throw new StripeRequestError(data.error?.message ?? `Stripe request failed (${res.status}).`);
   }
   return data;
 }
 
+/** Verifies the `Stripe-Signature` header (v1 HMAC-SHA256, 5-minute tolerance). */
 export function verifyStripeSignature(payload: string, header: string | null, secret: string): boolean {
   if (!header) return false;
   const timestamp = header.match(/(?:^|,)t=(\d+)/)?.[1];
@@ -146,156 +146,30 @@ export function verifyStripeSignature(payload: string, header: string | null, se
   });
 }
 
-async function ensureTables() {
-  const sql = await getSql();
-  await sql.query(
-    "create table if not exists billing_accounts (channel_id text primary key, status text not null, plus_until bigint, pitches_purchased integer not null default 0, stripe_customer_id text, stripe_subscription_id text, updated_at bigint not null)",
-  );
-  await sql.query(
-    "create table if not exists stripe_sessions (session_id text primary key, channel_id text not null, created_at bigint not null)",
-  );
-  return sql;
+// ---- durable entitlements ---------------------------------------------------
+
+function entitlementPath(channelId: string): string {
+  return `entitlements/${safeDocId(channelId)}`;
 }
 
-function accountFromRow(row: {
-  channel_id: string;
-  status: string;
-  plus_until: number | null;
-  pitches_purchased: number;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-}): BillingAccount {
+function num(value: Plain | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function str(value: Plain | undefined): string | null {
+  return typeof value === "string" && value ? value : null;
+}
+
+export async function readEntitlement(channelId: string): Promise<Entitlement> {
+  const doc = await getDocument(entitlementPath(channelId));
   return {
-    channelId: row.channel_id,
-    status: row.status === "plus" ? "plus" : "free",
-    plusUntil: row.plus_until == null ? null : Number(row.plus_until),
-    pitchesPurchased: Number(row.pitches_purchased) || 0,
-    customerId: row.stripe_customer_id,
-    subscriptionId: row.stripe_subscription_id,
+    channelId,
+    plusUntil: num(doc?.plusUntil),
+    referralPlusUntil: num(doc?.referralPlusUntil),
+    pitchCredits: Math.max(0, Math.floor(num(doc?.pitchCredits))),
+    customerId: str(doc?.customerId),
+    subscriptionId: str(doc?.subscriptionId),
   };
-}
-
-async function readAccount(channelId: string): Promise<BillingAccount | null> {
-  const cached = readLedger().accounts[channelId];
-  try {
-    const sql = await ensureTables();
-    const rows = await sql.query<{
-      channel_id: string;
-      status: string;
-      plus_until: number | null;
-      pitches_purchased: number;
-      stripe_customer_id: string | null;
-      stripe_subscription_id: string | null;
-    }>("select channel_id, status, plus_until, pitches_purchased, stripe_customer_id, stripe_subscription_id from billing_accounts where channel_id = $1", [
-      channelId,
-    ]);
-    if (rows[0]) return accountFromRow(rows[0]);
-  } catch {
-    // Fall back to the file ledger.
-  }
-  return cached ?? null;
-}
-
-async function writeAccount(account: BillingAccount) {
-  const ledger = readLedger();
-  ledger.accounts[account.channelId] = account;
-  writeLedger(ledger);
-  try {
-    const sql = await ensureTables();
-    await sql.query(
-      "insert into billing_accounts (channel_id, status, plus_until, pitches_purchased, stripe_customer_id, stripe_subscription_id, updated_at) values ($1, $2, $3, $4, $5, $6, $7) on conflict (channel_id) do update set status = excluded.status, plus_until = excluded.plus_until, pitches_purchased = excluded.pitches_purchased, stripe_customer_id = excluded.stripe_customer_id, stripe_subscription_id = excluded.stripe_subscription_id, updated_at = excluded.updated_at",
-      [
-        account.channelId,
-        account.status,
-        account.plusUntil,
-        account.pitchesPurchased,
-        account.customerId,
-        account.subscriptionId,
-        Date.now(),
-      ],
-    );
-  } catch {
-    // The file ledger already has the account.
-  }
-}
-
-async function rememberSession(sessionId: string, channelId: string): Promise<boolean> {
-  const ledger = readLedger();
-  if (ledger.sessions.includes(sessionId)) return false;
-  ledger.sessions.push(sessionId);
-  writeLedger(ledger);
-  try {
-    const sql = await ensureTables();
-    const existing = await sql.query<{ session_id: string }>(
-      "select session_id from stripe_sessions where session_id = $1",
-      [sessionId],
-    );
-    if (existing.length > 0) return false;
-    await sql.query("insert into stripe_sessions (session_id, channel_id, created_at) values ($1, $2, $3)", [
-      sessionId,
-      channelId,
-      Date.now(),
-    ]);
-  } catch {
-    // The file ledger already recorded the session.
-  }
-  return true;
-}
-
-export async function billingStatus(channelId: string): Promise<BillingAccount> {
-  return (
-    (await readAccount(channelId)) ?? {
-      channelId,
-      status: "free",
-      plusUntil: null,
-      pitchesPurchased: 0,
-      customerId: null,
-      subscriptionId: null,
-    }
-  );
-}
-
-export async function grantPlus(
-  channelId: string,
-  plusUntil: number,
-  customerId: string | null,
-  subscriptionId: string | null,
-): Promise<BillingAccount> {
-  const current = await billingStatus(channelId);
-  const account: BillingAccount = {
-    ...current,
-    status: "plus",
-    plusUntil: Math.max(current.plusUntil ?? 0, plusUntil),
-    customerId: customerId ?? current.customerId,
-    subscriptionId: subscriptionId ?? current.subscriptionId,
-  };
-  await writeAccount(account);
-  return account;
-}
-
-export async function revokePlus(channelId: string): Promise<BillingAccount> {
-  const current = await billingStatus(channelId);
-  const account: BillingAccount = {
-    ...current,
-    status: "free",
-    plusUntil: Date.now(),
-    subscriptionId: null,
-  };
-  await writeAccount(account);
-  return account;
-}
-
-export async function grantPitch(channelId: string, sessionId: string, customerId: string | null): Promise<BillingAccount & { applied: boolean }> {
-  const fresh = await rememberSession(sessionId, channelId);
-  const current = await billingStatus(channelId);
-  if (!fresh) return { ...current, applied: false };
-  const account: BillingAccount = {
-    ...current,
-    pitchesPurchased: current.pitchesPurchased + 1,
-    customerId: customerId ?? current.customerId,
-  };
-  await writeAccount(account);
-  return { ...account, applied: true };
 }
 
 type StripeSession = {
@@ -303,44 +177,124 @@ type StripeSession = {
   mode?: string;
   status?: string;
   payment_status?: string;
+  client_reference_id?: string | null;
   customer?: string | { id?: string } | null;
-  subscription?: string | { id?: string; current_period_end?: number } | null;
+  subscription?: string | StripeSubscription | null;
   metadata?: Record<string, string>;
 };
 
-function customerIdOf(value: StripeSession["customer"]): string | null {
+export type StripeSubscription = {
+  id?: string;
+  status?: string;
+  customer?: string | { id?: string } | null;
+  metadata?: Record<string, string>;
+  current_period_end?: number;
+  items?: { data?: { current_period_end?: number }[] };
+};
+
+function idOf(value: string | { id?: string } | null | undefined): string | null {
   if (typeof value === "string") return value;
   return value?.id ?? null;
 }
 
-export async function applyCheckoutSession(session: StripeSession): Promise<BillingAccount & { applied: boolean; kind: "plus" | "pitch" | null }> {
-  const channelId = session.metadata?.channelId?.trim();
+/** Newer Stripe API versions moved current_period_end onto subscription items. */
+export function subscriptionPeriodEnd(sub: StripeSubscription): number | null {
+  const top = sub.current_period_end;
+  const item = sub.items?.data?.[0]?.current_period_end;
+  const seconds = typeof top === "number" ? top : typeof item === "number" ? item : null;
+  return seconds == null ? null : seconds * 1000;
+}
+
+export async function fetchCheckoutSession(sessionId: string): Promise<StripeSession> {
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) throw new StripeRequestError("Invalid checkout session.");
+  return stripeRequest<StripeSession>(`checkout/sessions/${sessionId}?expand[]=subscription`, undefined, "GET");
+}
+
+export type ApplyResult = {
+  applied: boolean;
+  kind: "plus" | "pitch" | null;
+  channelId: string | null;
+  reason?: string;
+};
+
+/**
+ * Grants what a paid Checkout Session bought. Idempotent: the session id is
+ * recorded in the same atomic commit, so the webhook and the success redirect
+ * can both call this without double-granting.
+ */
+export async function applyCheckoutSession(session: StripeSession): Promise<ApplyResult> {
+  const channelId = session.metadata?.channelId?.trim() || null;
   const kind = session.metadata?.kind === "pitch" ? "pitch" : session.metadata?.kind === "plus" ? "plus" : null;
-  if (!channelId || !kind || (session.payment_status !== "paid" && session.payment_status !== "no_payment_required")) {
-    const empty = await billingStatus(channelId || "unknown");
-    return { ...empty, applied: false, kind };
+  if (!channelId || !kind) return { applied: false, kind, channelId, reason: "missing-metadata" };
+  if (session.status !== "complete" || (session.payment_status !== "paid" && session.payment_status !== "no_payment_required")) {
+    return { applied: false, kind, channelId, reason: "unpaid" };
   }
-  const customerId = customerIdOf(session.customer);
+  const customerId = idOf(session.customer);
+  const now = Date.now();
+  const writes: Write[] = [
+    {
+      path: `stripeSessions/${safeDocId(session.id)}`,
+      fields: { sessionId: session.id, channelId, kind, createdAt: now },
+      precondition: "absent",
+    },
+  ];
+  const base: Record<string, Plain> = { channelId, updatedAt: now };
+  if (customerId) base.customerId = customerId;
+
   if (kind === "pitch") {
-    const account = await grantPitch(channelId, session.id, customerId);
-    return { ...account, kind };
-  }
-  let plusUntil = Date.now() + (session.metadata?.plan === "year" ? 366 : 32) * 24 * 60 * 60 * 1000;
-  let subscriptionId: string | null = null;
-  const subscription = session.subscription;
-  if (typeof subscription === "string") {
-    subscriptionId = subscription;
-    try {
-      const retrieved = await stripeRequest<{ current_period_end?: number }>(`subscriptions/${subscription}`, undefined, "GET");
-      if (typeof retrieved.current_period_end === "number") plusUntil = retrieved.current_period_end * 1000;
-    } catch {
-      // Keep the fallback period if Stripe does not return the subscription.
+    writes.push({ path: entitlementPath(channelId), fields: base, increment: { pitchCredits: 1 } });
+  } else {
+    let subscription: StripeSubscription | null =
+      session.subscription && typeof session.subscription === "object" ? session.subscription : null;
+    if (!subscription && typeof session.subscription === "string") {
+      subscription = await stripeRequest<StripeSubscription>(`subscriptions/${session.subscription}`, undefined, "GET");
     }
-  } else if (subscription && typeof subscription.current_period_end === "number") {
-    subscriptionId = subscription.id ?? null;
-    plusUntil = subscription.current_period_end * 1000;
+    const periodEnd = subscription ? subscriptionPeriodEnd(subscription) : null;
+    const plusUntil = periodEnd ?? now + (session.metadata?.plan === "year" ? 366 : 32) * 24 * 60 * 60 * 1000;
+    if (subscription?.id) base.subscriptionId = subscription.id;
+    base.plan = session.metadata?.plan === "year" ? "year" : "month";
+    writes.push({ path: entitlementPath(channelId), fields: base, maximum: { plusUntil } });
   }
-  const fresh = await rememberSession(session.id, channelId);
-  const account = await grantPlus(channelId, plusUntil, customerId, subscriptionId);
-  return { ...account, applied: fresh, kind };
+
+  try {
+    await commit(writes);
+    return { applied: true, kind, channelId };
+  } catch (error) {
+    if (error instanceof PreconditionFailedError) return { applied: false, kind, channelId, reason: "already-applied" };
+    throw error;
+  }
+}
+
+/** Keeps Plus in step with subscription renewals, cancellations, and failures. */
+export async function applySubscriptionEvent(sub: StripeSubscription, deleted: boolean): Promise<boolean> {
+  const channelId = sub.metadata?.channelId?.trim();
+  if (!channelId) return false;
+  const now = Date.now();
+  const periodEnd = subscriptionPeriodEnd(sub);
+  const active = !deleted && (sub.status === "active" || sub.status === "trialing");
+  const fields: Record<string, Plain> = { channelId, updatedAt: now, subscriptionStatus: deleted ? "canceled" : (sub.status ?? "unknown") };
+  const customerId = idOf(sub.customer);
+  if (customerId) fields.customerId = customerId;
+  if (active && periodEnd) {
+    if (sub.id) fields.subscriptionId = sub.id;
+    await commit([{ path: entitlementPath(channelId), fields, maximum: { plusUntil: periodEnd } }]);
+    return true;
+  }
+  if (deleted || sub.status === "canceled" || sub.status === "unpaid" || sub.status === "incomplete_expired") {
+    // End paid Plus now. Referral Plus is stored separately and is not touched.
+    fields.plusUntil = now;
+    fields.subscriptionId = null;
+    await commit([{ path: entitlementPath(channelId), fields }]);
+    return true;
+  }
+  // past_due / incomplete: leave the current period alone; Stripe retries payment.
+  await commit([{ path: entitlementPath(channelId), fields }]);
+  return true;
+}
+
+/** Grant invite Plus to the invited creator (does not shorten existing time). */
+export async function grantReferralPlus(channelId: string, until: number): Promise<void> {
+  await commit([
+    { path: entitlementPath(channelId), fields: { channelId, updatedAt: Date.now() }, maximum: { referralPlusUntil: until } },
+  ]);
 }

@@ -1,27 +1,29 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { CREATORS } from "@/data/creators";
-import { ACCEPTED_COLLABS } from "@/data/inbox";
+import type { Creator } from "@/data/creators";
+import type { AcceptedCollab } from "@/data/inbox";
 import { StarPicker } from "@/components/matchcut/stars";
 
 export type SavedReview = { stars: number; note: string };
 
 export function ReviewModal({
   collabId,
+  collab,
+  creator,
   saved,
   onClose,
   onReturn,
   onSave,
 }: {
   collabId: string | null;
+  collab: AcceptedCollab | undefined;
+  creator: Creator | undefined;
   saved?: SavedReview;
   onClose: () => void;
   onReturn?: () => void;
   onSave: (collabId: string, review: SavedReview) => void;
 }) {
-  const collab = ACCEPTED_COLLABS.find((item) => item.id === collabId);
-  const creator = CREATORS.find((item) => item.id === collab?.creatorId);
   const [stars, setStars] = useState(saved?.stars ?? 0);
   const [note, setNote] = useState(saved?.note ?? "");
   const [sent, setSent] = useState(false);
@@ -43,7 +45,7 @@ export function ReviewModal({
               <Dialog.Title className="mt-1 font-display text-3xl leading-tight">Leave a Review</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-strong">
                 {creator && collab
-                  ? `${collab.title} with ${creator.channel}. This note stays on the desk.`
+                  ? `${collab.title} with ${creator.channel}. This note is saved on this device only.`
                   : "Rate a finished collaboration."}
               </Dialog.Description>
             </div>

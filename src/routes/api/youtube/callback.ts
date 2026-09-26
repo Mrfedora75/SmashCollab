@@ -10,6 +10,8 @@ import {
   buildYtAccountCookie,
   signYtAccount,
 } from "@/lib/youtube/plus-entitlement";
+import { isStorageConfigured } from "@/lib/server/firestore.server";
+import { recordVerifiedChannel } from "@/lib/server/public-profile.server";
 import {
   buildCookie,
   clearCookie,
@@ -39,6 +41,13 @@ function redirectError(
   return new Response(null, { status: 302, headers });
 }
 
+function sameState(a: string, b: string): boolean {
+  if (a.length !== b.length || a.length < 32) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export const Route = createFileRoute("/api/youtube/callback")({
   server: {
     handlers: {
@@ -54,7 +63,8 @@ export const Route = createFileRoute("/api/youtube/callback")({
         const cookies = parseCookieHeader(request);
         const expectedState = cookies[YT_STATE_COOKIE];
 
-        if (!code || !state || !expectedState || state !== expectedState) {
+        // CSRF protection: the state must match the one we stored in an HttpOnly cookie.
+        if (!code || !state || !expectedState || !sameState(state, expectedState)) {
           return redirectError(request, home, "state");
         }
 
@@ -68,8 +78,18 @@ export const Route = createFileRoute("/api/youtube/callback")({
           return redirectError(request, home, channelResult.reason);
         }
 
+        // Subscriber count straight from the YouTube Data API, stored server-side only.
+        // The profile picks it up via /api/profile/sync once the creator is signed in to Firebase.
+        if (isStorageConfigured()) {
+          try {
+            await recordVerifiedChannel(channelResult);
+          } catch {
+            // Non-fatal: sign-in still works; pitches to this channel stay limited until it re-verifies.
+          }
+        }
+
         const signedChannel = await signVerifiedChannel(channelResult);
-        const signedAccount = await signYtAccount(channelResult.channelId);
+        const signedAccount = await signYtAccount(channelResult.channelId, channelResult.channel, channelResult.email);
         const setCookies = [
           clearCookie(request, YT_STATE_COOKIE),
           buildCookie(request, YT_CHANNEL_COOKIE, signedChannel, 600),
