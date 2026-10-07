@@ -7,7 +7,10 @@ import { requestAccount } from "@/lib/youtube/plus-entitlement";
 const noStore = { "Cache-Control": "no-store" };
 
 function parsePlan(value: unknown): Plan | null {
-  return value === "month" || value === "year" || value === "pitch" ? value : null;
+  if (value === "month" || value === "year" || value === "collab") return value;
+  // Legacy client plan name before pitch→collab rename.
+  if (value === "pitch") return "collab";
+  return null;
 }
 
 export const Route = createFileRoute("/api/stripe/checkout")({
@@ -46,7 +49,7 @@ export const Route = createFileRoute("/api/stripe/checkout")({
           const home = getAppHomeUrl(request).replace(/\/$/, "");
           const channelId = account.channelId;
           const params = new URLSearchParams();
-          params.set("mode", plan === "pitch" ? "payment" : "subscription");
+          params.set("mode", plan === "collab" ? "payment" : "subscription");
           params.set("line_items[0][price]", price);
           params.set("line_items[0][quantity]", "1");
           params.set("success_url", `${home}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`);
@@ -54,9 +57,9 @@ export const Route = createFileRoute("/api/stripe/checkout")({
           params.set("client_reference_id", channelId);
           params.set("allow_promotion_codes", "true");
           params.set("metadata[channelId]", channelId);
-          params.set("metadata[kind]", plan === "pitch" ? "pitch" : "plus");
+          params.set("metadata[kind]", plan === "collab" ? "collab" : "plus");
           params.set("metadata[plan]", plan);
-          if (plan !== "pitch") {
+          if (plan !== "collab") {
             params.set("subscription_data[metadata][channelId]", channelId);
             params.set("subscription_data[metadata][kind]", "plus");
             params.set("subscription_data[metadata][plan]", plan);

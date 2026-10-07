@@ -52,24 +52,24 @@ await t("no email: client can't add email via update", assertFails(updateDoc(doc
 await t("no email: normal save (with deleteField no-op) works", assertSucceeds(setDoc(doc(A, "users/alice"), { ...prof("alice"), email: deleteField(), bio: "again" }, { merge: true })));
 await t("no email: plain update works", assertSucceeds(updateDoc(doc(B, "users/bob"), { bio: "plain" })));
 
-// ---- swipes: pitches are server-only
+// ---- swipes: collabs are server-only
 const sw = (from, to, direction) => ({ from, to, direction, note: "hi", createdAt: serverTimestamp() });
-await t("client pitch create denied", assertFails(setDoc(doc(A, "swipes/alice_bob"), sw("alice", "bob", "pitch"))));
+await t("client collab create denied", assertFails(setDoc(doc(A, "swipes/alice_bob"), sw("alice", "bob", "pitch"))));
 await t("own pass create", assertSucceeds(setDoc(doc(C, "swipes/carol_bob"), sw("carol", "bob", "pass"))));
-await t("pass -> pitch update denied", assertFails(updateDoc(doc(C, "swipes/carol_bob"), { direction: "pitch" })));
-await t("pass -> pitch overwrite denied", assertFails(setDoc(doc(C, "swipes/carol_bob"), sw("carol", "bob", "pitch"))));
+await t("pass -> collab update denied", assertFails(updateDoc(doc(C, "swipes/carol_bob"), { direction: "pitch" })));
+await t("pass -> collab overwrite denied", assertFails(setDoc(doc(C, "swipes/carol_bob"), sw("carol", "bob", "pitch"))));
 await t("forged pass denied", assertFails(setDoc(doc(C, "swipes/bob_carol"), sw("bob", "carol", "pass"))));
 await t("self swipe denied", assertFails(setDoc(doc(A, "swipes/alice_alice"), sw("alice", "alice", "pass"))));
 await server((db) => setDoc(doc(db, "swipes/alice_bob"), { from: "alice", to: "bob", direction: "pitch", note: "hi", createdAt: Timestamp.now() }));
-await t("target reads pitch", assertSucceeds(getDoc(doc(B, "swipes/alice_bob"))));
-await t("third party can't read pitch", assertFails(getDoc(doc(C, "swipes/alice_bob"))));
+await t("target reads collab", assertSucceeds(getDoc(doc(B, "swipes/alice_bob"))));
+await t("third party can't read collab", assertFails(getDoc(doc(C, "swipes/alice_bob"))));
 await t("match before mutual denied", assertFails(setDoc(doc(A, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
 await t("carol passes alice", assertSucceeds(setDoc(doc(C, "swipes/carol_alice"), sw("carol", "alice", "pass"))));
 await t("alice can't read carol's pass", assertFails(getDoc(doc(A, "swipes/carol_alice"))));
 await server((db) => setDoc(doc(db, "swipes/bob_alice"), { from: "bob", to: "alice", direction: "pitch", note: "yo", createdAt: Timestamp.now() }));
 await t("carol can't create alice_bob match", assertFails(setDoc(doc(C, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
 await t("get nonexistent match ok", assertSucceeds(getDoc(doc(B, "matches/alice_bob"))));
-await t("client match create denied even after mutual pitch", assertFails(setDoc(doc(B, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
+await t("client match create denied even after mutual collab", assertFails(setDoc(doc(B, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
 await server((db) => setDoc(doc(db, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: Timestamp.now(), blockedBy: null, lastMessageAt: null }));
 
 // ---- matches & messages (client-written, match membership checked)
@@ -90,10 +90,10 @@ await t("inbound query", assertSucceeds(getDocs(query(collection(A, "swipes"), w
 await t("inbound query without direction denied", assertFails(getDocs(query(collection(A, "swipes"), where("to", "==", "alice")))));
 await t("matches query", assertSucceeds(getDocs(query(collection(A, "matches"), where("users", "array-contains", "alice")))));
 await t("users list", assertSucceeds(getDocs(collection(A, "users"))));
-await t("pitch note edit", assertSucceeds(updateDoc(doc(A, "swipes/alice_bob"), { note: "new" })));
+await t("collab note edit", assertSucceeds(updateDoc(doc(A, "swipes/alice_bob"), { note: "new" })));
 await t("can't retarget swipe", assertFails(updateDoc(doc(A, "swipes/alice_bob"), { to: "carol" })));
-await t("can't re-stamp a pitch (would dodge the daily counter)", assertFails(updateDoc(doc(A, "swipes/alice_bob"), { createdAt: serverTimestamp() })));
-await t("withdraw pitch -> pass", assertSucceeds(updateDoc(doc(A, "swipes/alice_bob"), { direction: "pass", createdAt: serverTimestamp() })));
+await t("can't re-stamp a collab (would dodge the daily counter)", assertFails(updateDoc(doc(A, "swipes/alice_bob"), { createdAt: serverTimestamp() })));
+await t("withdraw collab -> pass", assertSucceeds(updateDoc(doc(A, "swipes/alice_bob"), { direction: "pass", createdAt: serverTimestamp() })));
 await t("delete own swipe", assertSucceeds(deleteDoc(doc(C, "swipes/carol_alice"))));
 
 // ---- server-only collections

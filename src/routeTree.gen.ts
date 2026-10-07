@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ApiPitchRouteImport } from './routes/api/pitch'
+import { Route as ApiCollabRouteImport } from './routes/api/collab'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
 import { Route as ApiAuthRestoreRouteImport } from './routes/api/auth/restore'
 import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
@@ -45,9 +45,9 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPitchRoute = ApiPitchRouteImport.update({
-  id: '/api/pitch',
-  path: '/api/pitch',
+const ApiCollabRoute = ApiCollabRouteImport.update({
+  id: '/api/collab',
+  path: '/api/collab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiReferralsRoute = ApiReferralsRouteImport.update({
@@ -135,7 +135,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
-  '/api/pitch': typeof ApiPitchRoute
+  '/api/collab': typeof ApiCollabRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
@@ -157,7 +157,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
-  '/api/pitch': typeof ApiPitchRoute
+  '/api/collab': typeof ApiCollabRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
@@ -180,7 +180,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
-  '/api/pitch': typeof ApiPitchRoute
+  '/api/collab': typeof ApiCollabRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
@@ -204,7 +204,7 @@ export interface FileRouteTypes {
     | '/'
     | '/privacy'
     | '/terms'
-    | '/api/pitch'
+    | '/api/collab'
     | '/api/referrals'
     | '/api/auth/restore'
     | '/api/firebase/config'
@@ -226,7 +226,7 @@ export interface FileRouteTypes {
     | '/'
     | '/privacy'
     | '/terms'
-    | '/api/pitch'
+    | '/api/collab'
     | '/api/referrals'
     | '/api/auth/restore'
     | '/api/firebase/config'
@@ -248,7 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/privacy'
     | '/terms'
-    | '/api/pitch'
+    | '/api/collab'
     | '/api/referrals'
     | '/api/auth/restore'
     | '/api/firebase/config'
@@ -271,7 +271,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
-  ApiPitchRoute: typeof ApiPitchRoute
+  ApiCollabRoute: typeof ApiCollabRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
   ApiAuthRestoreRoute: typeof ApiAuthRestoreRoute
   ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
@@ -313,11 +313,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/pitch': {
-      id: '/api/pitch'
-      path: '/api/pitch'
-      fullPath: '/api/pitch'
-      preLoaderRoute: typeof ApiPitchRouteImport
+    '/api/collab': {
+      id: '/api/collab'
+      path: '/api/collab'
+      fullPath: '/api/collab'
+      preLoaderRoute: typeof ApiCollabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/referrals': {
@@ -439,7 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
-  ApiPitchRoute: ApiPitchRoute,
+  ApiCollabRoute: ApiCollabRoute,
   ApiReferralsRoute: ApiReferralsRoute,
   ApiAuthRestoreRoute: ApiAuthRestoreRoute,
   ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,

@@ -136,7 +136,7 @@ export async function bindProfileToChannel(identity: FirebaseIdentity, account: 
     ...publicPlusFields(status),
   };
   if (record) {
-    // null = the channel hides its count; free pitches to it are then refused (fail closed).
+    // null = the channel hides its count; free collabs to it are then refused (fail closed).
     fields.subscriberCount = subscriberCount;
     fields.subsVerifiedAt = Date.now();
     // Legacy display field, overwritten so an old browser-written value can't linger.

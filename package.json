@@ -87,5 +87,5 @@
     "vite": "^8.2.0",
     "vitest": "^5.0.2"
   },
-  "description": "Smash Collab \u2014 swipe YouTube creators and pitch collabs."
+  "description": "Smash Collab \u2014 swipe YouTube creators and send collabs."
 }

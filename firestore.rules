@@ -75,10 +75,10 @@ service cloud.firestore {
         && validProfile(request.resource.data, uid);
     }
 
-    // ---- Swipes: id is "{fromUid}_{toUid}". Target can read pitches aimed at them.
-    // Pitches are created ONLY by the server (POST /api/pitch), which enforces the
-    // free-pitch limits. The browser may record a Pass, edit its own pitch note,
-    // withdraw a pitch (turn it into a Pass or delete it), but never create a pitch.
+    // ---- Swipes: id is "{fromUid}_{toUid}". Target can read collabs aimed at them.
+    // Collabs are created ONLY by the server (POST /api/collab), which enforces the
+    // free-collab limits. The browser may record a Pass, edit its own collab note,
+    // withdraw a collab (turn it into a Pass or delete it), but never create a collab.
     match /swipes/{swipeId} {
       allow read: if signedIn() && (
         resource.data.from == request.auth.uid ||
@@ -99,10 +99,10 @@ service cloud.firestore {
         && request.resource.data.note is string
         && request.resource.data.note.size() <= 1000
         && (
-          // Pitch -> Pass (re-stamping createdAt is fine), or Pass stays Pass.
+          // Collab -> Pass (re-stamping createdAt is fine), or Pass stays Pass.
           (request.resource.data.direction == 'pass'
             && (request.resource.data.createdAt == resource.data.createdAt || request.resource.data.createdAt == request.time)) ||
-          // Editing the note on an existing pitch; direction and time unchanged.
+          // Editing the note on an existing collab; direction and time unchanged.
           (resource.data.direction == 'pitch'
             && request.resource.data.direction == 'pitch'
             && request.resource.data.createdAt == resource.data.createdAt)
@@ -110,11 +110,11 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.from == request.auth.uid;
     }
 
-    // ---- Matches: id is "{uidA}_{uidB}" (sorted). Created only by the server after a mutual pitch.
+    // ---- Matches: id is "{uidA}_{uidB}" (sorted). Created only by the server after a mutual collab.
     match /matches/{matchId} {
       allow get: if signedIn() && (resource == null || request.auth.uid in resource.data.users);
       allow list: if signedIn() && request.auth.uid in resource.data.users;
-      // Matches are created only by the server (POST /api/pitch) after a mutual pitch.
+      // Matches are created only by the server (POST /api/collab) after a mutual collab.
       allow create: if false;
       // Participants may block/unblock (only the blocker can unblock) and bump lastMessageAt.
       allow update: if signedIn()

@@ -2,8 +2,8 @@
  * Real collab data in Firestore (client SDK, guarded by firestore.rules).
  *
  *   users/{uid}                      public creator profile (owner writes; some fields server-only)
- *   swipes/{fromUid}_{toUid}         Pass (owner writes) / Pitch (server writes via POST /api/pitch)
- *   matches/{uidA}_{uidB}            created by the server when both pitched each other
+ *   swipes/{fromUid}_{toUid}         Pass (owner writes) / Collab request (server writes via POST /api/collab; Firestore direction still "pitch")
+ *   matches/{uidA}_{uidB}            created by the server when both sent a collab
  *   matches/{id}/messages/{msgId}    readable/writable by the two participants only
  */
 import {
@@ -24,7 +24,7 @@ import {
 } from "firebase/firestore";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { todayKey } from "@/lib/format";
-import { PITCH_MESSAGES, type PitchRefusal } from "@/lib/pitch-policy";
+import { COLLAB_MESSAGES, type CollabRefusal } from "@/lib/collab-policy";
 
 export type Direction = "pass" | "pitch";
 
@@ -78,19 +78,19 @@ export async function loadMySwipes(): Promise<RemoteSwipe[]> {
   });
 }
 
-export type PitchErrorCode = PitchRefusal | "auth" | "invalid" | "no_profile" | "not_found" | "unavailable";
+export type CollabErrorCode = CollabRefusal | "auth" | "invalid" | "no_profile" | "not_found" | "unavailable";
 
-export class PitchError extends Error {
+export class CollabError extends Error {
   constructor(
     message: string,
-    readonly code: PitchErrorCode,
+    readonly code: CollabErrorCode,
   ) {
     super(message);
-    this.name = "PitchError";
+    this.name = "CollabError";
   }
 }
 
-export type PitchOutcome = {
+export type CollabOutcome = {
   matched: boolean;
   usedCredit: boolean;
   pitchCredits: number;
@@ -101,32 +101,32 @@ export type PitchOutcome = {
 async function idToken(): Promise<string> {
   const auth = await firebaseAuth();
   const user = auth?.currentUser;
-  if (!user) throw new PitchError("Sign in again to sync your desk.", "auth");
+  if (!user) throw new CollabError("Sign in again to sync your desk.", "auth");
   return user.getIdToken();
 }
 
 /**
- * Send a pitch through the server, which checks the free-pitch limits, spends a
- * $1 pitch credit if needed, and creates the match if they already pitched you.
+ * Send a collab through the server, which checks the free-collab limits, spends a
+ * $1 collab credit if needed, and creates the match if they already sent a collab you.
  */
-export async function sendPitch(to: string, note: string): Promise<PitchOutcome> {
+export async function sendCollab(to: string, note: string): Promise<CollabOutcome> {
   const token = await idToken();
   let res: Response;
   try {
-    res = await fetch("/api/pitch", {
+    res = await fetch("/api/collab", {
       method: "POST",
       credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ to, note: note.slice(0, NOTE_MAX) }),
     });
   } catch {
-    throw new PitchError("Could not reach the server. Check your connection and try again.", "unavailable");
+    throw new CollabError("Could not reach the server. Check your connection and try again.", "unavailable");
   }
-  const data = (await res.json().catch(() => ({}))) as Partial<PitchOutcome> & { error?: string; code?: PitchErrorCode };
+  const data = (await res.json().catch(() => ({}))) as Partial<CollabOutcome> & { error?: string; code?: CollabErrorCode };
   if (!res.ok) {
     const code = data.code ?? "unavailable";
     const known = code === "over_limit" || code === "target_unverified" || code === "daily_limit";
-    throw new PitchError(known ? PITCH_MESSAGES[code] : (data.error ?? "Could not send that pitch."), code);
+    throw new CollabError(known ? COLLAB_MESSAGES[code] : (data.error ?? "Could not send that collab."), code);
   }
   return {
     matched: data.matched === true,
@@ -162,7 +162,7 @@ export async function syncProfileOnServer(): Promise<ProfileSync | null> {
   }
 }
 
-/** Record a Pass (browser write). Pitches go through sendPitch. */
+/** Record a Pass (browser write). Collabs go through sendCollab. */
 export async function recordPass(to: string): Promise<void> {
   const { db, uid } = await ctx();
   if (to === uid) throw new Error("You can't swipe on yourself.");

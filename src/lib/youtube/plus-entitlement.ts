@@ -172,7 +172,7 @@ export async function resolvePlus(request: Request, account: YtAccount): Promise
 /**
  * Plus for a channel straight from durable storage (paid Stripe time, invite
  * time, invite rewards, tester comp). Throws if storage is unreachable. Used
- * by server code that has no browser session (webhooks, pitch API).
+ * by server code that has no browser session (webhooks, collab API).
  */
 export async function resolveStoredPlus(account: YtAccount): Promise<PlusStatus> {
   const ent = await readEntitlement(account.channelId);

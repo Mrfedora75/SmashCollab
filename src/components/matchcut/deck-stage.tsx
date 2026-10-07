@@ -92,7 +92,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
   }, []);
 
   const passOpacity = leaving === "pass" ? 1 : Math.max(0, Math.min(1, -offset.x / 90));
-  const pitchOpacity = leaving === "pitch" ? 1 : Math.max(0, Math.min(1, offset.x / 90));
+  const collabOpacity = leaving === "pitch" ? 1 : Math.max(0, Math.min(1, offset.x / 90));
   const locked = !!top && !premium && isPlusChannel(top.subscribers);
   const transform = leaving
     ? `translateX(${leaving === "pitch" ? "130%" : "-130%"}) rotate(${leaving === "pitch" ? 12 : -12}deg)`
@@ -102,8 +102,8 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
     <div className="mx-auto flex w-full max-w-sm flex-col px-4 py-2 sm:py-4">
       <p className="mb-3 text-center text-sm text-muted">
         {unseen.length > 0
-          ? `${unseen.length} in your deck · pitching as ${channel}`
-          : `Pitching as ${channel} · ${formatCount(subscribers)}`}
+          ? `${unseen.length} in your deck · sending as ${channel}`
+          : `Sending as ${channel} · ${formatCount(subscribers)}`}
       </p>
 
       <div className="relative pb-6">
@@ -164,7 +164,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
               requestAnimationFrame(() => setOffset({ x: 0, y: 0 }));
             }}
           >
-            <CardFace creator={top} locked={locked} passOpacity={passOpacity} pitchOpacity={pitchOpacity} />
+            <CardFace creator={top} locked={locked} passOpacity={passOpacity} collabOpacity={collabOpacity} />
           </article>
         ) : (
           <div className="rounded-card border border-line bg-ink-soft px-6 py-12 text-center">
@@ -194,7 +194,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                       ? "You're one of the first creators here. As other creators verify their channels they'll show up in your deck. Invite creators you'd like to work with!"
                       : matchCount === 0
                         ? "Widen the niches or the channel-size range to bring cards back."
-                        : "You've passed or pitched everyone who matches. Reset swipes, or loosen the filters."}
+                        : "You've passed or sent a collab to everyone who matches. Reset swipes, or loosen the filters."}
             </p>
             {membersStatus === "auth" ? (
               <button
@@ -236,11 +236,11 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
           className="press flex h-14 items-center justify-center gap-2 rounded-control bg-accent text-sm font-medium text-on-accent disabled:opacity-40"
         >
           <Send className="size-4" aria-hidden="true" />
-          Pitch
+          Collab
         </button>
       </div>
       <p className="mt-3 hidden text-center text-xs text-muted md:block">
-        Drag the card, or use the arrow keys. Z brings the last one back. Free desks get {FREE_DAILY} pitches a day.
+        Drag the card, or use the arrow keys. Z brings the last one back. Free desks get {FREE_DAILY} collabs a day.
       </p>
     </div>
   );

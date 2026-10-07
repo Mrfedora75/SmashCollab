@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { utcDayKey } from "@/lib/pitch-policy";
+import { utcDayKey } from "@/lib/collab-policy";
 import { requestFirebaseUser } from "@/lib/server/firebase-auth.server";
 import { getDocument, isStorageConfigured, safeDocId } from "@/lib/server/firestore.server";
 import { ProfileBindError, bindProfileToChannel, syncPublicPlus, userPath } from "@/lib/server/public-profile.server";
@@ -10,7 +10,7 @@ const noStore = { "Cache-Control": "no-store" };
 /**
  * Links the signed-in Firebase profile to the YouTube channel verified in this
  * session and writes the server-controlled profile fields (subscriber count
- * from the YouTube Data API, Plus status). Also returns today's free-pitch usage.
+ * from the YouTube Data API, Plus status). Also returns today's free-collab usage.
  */
 export const Route = createFileRoute("/api/profile/sync")({
   server: {

@@ -84,7 +84,7 @@ export const Route = createFileRoute("/api/youtube/callback")({
           try {
             await recordVerifiedChannel(channelResult);
           } catch {
-            // Non-fatal: sign-in still works; pitches to this channel stay limited until it re-verifies.
+            // Non-fatal: sign-in still works; collabs to this channel stay limited until it re-verifies.
           }
         }
 

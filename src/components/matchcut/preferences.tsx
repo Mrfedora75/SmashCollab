@@ -58,7 +58,7 @@ export function PreferencesModal({
               </button>
             </div>
             <p id="push-hint" className="mt-2 text-sm leading-relaxed text-muted">
-              Get instantly alerted when you receive a new pitch or chat message.
+              Get instantly alerted when you receive a new collab or chat message.
             </p>
             <section className="mt-6 border-t border-line pt-5">
               <h2 className="text-sm font-medium">Blocked Users</h2>

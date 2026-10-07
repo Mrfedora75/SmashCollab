@@ -36,7 +36,7 @@ export function AgeGate({ age, onChoose }: { age: AgeChoice; onChoose: (next: "a
             <>
               <Dialog.Title className="font-display text-3xl leading-tight">Access Denied</Dialog.Title>
               <Dialog.Description className="mt-3 text-sm leading-relaxed text-muted-strong">
-                This platform is only for people 18 or older. You can’t browse channels or send pitches.
+                This platform is only for people 18 or older. You can’t browse channels or send collabs.
               </Dialog.Description>
             </>
           ) : (

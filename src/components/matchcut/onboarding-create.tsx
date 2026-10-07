@@ -160,7 +160,7 @@ export function CreateProfile({
             {(returning || hint) && phase === "connect" ? "Welcome back" : "Create Your Profile"}
           </Dialog.Title>
           <Dialog.Description className="sr-only">
-            Connect your YouTube channel with Google, then choose the niches you pitch in.
+            Connect your YouTube channel with Google, then choose the niches you collab in.
           </Dialog.Description>
           {error ? (
             <p

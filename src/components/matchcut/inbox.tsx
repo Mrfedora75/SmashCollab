@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Lock, MoreVertical, X } from "lucide-react";
 import type { Creator } from "@/data/creators";
-import { type AcceptedCollab, type ChatMessage, type InboundPitch } from "@/data/inbox";
+import { type AcceptedCollab, type ChatMessage, type InboundCollab } from "@/data/inbox";
 import type { SavedReview } from "@/components/matchcut/review-modal";
 import { StarRow } from "@/components/matchcut/stars";
 import { cn } from "@/lib/cn";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
 
-export type OutboundPitch = {
+export type OutboundCollab = {
   creatorId: string;
   message: string;
   status: "pending" | "accepted";
@@ -29,12 +29,12 @@ export function Inbox({
   heading = true,
 }: {
   lookup: (creatorId: string) => Creator | undefined;
-  pending: InboundPitch[];
+  pending: InboundCollab[];
   accepted: AcceptedCollab[];
-  outbound: OutboundPitch[];
+  outbound: OutboundCollab[];
   premium: boolean;
   reviews: Record<string, SavedReview>;
-  onAccept: (pitch: InboundPitch) => void;
+  onAccept: (collab: InboundCollab) => void;
   onDecline: (creatorId: string) => void;
   onOpen: (collabId: string) => void;
   onReview: (collabId: string) => void;
@@ -49,10 +49,10 @@ export function Inbox({
       {heading ? (
         <div className="border-b border-line px-5 py-4">
           <h2 className="font-display text-2xl leading-tight">Matches & Messages</h2>
-          <p className="mt-1 text-sm text-muted">When you and another creator both pitch, you match and can message.</p>
+          <p className="mt-1 text-sm text-muted">When you and another creator both send a collab, you match and can message.</p>
         </div>
       ) : (
-        <p className="px-5 pt-4 text-sm text-muted">When you and another creator both pitch, you match and can message.</p>
+        <p className="px-5 pt-4 text-sm text-muted">When you and another creator both send a collab, you match and can message.</p>
       )}
       <div className="grid grid-cols-2 gap-1 px-5 pt-4" role="tablist" aria-label="Messages">
         <button
@@ -86,15 +86,15 @@ export function Inbox({
             <section>
               <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Pending inbound</h3>
               {pending.length === 0 ? (
-                <p className="mt-3 text-sm text-muted">No pitches waiting.</p>
+                <p className="mt-3 text-sm text-muted">No collabs waiting.</p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
-                  {pending.map((pitch) => {
-                    const creator = lookup(pitch.creatorId);
+                  {pending.map((collab) => {
+                    const creator = lookup(collab.creatorId);
                     if (!creator) return null;
                     if (locked) {
                       return (
-                        <li key={pitch.creatorId}>
+                        <li key={collab.creatorId}>
                           <button
                             type="button"
                             onClick={onUpgrade}
@@ -106,16 +106,16 @@ export function Inbox({
                                 <div className="min-w-0">
                                   <p className="truncate font-medium">{creator.channel}</p>
                                   <p className="text-sm text-muted">
-                                    {creator.name} · {pitch.ago}
+                                    {creator.name} · {collab.ago}
                                   </p>
                                 </div>
                               </div>
-                              <p className="mt-3 text-sm leading-relaxed text-cream">{pitch.message}</p>
+                              <p className="mt-3 text-sm leading-relaxed text-cream">{collab.message}</p>
                             </div>
                             <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/80 px-4 text-center">
                               <Lock className="size-5 text-cream" aria-hidden="true" />
                               <span className="text-sm leading-relaxed">
-                                Upgrade to Plus to see who pitched you and reply.
+                                Upgrade to Plus to see who sent you a collab and reply.
                               </span>
                             </span>
                           </button>
@@ -123,7 +123,7 @@ export function Inbox({
                       );
                     }
                     return (
-                      <li key={pitch.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
+                      <li key={collab.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
                         <div className="flex gap-3">
                           <img src={creator.thumb} alt="" className="h-14 w-24 shrink-0 rounded-control object-cover" />
                           <div className="min-w-0">
@@ -132,15 +132,15 @@ export function Inbox({
                               {creator.plus ? <PlusBadge /> : null}
                             </p>
                             <p className="text-sm text-muted">
-                              {creator.name} · {pitch.ago}
+                              {creator.name} · {collab.ago}
                             </p>
                           </div>
                         </div>
-                        <p className="mt-3 text-sm leading-relaxed text-cream">{pitch.message}</p>
+                        <p className="mt-3 text-sm leading-relaxed text-cream">{collab.message}</p>
                         <div className="mt-3 flex justify-end gap-2">
                           <button
                             type="button"
-                            onClick={() => onDecline(pitch.creatorId)}
+                            onClick={() => onDecline(collab.creatorId)}
                             className="press flex h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
                           >
                             <X className="size-4" aria-hidden="true" />
@@ -148,7 +148,7 @@ export function Inbox({
                           </button>
                           <button
                             type="button"
-                            onClick={() => onAccept(pitch)}
+                            onClick={() => onAccept(collab)}
                             className="press flex h-11 items-center gap-2 rounded-full bg-accent px-3 text-sm font-medium text-on-accent"
                           >
                             <Check className="size-4" aria-hidden="true" />
@@ -164,7 +164,7 @@ export function Inbox({
             <section>
               <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Matches</h3>
               {accepted.length === 0 ? (
-                <p className="mt-3 text-sm text-muted">No matches yet. Pitch creators from the desk, or accept a pitch above.</p>
+                <p className="mt-3 text-sm text-muted">No matches yet. Collab with creators from the desk, or accept a collab above.</p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
                   {accepted.map((collab) => {
@@ -206,28 +206,28 @@ export function Inbox({
           </>
         ) : (
           <section>
-            <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Sent pitches</h3>
+            <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Sent collabs</h3>
             {outbound.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">No pitches sent yet. Pitch a channel from the desk.</p>
+              <p className="mt-3 text-sm text-muted">No collabs sent yet. Collab with a channel from the desk.</p>
             ) : (
               <ul className="mt-3 flex flex-col gap-3">
-                {outbound.map((pitch) => {
-                  const creator = lookup(pitch.creatorId);
+                {outbound.map((collab) => {
+                  const creator = lookup(collab.creatorId);
                   if (!creator) return null;
-                  const acceptedPitch = pitch.status === "accepted";
+                  const acceptedCollab = collab.status === "accepted";
                   return (
-                    <li key={pitch.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
+                    <li key={collab.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
                       <div className="flex items-start justify-between gap-3">
                         <p className="flex min-w-0 items-center gap-1 font-medium">
                           <span className="truncate">{creator.channel}</span>
                           {creator.plus ? <PlusBadge /> : null}
                         </p>
-                        <p className={cn("shrink-0 text-sm font-medium", acceptedPitch ? "text-status-accepted" : "text-status-pending")}>
-                          {acceptedPitch ? "Accepted" : "Pending"}
+                        <p className={cn("shrink-0 text-sm font-medium", acceptedCollab ? "text-status-accepted" : "text-status-pending")}>
+                          {acceptedCollab ? "Accepted" : "Pending"}
                         </p>
                       </div>
                       <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-cream">
-                        {pitch.message || "Pitch queued."}
+                        {collab.message || "Collab queued."}
                       </p>
                     </li>
                   );

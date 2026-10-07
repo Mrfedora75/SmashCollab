@@ -2,8 +2,8 @@
 
 Smash Collab is a swipe-style desk where YouTube creators find collab partners.
 Creators verify their channel with Google (read-only YouTube access), pick their
-niches, then **Pass** or **Pitch** other creators. When two creators pitch each
-other it's a **match**, and they can message. Free creators get 4 pitches a day
+niches, then **Pass** or **Collab** with other creators. When two creators both
+send a collab it's a **match**, and they can message. Free creators get 4 collabs a day
 to channels under 5,000 subscribers; **Plus** (Stripe) removes both limits.
 
 Live site: https://smashcollab.com
@@ -13,7 +13,7 @@ Live site: https://smashcollab.com
 - TanStack Start (React 19, Vite) deployed on Vercel (Nitro `vercel` preset)
 - Firebase Auth (Google) + Cloud Firestore for profiles, swipes, matches, messages
 - YouTube verification via Google OAuth (`/api/youtube/start` → `/api/youtube/callback`)
-- Stripe Checkout + webhook for Plus and extra pitches; entitlements stored in
+- Stripe Checkout + webhook for Plus and extra collabs; entitlements stored in
   Firestore (server-side, keyed by YouTube channel ID)
 
 ## Develop
