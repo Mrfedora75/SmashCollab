@@ -14,7 +14,18 @@ function asNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-export async function readReferralReward(code: string): Promise<number> {
+/**
+ * Invite-reward Plus end time for `code`, but ONLY when `code` is registered to
+ * `channelId`. Codes are slugs of YouTube handles, so different channels can
+ * map to the same code (e.g. "@foo.bar", "@foo_bar" and "@foo-bar" all become
+ * "foo-bar"), and a handle can be released and taken by another channel. The
+ * reward belongs to the channel that registered the code, never to whoever
+ * currently has a matching handle.
+ */
+export async function readReferralReward(code: string, channelId: string): Promise<number> {
+  if (!code || !channelId) return 0;
+  const owner = await getDocument(`referralCodes/${safeDocId(code)}`);
+  if (!owner || owner.channelId !== channelId) return 0;
   const doc = await getDocument(`referralRewards/${safeDocId(code)}`);
   return asNumber(doc?.plusUntil);
 }

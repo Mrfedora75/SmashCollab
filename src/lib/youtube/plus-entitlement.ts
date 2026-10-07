@@ -177,7 +177,7 @@ export async function resolvePlus(request: Request, account: YtAccount): Promise
 export async function resolveStoredPlus(account: YtAccount): Promise<PlusStatus> {
   const ent = await readEntitlement(account.channelId);
   const code = account.channel ? referralCode(account.channel) : "";
-  const reward = code ? await readReferralReward(code) : 0;
+  const reward = code ? await readReferralReward(code, account.channelId) : 0;
   const referralUntil = Math.max(ent.referralPlusUntil, reward);
   const until = Math.max(ent.plusUntil, referralUntil);
   const premium = until > Date.now();
