@@ -1,7 +1,7 @@
 {
   "name": "Smash Collab",
   "short_name": "Smash Collab",
-  "description": "Find YouTube collab partners. Swipe, pitch, match, and message.",
+  "description": "Find YouTube collab partners. Swipe, collab, match, and message.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

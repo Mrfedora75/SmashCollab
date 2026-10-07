@@ -4,7 +4,7 @@ import appCss from "../styles.css?url";
 const APP_NAME = "Smash Collab";
 const SITE_URL = "https://smashcollab.com";
 const DESCRIPTION =
-  "Smash Collab is where YouTube creators find collab partners. Verify your channel, swipe Pass or Pitch, and message your matches.";
+  "Smash Collab is where YouTube creators find collab partners. Verify your channel, swipe Pass or Collab, and message your matches.";
 
 export const Route = createRootRoute({
   head: () => ({

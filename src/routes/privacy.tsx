@@ -34,7 +34,7 @@ function PrivacyPage() {
           <strong>Profile details you add</strong>: niches, a short bio, and optional country, state, and county.
         </li>
         <li>
-          <strong>Activity on Smash Collab</strong>: who you pass on or pitch, pitch notes, matches, and messages with your matches.
+          <strong>Activity on Smash Collab</strong>: who you pass on or send a collab to, collab notes, matches, and messages with your matches.
         </li>
         <li>
           <strong>Payments</strong> are handled by Stripe. We never see or store your full card number; we store your Stripe
@@ -45,7 +45,7 @@ function PrivacyPage() {
       <H2>How we use YouTube data</H2>
       <p>
         We request the <code>youtube.readonly</code> scope only. We use it once, when you verify, to confirm you own the channel
-        and to fill in your public creator card (channel name, picture, and size) so other creators can decide whether to pitch
+        and to fill in your public creator card (channel name, picture, and size) so other creators can decide whether to send a collab to
         you. We never upload, edit, delete, comment, or post anything on YouTube, and we do not access your private videos,
         analytics, or messages. We do not store your Google/YouTube access token after verification.
       </p>
@@ -74,7 +74,7 @@ function PrivacyPage() {
       <H2>Who can see your information</H2>
       <p>
         Signed-in creators can see your public creator card (channel name, picture, subscriber count, average views, niches,
-        bio, and location if you add it). Pitch notes are visible to the creator you pitch. Messages are visible only to you and
+        bio, and location if you add it). Collab notes are visible to the creator you send them to. Messages are visible only to you and
         the creator you matched with. We share data with service providers that run the app for us — Google Firebase (sign-in
         and database), Vercel (hosting), and Stripe (payments) — only as needed to provide the service.
       </p>

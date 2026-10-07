@@ -36,8 +36,8 @@ vi.mock("@/lib/server/firestore.server", async (importOriginal) => {
   };
 });
 
-const { decidePitch } = await import("@/lib/pitch-policy");
-const { handlePitchRequest } = await import("@/lib/server/pitch.server");
+const { decideCollab } = await import("@/lib/collab-policy");
+const { handleCollabRequest } = await import("@/lib/server/collab.server");
 const { setFirebaseKeysForTests } = await import("@/lib/server/firebase-auth.server");
 const { bindProfileToChannel, ProfileBindError } = await import("@/lib/server/public-profile.server");
 
@@ -55,11 +55,11 @@ async function tokenFor(uid: string, key: CryptoKey = privateKey, email = `${uid
     .sign(key);
 }
 
-async function pitch(from: string, to: string, opts: { key?: CryptoKey; auth?: boolean } = {}) {
+async function collab(from: string, to: string, opts: { key?: CryptoKey; auth?: boolean } = {}) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.auth !== false) headers.Authorization = `Bearer ${await tokenFor(from, opts.key)}`;
-  const res = await handlePitchRequest(
-    new Request("http://localhost/api/pitch", { method: "POST", headers, body: JSON.stringify({ to, note: "Collab?" }) }),
+  const res = await handleCollabRequest(
+    new Request("http://localhost/api/collab", { method: "POST", headers, body: JSON.stringify({ to, note: "Collab?" }) }),
   );
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
@@ -91,85 +91,85 @@ beforeEach(() => {
   profile("spoofed", { subscribers: 10 }); // browser-written legacy field only, never verified
 });
 
-describe("pitch policy", () => {
-  it("keeps the existing limits: 4 free pitches a day, only to channels under 5,000", () => {
-    expect(decidePitch({ plus: false, targetSubscribers: 4_999, freeUsedToday: 0, credits: 0 })).toEqual({ allowed: true, useCredit: false, countsAsFree: true });
-    expect(decidePitch({ plus: false, targetSubscribers: 5_000, freeUsedToday: 0, credits: 0 })).toEqual({ allowed: false, code: "over_limit" });
-    expect(decidePitch({ plus: false, targetSubscribers: 10, freeUsedToday: 4, credits: 0 })).toEqual({ allowed: false, code: "daily_limit" });
-    expect(decidePitch({ plus: false, targetSubscribers: null, freeUsedToday: 0, credits: 0 })).toEqual({ allowed: false, code: "target_unverified" });
-    expect(decidePitch({ plus: false, targetSubscribers: 9e6, freeUsedToday: 9, credits: 1 })).toEqual({ allowed: true, useCredit: true, countsAsFree: false });
-    expect(decidePitch({ plus: true, targetSubscribers: 9e6, freeUsedToday: 99, credits: 0 })).toEqual({ allowed: true, useCredit: false, countsAsFree: false });
+describe("collab policy", () => {
+  it("keeps the existing limits: 4 free collabs a day, only to channels under 5,000", () => {
+    expect(decideCollab({ plus: false, targetSubscribers: 4_999, freeUsedToday: 0, credits: 0 })).toEqual({ allowed: true, useCredit: false, countsAsFree: true });
+    expect(decideCollab({ plus: false, targetSubscribers: 5_000, freeUsedToday: 0, credits: 0 })).toEqual({ allowed: false, code: "over_limit" });
+    expect(decideCollab({ plus: false, targetSubscribers: 10, freeUsedToday: 4, credits: 0 })).toEqual({ allowed: false, code: "daily_limit" });
+    expect(decideCollab({ plus: false, targetSubscribers: null, freeUsedToday: 0, credits: 0 })).toEqual({ allowed: false, code: "target_unverified" });
+    expect(decideCollab({ plus: false, targetSubscribers: 9e6, freeUsedToday: 9, credits: 1 })).toEqual({ allowed: true, useCredit: true, countsAsFree: false });
+    expect(decideCollab({ plus: true, targetSubscribers: 9e6, freeUsedToday: 99, credits: 0 })).toEqual({ allowed: true, useCredit: false, countsAsFree: false });
   });
 });
 
-describe("POST /api/pitch", () => {
+describe("POST /api/collab", () => {
   it("requires a valid Firebase ID token", async () => {
-    expect((await pitch("free", "small", { auth: false })).status).toBe(401);
-    expect((await pitch("free", "small", { key: attackerKey })).status).toBe(401);
+    expect((await collab("free", "small", { auth: false })).status).toBe(401);
+    expect((await collab("free", "small", { key: attackerKey })).status).toBe(401);
     expect(store.has("swipes/free_small")).toBe(false);
   });
 
   it("refuses over-5K targets for free users without a credit", async () => {
     for (const target of ["big", "edge"]) {
-      const res = await pitch("free", target);
+      const res = await collab("free", target);
       expect(res.status).toBe(403);
       expect(res.body.code).toBe("over_limit");
-      expect(String(res.body.error)).toContain("upgrade to Plus or use a $1 pitch");
+      expect(String(res.body.error)).toContain("upgrade to Plus or use a $1 collab");
       expect(store.has(`swipes/free_${target}`)).toBe(false);
     }
   });
 
   it("ignores the browser-written subscriber field (unverified targets are refused for free users)", async () => {
-    const res = await pitch("free", "spoofed");
+    const res = await collab("free", "spoofed");
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("target_unverified");
   });
 
-  it("spends one $1 pitch credit for an over-5K target", async () => {
+  it("spends one $1 collab credit for an over-5K target", async () => {
     store.set("entitlements/UCfree", { channelId: "UCfree", pitchCredits: 1 });
-    const res = await pitch("free", "big");
+    const res = await collab("free", "big");
     expect(res.status).toBe(200);
     expect(res.body.usedCredit).toBe(true);
     expect(store.get("entitlements/UCfree")?.pitchCredits).toBe(0);
     expect(store.get("swipes/free_big")?.direction).toBe("pitch");
-    expect((await pitch("free", "edge")).status).toBe(403);
+    expect((await collab("free", "edge")).status).toBe(403);
   });
 
-  it("enforces the daily free-pitch limit with a server-side counter", async () => {
+  it("enforces the daily free-collab limit with a server-side counter", async () => {
     for (let i = 0; i < 4; i += 1) profile(`s${i}`, { subscriberCount: 100 });
     profile("s4", { subscriberCount: 100 });
-    for (let i = 0; i < 4; i += 1) expect((await pitch("free", `s${i}`)).status).toBe(200);
+    for (let i = 0; i < 4; i += 1) expect((await collab("free", `s${i}`)).status).toBe(200);
     expect(store.get("pitchUsage/free")?.count).toBe(4);
-    const fifth = await pitch("free", "s4");
+    const fifth = await collab("free", "s4");
     expect(fifth.status).toBe(429);
     expect(fifth.body.code).toBe("daily_limit");
-    // Re-sending an existing pitch is not charged again.
-    expect((await pitch("free", "s0")).body.already).toBe(true);
-    // Deleting a pitch (client side) does not give the free pitch back.
+    // Re-sending an existing collab is not charged again.
+    expect((await collab("free", "s0")).body.already).toBe(true);
+    // Deleting a collab (client side) does not give the free collab back.
     store.delete("swipes/free_s0");
-    expect((await pitch("free", "s0")).status).toBe(429);
+    expect((await collab("free", "s0")).status).toBe(429);
   });
 
-  it("lets Plus members pitch any channel without limits", async () => {
+  it("lets Plus members collab any channel without limits", async () => {
     store.set("entitlements/UCfree", { channelId: "UCfree", plusUntil: Date.now() + 86_400_000 });
-    expect((await pitch("free", "big")).status).toBe(200);
-    expect((await pitch("free", "spoofed")).status).toBe(200);
+    expect((await collab("free", "big")).status).toBe(200);
+    expect((await collab("free", "spoofed")).status).toBe(200);
     expect(store.get("pitchUsage/free")?.count).toBe(0);
   });
 
-  it("creates the match on the server when both creators pitched", async () => {
+  it("creates the match on the server when both creators sent a collab", async () => {
     profile("small2", { subscriberCount: 100, verifiedChannelId: "UCs2" });
     profile("free2", { subscriberCount: 100 });
     store.set("swipes/free2_small2", { from: "free2", to: "small2", direction: "pitch", note: "" });
-    const res = await pitch("small2", "free2");
+    const res = await collab("small2", "free2");
     expect(res.status).toBe(200);
     expect(res.body.matched).toBe(true);
     expect(store.get("matches/free2_small2")?.users).toEqual(["free2", "small2"]);
   });
 
-  it("rejects pitching yourself or a missing creator", async () => {
-    expect((await pitch("free", "free")).status).toBe(400);
-    expect((await pitch("free", "nobody")).status).toBe(404);
+  it("rejects sending a collab to yourself or a missing creator", async () => {
+    expect((await collab("free", "free")).status).toBe(400);
+    expect((await collab("free", "nobody")).status).toBe(404);
   });
 });
 

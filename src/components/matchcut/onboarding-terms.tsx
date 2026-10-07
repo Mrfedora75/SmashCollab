@@ -34,7 +34,7 @@ export function TermsModal({ open, onAccept }: { open: boolean; onAccept: () => 
             >
               Google Privacy Policy
             </a>
-            , and to Smash Collab’s Terms of Service and Privacy Policy (links below). You confirm you are 18 or older. All subscription and pitch purchases are processed securely via Stripe.
+            , and to Smash Collab’s Terms of Service and Privacy Policy (links below). You confirm you are 18 or older. All subscription and collab purchases are processed securely via Stripe.
           </Dialog.Description>
           <button
             type="button"

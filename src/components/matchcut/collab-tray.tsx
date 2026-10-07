@@ -3,29 +3,29 @@ import { formatCount } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
 
-export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: string; heading?: boolean }) {
+export function CollabTray({ idPrefix = "note", heading = true }: { idPrefix?: string; heading?: boolean }) {
   const swipes = useDeck((state) => state.swipes);
   const members = useDeck((state) => state.members);
   const notes = useDeck((state) => state.notes);
   const setNote = useDeck((state) => state.setNote);
   const removeSwipe = useDeck((state) => state.removeSwipe);
-  const pitches = swipes.filter((swipe) => swipe.direction === "pitch").slice().reverse();
+  const collabs = swipes.filter((swipe) => swipe.direction === "pitch").slice().reverse();
 
   return (
     <div className="flex h-full flex-col">
       {heading ? (
         <div className="border-b border-line px-5 py-4">
-          <h2 className="font-display text-2xl leading-tight">Pitches</h2>
-          <p className="mt-1 text-sm text-muted">They see your pitch in their inbox. If they pitch back, you match.</p>
+          <h2 className="font-display text-2xl leading-tight">Collabs</h2>
+          <p className="mt-1 text-sm text-muted">They see your collab in their inbox. If they send one back, you match.</p>
         </div>
       ) : null}
-      {pitches.length === 0 ? (
+      {collabs.length === 0 ? (
         <p className="px-5 py-6 text-sm leading-relaxed text-muted">
-          Swipe a card right to queue a pitch. You can edit the note before you would send it.
+          Swipe a card right to queue a collab. You can edit the note before you would send it.
         </p>
       ) : (
         <ul className="flex flex-col gap-4 overflow-y-auto p-5">
-          {pitches.map((swipe) => {
+          {collabs.map((swipe) => {
             const creator = members.find((item) => item.id === swipe.creatorId);
             if (!creator) return null;
             const tier = bracketOf(creator.subscribers);
@@ -48,7 +48,7 @@ export function PitchTray({ idPrefix = "note", heading = true }: { idPrefix?: st
                   </div>
                 </div>
                 <label className="mt-3 block text-xs tracking-widest text-muted uppercase" htmlFor={`${idPrefix}-${creator.id}`}>
-                  Pitch note
+                  Collab note
                 </label>
                 <textarea
                   id={`${idPrefix}-${creator.id}`}

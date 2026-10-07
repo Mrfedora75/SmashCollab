@@ -29,7 +29,7 @@ export function OutOfSwipes() {
             <div>
               <Dialog.Title className="font-display text-3xl leading-tight">Out of Swipes</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-strong">
-                {gateMessage ?? `Today's ${FREE_DAILY} free pitches are used.`}
+                {gateMessage ?? `Today's ${FREE_DAILY} free collabs are used.`}
               </Dialog.Description>
             </div>
             <Dialog.Close
@@ -53,14 +53,14 @@ export function OutOfSwipes() {
               onClick={() => {
                 setBuying(true);
                 setError("");
-                void startStripeCheckout("pitch").then((message) => {
+                void startStripeCheckout("collab").then((message) => {
                   setBuying(false);
                   setError(message ?? "");
                 });
               }}
               className="press h-12 rounded-control border border-ink-text px-4 text-sm font-medium disabled:opacity-60"
             >
-              {buying ? "Opening checkout" : "Buy 1 Pitch for $1.00"}
+              {buying ? "Opening checkout" : "Buy 1 Collab for $1.00"}
             </button>
             {error ? (
               <p className="text-sm text-accent-deep" role="alert">

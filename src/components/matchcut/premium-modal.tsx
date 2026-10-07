@@ -8,7 +8,7 @@ import { startStripeCheckout } from "@/lib/stripe-client";
 
 const PERKS = [
   "Unlimited daily swipes",
-  "Pitch channels with 5,000 subscribers or more",
+  "Collab with channels that have 5,000 subscribers or more",
   "Your note sits above the cold-email pile",
 ];
 
@@ -19,7 +19,7 @@ export function PremiumModal() {
   const closePremium = useDeck((state) => state.closePremium);
   const premiumUntil = useDeck((state) => state.premiumUntil);
   const gateMessage = useDeck((state) => state.gateMessage);
-  const [buyingPitch, setBuyingPitch] = useState(false);
+  const [buyingCollab, setBuyingCollab] = useState(false);
   const [plan, setPlan] = useState<"month" | "year">("month");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
@@ -29,7 +29,7 @@ export function PremiumModal() {
       setPlan("month");
       setCheckoutError("");
       setCheckingOut(false);
-      setBuyingPitch(false);
+      setBuyingCollab(false);
     }
   }, [open]);
 
@@ -38,10 +38,10 @@ export function PremiumModal() {
     : gate === "limit"
       ? `Today's ${FREE_DAILY} free swipes are used.`
       : gate === "flagship"
-        ? "Free accounts can only pitch channels under 5,000 subscribers. Plus unlocks pitches to channels with 5,000 or more."
-        : "Pitch the channels that don't answer cold emails.";
+        ? "Free accounts can only collab with channels under 5,000 subscribers. Plus unlocks collabs with channels that have 5,000 or more."
+        : "Collab with the channels that don't answer cold emails.";
 
-  const title = premium ? "You're on Plus" : "Unlimited pitches";
+  const title = premium ? "You're on Plus" : "Unlimited collabs";
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && closePremium()}>
@@ -54,7 +54,7 @@ export function PremiumModal() {
               <Dialog.Title className="mt-1 font-display text-3xl leading-tight">{title}</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm leading-relaxed text-muted-strong">
                 {premium
-                  ? `Daily swipes are unlimited, including pitches to channels with 5,000 or more subscribers.${
+                  ? `Daily swipes are unlimited, including collabs with channels that have 5,000 or more subscribers.${
                       premiumUntil ? ` Active through ${new Date(premiumUntil).toLocaleDateString()}.` : ""
                     }`
                   : lead}
@@ -124,7 +124,7 @@ export function PremiumModal() {
                 ))}
               </ul>
               <p className="mt-4 text-sm text-muted-strong">
-                Free includes {FREE_DAILY} pitches a day, only to channels under 5,000 subscribers.
+                Free includes {FREE_DAILY} collabs a day, only with channels under 5,000 subscribers.
               </p>
               <p className="mt-3 text-sm text-muted-strong">Have a promo code? Enter it on the secure Stripe checkout page.</p>
               <button
@@ -144,17 +144,17 @@ export function PremiumModal() {
               {gate === "flagship" ? (
                 <button
                   type="button"
-                  disabled={buyingPitch}
+                  disabled={buyingCollab}
                   onClick={() => {
-                    setBuyingPitch(true);
-                    void startStripeCheckout("pitch").then((error) => {
-                      setBuyingPitch(false);
+                    setBuyingCollab(true);
+                    void startStripeCheckout("collab").then((error) => {
+                      setBuyingCollab(false);
                       setCheckoutError(error ?? "");
                     });
                   }}
                   className="press mt-2 h-12 w-full rounded-control border border-ink-text text-sm font-medium disabled:opacity-60"
                 >
-                  {buyingPitch ? "Opening checkout" : "Buy 1 Pitch for $1.00"}
+                  {buyingCollab ? "Opening checkout" : "Buy 1 Collab for $1.00"}
                 </button>
               ) : null}
               {checkoutError ? (

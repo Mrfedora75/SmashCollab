@@ -9,10 +9,10 @@ type CardFaceProps = {
   locked: boolean;
   asHeading?: boolean;
   passOpacity?: number;
-  pitchOpacity?: number;
+  collabOpacity?: number;
 };
 
-export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, pitchOpacity = 0 }: CardFaceProps) {
+export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, collabOpacity = 0 }: CardFaceProps) {
   const tier = bracketOf(creator.subscribers);
 
   return (
@@ -39,10 +39,10 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
         </span>
         <span
           className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 rounded-control bg-accent px-3 py-1 text-sm font-semibold tracking-widest text-on-accent uppercase"
-          style={{ opacity: pitchOpacity }}
+          style={{ opacity: collabOpacity }}
           aria-hidden="true"
         >
-          Pitch
+          Collab
         </span>
       </div>
       <div className="space-y-3 p-4">
@@ -108,7 +108,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, p
           {locked ? (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-accent-deep">
               <Lock className="size-3.5" aria-hidden="true" />
-              Free accounts can't pitch channels with 5,000 or more subscribers. Plus or a $1 pitch unlocks this pitch.
+              Free accounts can't collab with channels that have 5,000 or more subscribers. Plus or a $1 collab unlocks this one.
             </p>
           ) : null}
         </div>

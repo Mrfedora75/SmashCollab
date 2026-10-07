@@ -1,5 +1,5 @@
 /**
- * Stripe billing (server only). Plus and extra pitches are granted ONLY from a
+ * Stripe billing (server only). Plus and extra collabs are granted ONLY from a
  * Stripe Checkout Session that Stripe itself reports as paid — either via the
  * signed webhook (`/api/stripe/webhook`) or by re-fetching the session from the
  * Stripe API on the success redirect (`/api/stripe/confirm`). Entitlements are
@@ -16,7 +16,7 @@ import {
   type Write,
 } from "@/lib/server/firestore.server";
 
-export type Plan = "month" | "year" | "pitch";
+export type Plan = "month" | "year" | "collab";
 
 export type Entitlement = {
   channelId: string;
@@ -24,7 +24,7 @@ export type Entitlement = {
   plusUntil: number;
   /** Plus granted for accepting an invite, ms epoch. */
   referralPlusUntil: number;
-  /** Purchased, unused extra pitches. */
+  /** Purchased, unused extra collabs. */
   pitchCredits: number;
   customerId: string | null;
   subscriptionId: string | null;
@@ -59,13 +59,13 @@ const PRICE_CACHE: Partial<Record<Plan, string>> = {};
 const PRICE_LOOKUP = {
   month: "smash_plus_monthly",
   year: "smash_plus_annual",
-  pitch: "smash_extra_pitch",
+  collab: "smash_extra_pitch",
 } as const;
 
 const PRICE_AMOUNTS = {
   month: "700",
   year: "7500",
-  pitch: "100",
+  collab: "100",
 } as const;
 
 export async function resolvePriceId(plan: Plan): Promise<string> {
@@ -87,7 +87,7 @@ export async function resolvePriceId(plan: Plan): Promise<string> {
   }
   let productId = typeof found?.product === "string" ? found.product : "";
   if (!productId) {
-    const productName = plan === "pitch" ? "Smash Collab Extra Pitch" : "Smash Collab Plus";
+    const productName = plan === "collab" ? "Smash Collab Extra Collab" : "Smash Collab Plus";
     const product = await stripeRequest<{ id: string }>("products", new URLSearchParams({ name: productName }));
     productId = product.id;
   }
@@ -98,8 +98,8 @@ export async function resolvePriceId(plan: Plan): Promise<string> {
     transfer_lookup_key: "true",
     unit_amount: amount,
   });
-  if (plan === "pitch") {
-    params.set("nickname", "One extra pitch");
+  if (plan === "collab") {
+    params.set("nickname", "One extra collab");
   } else {
     params.set("recurring[interval]", plan === "year" ? "year" : "month");
     params.set("nickname", plan === "year" ? "Plus annual" : "Plus monthly");
@@ -212,7 +212,7 @@ export async function fetchCheckoutSession(sessionId: string): Promise<StripeSes
 
 export type ApplyResult = {
   applied: boolean;
-  kind: "plus" | "pitch" | null;
+  kind: "plus" | "collab" | null;
   channelId: string | null;
   reason?: string;
 };
@@ -224,7 +224,12 @@ export type ApplyResult = {
  */
 export async function applyCheckoutSession(session: StripeSession): Promise<ApplyResult> {
   const channelId = session.metadata?.channelId?.trim() || null;
-  const kind = session.metadata?.kind === "pitch" ? "pitch" : session.metadata?.kind === "plus" ? "plus" : null;
+  const kind =
+    session.metadata?.kind === "collab" || session.metadata?.kind === "pitch"
+      ? "collab"
+      : session.metadata?.kind === "plus"
+        ? "plus"
+        : null;
   if (!channelId || !kind) return { applied: false, kind, channelId, reason: "missing-metadata" };
   if (session.status !== "complete" || (session.payment_status !== "paid" && session.payment_status !== "no_payment_required")) {
     return { applied: false, kind, channelId, reason: "unpaid" };
@@ -241,7 +246,7 @@ export async function applyCheckoutSession(session: StripeSession): Promise<Appl
   const base: Record<string, Plain> = { channelId, updatedAt: now };
   if (customerId) base.customerId = customerId;
 
-  if (kind === "pitch") {
+  if (kind === "collab") {
     writes.push({ path: entitlementPath(channelId), fields: base, increment: { pitchCredits: 1 } });
   } else {
     let subscription: StripeSubscription | null =

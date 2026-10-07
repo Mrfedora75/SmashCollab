@@ -20,7 +20,7 @@ export function todayKey(now = new Date()): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-export function defaultPitch(
+export function defaultCollabNote(
   creator: Creator,
   me: { channel: string; subscribers: number; niches: string[] } | null,
 ): string {
@@ -33,6 +33,6 @@ export function defaultPitch(
 
 export function fitLabel(fit: number): string {
   if (fit >= 80) return "Strong overlap";
-  if (fit >= 60) return "Worth a pitch";
+  if (fit >= 60) return "Worth a collab";
   return "Stretch collab";
 }

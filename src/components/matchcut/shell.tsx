@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { SlidersHorizontal, Settings, Search, X } from "lucide-react";
 import { BRACKETS, FREE_DAILY, type Creator } from "@/data/creators";
-import type { AcceptedCollab, BlockedCreator, ChatMessage, InboundPitch } from "@/data/inbox";
+import type { AcceptedCollab, BlockedCreator, ChatMessage, InboundCollab } from "@/data/inbox";
 import { formatCount, todayKey } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
 import { Mark } from "@/components/matchcut/mark";
 import { FilterPanel } from "@/components/matchcut/filter-panel";
 import { DiscoveryFilters } from "@/components/matchcut/discovery-filters";
-import { PitchTray } from "@/components/matchcut/pitch-tray";
+import { CollabTray } from "@/components/matchcut/collab-tray";
 import { DeckStage } from "@/components/matchcut/deck-stage";
 import { PremiumModal } from "@/components/matchcut/premium-modal";
 import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
@@ -23,7 +23,7 @@ import { saveLoginHint } from "@/lib/login-hint";
 import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
 import { fillFromSaved, reverifiedAvatar, reverifiedDisplayName } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
-import { utcDayKey } from "@/lib/pitch-policy";
+import { utcDayKey } from "@/lib/collab-policy";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { confirmStripeSession, syncStripeAccount } from "@/lib/stripe-client";
 import {
@@ -61,7 +61,7 @@ export function MatchcutApp() {
   const authError = useDeck((state) => state.authError);
   const openPremium = useDeck((state) => state.openPremium);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [pitchesOpen, setPitchesOpen] = useState(false);
+  const [collabsOpen, setCollabsOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [reviewFor, setReviewFor] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Record<string, SavedReview>>({});
@@ -217,7 +217,7 @@ export function MatchcutApp() {
     setDashboardOpen(false);
     setInboxOpen(false);
     setFiltersOpen(false);
-    setPitchesOpen(false);
+    setCollabsOpen(false);
     setPrefsOpen(false);
     setInviteOpen(false);
     setChatId(null);
@@ -284,7 +284,7 @@ export function MatchcutApp() {
           unwatch.push(watchInbound(db, user.uid, setInbound, onError));
           unwatch.push(watchMatches(db, user.uid, setMatches, onError));
         });
-        // Server writes the verified subscriber count + Plus flag onto this profile and reports today's free pitches.
+        // Server writes the verified subscriber count + Plus flag onto this profile and reports today's free collabs.
         void syncProfileOnServer().then((sync) => {
           if (sync && ticket === request) useDeck.getState().setServerFree(sync.day, sync.freeUsedToday);
         });
@@ -362,9 +362,9 @@ export function MatchcutApp() {
   const lookup = (creatorId: string): Creator | undefined => members.find((item) => item.id === creatorId);
   const swipedIds = new Set(swipes.map((swipe) => swipe.creatorId));
   const hiddenMatches = new Set(matches.filter((match) => match.blockedBy).map((match) => match.other));
-  const pending: InboundPitch[] = inbound
+  const pending: InboundCollab[] = inbound
     .filter((item) => !swipedIds.has(item.from) && !hiddenMatches.has(item.from))
-    .map((item) => ({ creatorId: item.from, ago: timeAgo(item.at), message: item.note || "Wants to collab.", title: "Collab pitch" }));
+    .map((item) => ({ creatorId: item.from, ago: timeAgo(item.at), message: item.note || "Wants to collab.", title: "Collab request" }));
   const collabFor = (match: RemoteMatch): AcceptedCollab => {
     const creator = lookup(match.other);
     const theirNote = inbound.find((item) => item.from === match.other)?.note;
@@ -373,7 +373,7 @@ export function MatchcutApp() {
       creatorId: match.other,
       title: `Collab with ${creator?.channel ?? "a creator"}`,
       when: `Matched ${new Date(match.createdAt).toLocaleDateString()}`,
-      summary: theirNote || notes[match.other] || "You both pitched.",
+      summary: theirNote || notes[match.other] || "You both sent a collab.",
       blockedBy: match.blockedBy,
     };
   };
@@ -426,18 +426,18 @@ export function MatchcutApp() {
       .catch((error) => setToast(describeAuthError(error)));
   }
 
-  const extraPitches = useDeck((state) => state.extraPitches);
+  const extraCollabs = useDeck((state) => state.extraCollabs);
   const serverFree = useDeck((state) => state.serverFree);
-  const pitchesToday = Math.max(
+  const collabsToday = Math.max(
     swipes.filter((swipe) => swipe.direction === "pitch" && swipe.day === todayKey()).length,
     serverFree && serverFree.day === utcDayKey() ? serverFree.count : 0,
   );
   const dailyCap = FREE_DAILY;
-  const remaining = Math.max(0, dailyCap - pitchesToday) + (premium ? 0 : extraPitches);
-  const pitchLabel = remaining === 1 ? "1 pitch left" : `${remaining} pitches left`;
-  const allowance = dailyCap + (premium ? 0 : extraPitches);
+  const remaining = Math.max(0, dailyCap - collabsToday) + (premium ? 0 : extraCollabs);
+  const collabLabel = remaining === 1 ? "1 collab left" : `${remaining} collabs left`;
+  const allowance = dailyCap + (premium ? 0 : extraCollabs);
   const meter = premium ? 100 : (remaining / Math.max(allowance, 1)) * 100;
-  const pitchCount = swipes.filter((swipe) => swipe.direction === "pitch").length;
+  const collabCount = swipes.filter((swipe) => swipe.direction === "pitch").length;
   const outbound = swipes
     .filter((swipe) => swipe.direction === "pitch")
     .slice()
@@ -454,7 +454,7 @@ export function MatchcutApp() {
     maxBracket !== BRACKETS.length - 1 ||
     sort !== "fit";
   const deskReady = age === "adult" && terms && signedIn && profile != null;
-  const pitching = profile ?? { channel: "", subscribers: 0, niches: [] as string[] };
+  const deskProfile = profile ?? { channel: "", subscribers: 0, niches: [] as string[] };
 
   return (
     <>
@@ -482,19 +482,19 @@ export function MatchcutApp() {
                   aria-hidden="true"
                   className="flex size-14 shrink-0 items-center justify-center rounded-full bg-ink-soft font-display text-2xl text-cream ring-2 ring-accent ring-offset-2 ring-offset-ink sm:size-12"
                 >
-                  {pitching.channel.replace(/^@/, "").charAt(0).toUpperCase()}
+                  {deskProfile.channel.replace(/^@/, "").charAt(0).toUpperCase()}
                 </span>
               )}
               <div className="min-w-0 flex-1">
                 <p className="flex min-w-0 items-center gap-1.5 text-[15px] leading-snug font-semibold text-cream sm:text-base">
-                  <span className="truncate" title={pitching.channel}>
-                    {pitching.channel}
+                  <span className="truncate" title={deskProfile.channel}>
+                    {deskProfile.channel}
                   </span>
                   {premium ? <PlusBadge size={20} /> : null}
                 </p>
                 <p className="mt-0.5 truncate text-sm text-cream/75">
-                  {formatCount(pitching.subscribers)} subscribers
-                  {pitching.niches.length > 0 ? ` · ${pitching.niches.join(" & ")}` : ""}
+                  {formatCount(deskProfile.subscribers)} subscribers
+                  {deskProfile.niches.length > 0 ? ` · ${deskProfile.niches.join(" & ")}` : ""}
                 </p>
               </div>
             </div>
@@ -505,7 +505,7 @@ export function MatchcutApp() {
           )}
           <div className="flex w-full flex-wrap items-center gap-1.5 min-[400px]:gap-2 sm:ml-auto sm:w-auto sm:justify-end sm:gap-3">
             <div className="hidden text-right sm:block">
-              <p className="whitespace-nowrap text-sm">{premium ? "Unlimited pitches" : pitchLabel}</p>
+              <p className="whitespace-nowrap text-sm">{premium ? "Unlimited collabs" : collabLabel}</p>
               {!premium ? (
                 <div className="mt-1 ml-auto h-1 w-24 overflow-hidden rounded-full bg-line" aria-hidden="true">
                   <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
@@ -610,10 +610,10 @@ export function MatchcutApp() {
             </button>
             <button
               type="button"
-              onClick={() => setPitchesOpen(true)}
+              onClick={() => setCollabsOpen(true)}
               className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-line text-sm"
             >
-              Pitches{pitchCount > 0 ? ` · ${pitchCount}` : ""}
+              Collabs{collabCount > 0 ? ` · ${collabCount}` : ""}
             </button>
           </div>
         </div>
@@ -625,7 +625,7 @@ export function MatchcutApp() {
         </aside>
         <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div className="px-4 pt-4 sm:hidden">
-            <p className="text-sm text-muted">{premium ? "Unlimited pitches" : `${pitchLabel} today`}</p>
+            <p className="text-sm text-muted">{premium ? "Unlimited collabs" : `${collabLabel} today`}</p>
             {!premium ? (
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
                 <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
@@ -637,27 +637,27 @@ export function MatchcutApp() {
               {authError}
             </p>
           ) : null}
-          <DeckStage channel={pitching.channel} subscribers={pitching.subscribers} />
+          <DeckStage channel={deskProfile.channel} subscribers={deskProfile.subscribers} />
         </main>
         <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line xl:block">
-          <PitchTray idPrefix="desk" />
+          <CollabTray idPrefix="desk" />
         </aside>
       </div>
 
       <DiscoveryFilters open={filtersOpen} onOpenChange={setFiltersOpen} />
 
-      <Dialog.Root open={pitchesOpen} onOpenChange={setPitchesOpen}>
+      <Dialog.Root open={collabsOpen} onOpenChange={setCollabsOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="overlay xl:hidden" />
           <Dialog.Content className="drawer drawer-right border-l border-line bg-ink xl:hidden" aria-describedby={undefined}>
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
-              <Dialog.Title className="font-display text-2xl">Pitches</Dialog.Title>
-              <Dialog.Close className="press flex size-11 items-center justify-center rounded-full border border-line" aria-label="Close pitches">
+              <Dialog.Title className="font-display text-2xl">Collabs</Dialog.Title>
+              <Dialog.Close className="press flex size-11 items-center justify-center rounded-full border border-line" aria-label="Close collabs">
                 <X className="size-4" />
               </Dialog.Close>
             </div>
-            <p className="px-5 pt-4 text-sm text-muted">They see your pitch in their inbox. If they pitch back, you match.</p>
-            <PitchTray idPrefix="sheet" heading={false} />
+            <p className="px-5 pt-4 text-sm text-muted">They see your collab in their inbox. If they send one back, you match.</p>
+            <CollabTray idPrefix="sheet" heading={false} />
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
@@ -688,9 +688,9 @@ export function MatchcutApp() {
               openPremium(null);
             }}
             lookup={lookup}
-            onAccept={(pitch) => {
-              // Accepting = pitching back, which creates the match.
-              useDeck.getState().commit(pitch.creatorId, "pitch");
+            onAccept={(collab) => {
+              // Accepting = sending a collab back, which creates the match.
+              useDeck.getState().commit(collab.creatorId, "pitch");
             }}
             onDecline={(creatorId) => useDeck.getState().commit(creatorId, "pass")}
             onOpen={setChatId}

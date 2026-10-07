@@ -1,14 +1,14 @@
 /**
- * Server-side pitch creation (POST /api/pitch).
+ * Server-side collab creation (POST /api/collab).
  *
- * Browsers can no longer create pitches or matches directly (firestore.rules
+ * Browsers can no longer create collabs or matches directly (firestore.rules
  * denies it). This handler authenticates the Firebase ID token, reads the
  * target's server-written subscriber count, the sender's Plus entitlement and
- * purchased pitch credits, and the sender's daily free-pitch counter, and only
- * then writes the pitch (and the match, if the other creator already pitched)
+ * purchased collab credits, and the sender's daily free-collab counter, and only
+ * then writes the collab (and the match, if the other creator already sent a collab)
  * in one Firestore transaction with the service account.
  */
-import { decidePitch, PITCH_MESSAGES, utcDayKey, type PitchRefusal } from "@/lib/pitch-policy";
+import { decideCollab, COLLAB_MESSAGES, utcDayKey, type CollabRefusal } from "@/lib/collab-policy";
 import { requestFirebaseUser } from "@/lib/server/firebase-auth.server";
 import {
   getDocument,
@@ -23,9 +23,9 @@ import { requestAccount, resolveStoredPlus, type YtAccount } from "@/lib/youtube
 
 export const NOTE_MAX = 1000;
 
-class PitchRefused extends Error {
-  constructor(readonly code: PitchRefusal) {
-    super(PITCH_MESSAGES[code]);
+class CollabRefused extends Error {
+  constructor(readonly code: CollabRefusal) {
+    super(COLLAB_MESSAGES[code]);
   }
 }
 
@@ -41,7 +41,7 @@ function validUid(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 128 && !/[/]/.test(value) && value !== "." && value !== "..";
 }
 
-export type PitchResult = {
+export type CollabResult = {
   ok: true;
   already: boolean;
   matched: boolean;
@@ -68,9 +68,9 @@ async function senderChannel(request: Request, uid: string, email: string | null
   }
 }
 
-export async function handlePitchRequest(request: Request): Promise<Response> {
+export async function handleCollabRequest(request: Request): Promise<Response> {
   const identity = await requestFirebaseUser(request);
-  if (!identity) return json({ error: "Sign in again to pitch.", code: "auth" }, 401);
+  if (!identity) return json({ error: "Sign in again to send a collab.", code: "auth" }, 401);
 
   let body: { to?: unknown; note?: unknown } = {};
   try {
@@ -80,15 +80,15 @@ export async function handlePitchRequest(request: Request): Promise<Response> {
   }
   const to = body.to;
   const note = typeof body.note === "string" ? body.note.slice(0, NOTE_MAX) : "";
-  if (!validUid(to)) return json({ error: "Pick a creator to pitch.", code: "invalid" }, 400);
+  if (!validUid(to)) return json({ error: "Pick a creator to collab with.", code: "invalid" }, 400);
   if (body.note != null && typeof body.note !== "string") return json({ error: "Invalid note.", code: "invalid" }, 400);
   const uid = identity.uid;
-  if (to === uid) return json({ error: "You can't pitch yourself.", code: "invalid" }, 400);
-  if (!isStorageConfigured()) return json({ error: "Pitching is unavailable right now.", code: "unavailable" }, 503);
+  if (to === uid) return json({ error: "You can't collab with yourself.", code: "invalid" }, 400);
+  if (!isStorageConfigured()) return json({ error: "Collabs are unavailable right now.", code: "unavailable" }, 503);
 
   try {
     const [senderProfile, targetProfile] = await Promise.all([getDocument(userPath(uid)), getDocument(userPath(to))]);
-    if (!senderProfile) return json({ error: "Create your profile before pitching.", code: "no_profile" }, 409);
+    if (!senderProfile) return json({ error: "Create your profile before sending a collab.", code: "no_profile" }, 409);
     if (!targetProfile) return json({ error: "That creator isn't on Smash Collab anymore.", code: "not_found" }, 404);
 
     const account = await senderChannel(request, uid, identity.email, senderProfile);
@@ -106,7 +106,7 @@ export async function handlePitchRequest(request: Request): Promise<Response> {
     const usagePath = `pitchUsage/${safeDocId(uid)}`;
     const entitlementPath = account ? `entitlements/${safeDocId(account.channelId)}` : null;
 
-    const result = await runTransaction<PitchResult>(async (tx) => {
+    const result = await runTransaction<CollabResult>(async (tx) => {
       const [existing, usage, entitlement, reverse, match] = await Promise.all([
         tx.get(swipePath),
         tx.get(usagePath),
@@ -124,14 +124,14 @@ export async function handlePitchRequest(request: Request): Promise<Response> {
         precondition: "absent",
       };
       if (existing?.direction === "pitch") {
-        // Already pitched: nothing is charged again (repair a missing match if both pitched).
+        // Already sent: nothing is charged again (repair a missing match if both sides already sent).
         return {
           writes: matched && !match ? [matchWrite] : [],
           result: { ok: true, already: true, matched, usedCredit: false, pitchCredits: credits, freeUsedToday, day },
         };
       }
-      const decision = decidePitch({ plus, targetSubscribers: targetSubs, freeUsedToday, credits });
-      if (!decision.allowed) throw new PitchRefused(decision.code);
+      const decision = decideCollab({ plus, targetSubscribers: targetSubs, freeUsedToday, credits });
+      if (!decision.allowed) throw new CollabRefused(decision.code);
 
       const writes: Write[] = [
         {
@@ -165,9 +165,9 @@ export async function handlePitchRequest(request: Request): Promise<Response> {
     });
     return json(result);
   } catch (error) {
-    if (error instanceof PitchRefused) {
+    if (error instanceof CollabRefused) {
       return json({ error: error.message, code: error.code }, error.code === "daily_limit" ? 429 : 403);
     }
-    return json({ error: "Could not send that pitch right now. Try again.", code: "unavailable" }, 503);
+    return json({ error: "Could not send that collab right now. Try again.", code: "unavailable" }, 503);
   }
 }

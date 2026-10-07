@@ -1,4 +1,4 @@
-export type InboundPitch = {
+export type InboundCollab = {
   creatorId: string;
   ago: string;
   message: string;

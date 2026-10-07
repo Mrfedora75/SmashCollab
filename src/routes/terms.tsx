@@ -49,7 +49,7 @@ function TermsPage() {
 
       <H2>Plus and payments</H2>
       <p>
-        Smash Collab Plus is a paid subscription ($7/month or $75/year) and extra pitches can be bought for $1 each. Payments are
+        Smash Collab Plus is a paid subscription ($7/month or $75/year) and extra collabs can be bought for $1 each. Payments are
         processed by Stripe. Subscriptions renew automatically until canceled; canceling stops future renewals and Plus stays on
         until the end of the paid period. Prices may change with notice. Refunds are handled case by case — contact us.
       </p>

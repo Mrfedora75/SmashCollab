@@ -11,10 +11,10 @@ import {
   type LocationId,
   type UsState,
 } from "@/data/creators";
-import { defaultPitch, todayKey } from "@/lib/format";
+import { defaultCollabNote, todayKey } from "@/lib/format";
 import { clearPlusLocal, readPlusLocal, writePlusLocal } from "@/lib/youtube/plus-client";
-import { PitchError, deleteSwipe, deleteSwipes, recordPass, sendPitch, updateSwipeNote, type RemoteSwipe } from "@/lib/collab";
-import { utcDayKey } from "@/lib/pitch-policy";
+import { CollabError, deleteSwipe, deleteSwipes, recordPass, sendCollab, updateSwipeNote, type RemoteSwipe } from "@/lib/collab";
+import { utcDayKey } from "@/lib/collab-policy";
 
 export type DeskSelf = { channel: string; subscribers: number; niches: string[] };
 
@@ -48,7 +48,7 @@ type Persisted = {
   premium: boolean;
   premiumUntil: number | null;
   notes: Record<string, string>;
-  extraPitches: number;
+  extraCollabs: number;
   referralDaily: number;
 };
 
@@ -56,14 +56,14 @@ export type MembersStatus = "idle" | "loading" | "ready" | "auth" | "error";
 
 const KEY = "matchcut-v1";
 
-function pitchesToday(swipes: Swipe[], day = todayKey()): number {
+function collabsToday(swipes: Swipe[], day = todayKey()): number {
   return swipes.filter((swipe) => swipe.day === day && swipe.direction === "pitch").length;
 }
 
-/** Free pitches used today: the larger of what this browser saw and the server's counter. */
+/** Free collabs used today: the larger of what this browser saw and the server's counter. */
 function freeUsedToday(state: Pick<DeckState, "swipes" | "serverFree">): number {
   const server = state.serverFree && state.serverFree.day === utcDayKey() ? state.serverFree.count : 0;
-  return Math.max(pitchesToday(state.swipes), server);
+  return Math.max(collabsToday(state.swipes), server);
 }
 
 function isStoredNiche(value: unknown): value is string {
@@ -110,8 +110,13 @@ function load(): Partial<Persisted> {
         : {};
     const premiumUntil = typeof parsed.premiumUntil === "number" ? parsed.premiumUntil : null;
     const premium = parsed.premium === true && (premiumUntil == null || premiumUntil > Date.now());
-    const extraPitches =
-      typeof parsed.extraPitches === "number" && parsed.extraPitches > 0 ? Math.floor(parsed.extraPitches) : 0;
+    const rawExtra =
+      typeof parsed.extraCollabs === "number"
+        ? parsed.extraCollabs
+        : typeof (parsed as { extraPitches?: unknown }).extraPitches === "number"
+          ? (parsed as { extraPitches: number }).extraPitches
+          : 0;
+    const extraCollabs = rawExtra > 0 ? Math.floor(rawExtra) : 0;
     const referralDaily =
       typeof parsed.referralDaily === "number" && parsed.referralDaily > 0
         ? Math.min(200, Math.floor(parsed.referralDaily))
@@ -129,7 +134,7 @@ function load(): Partial<Persisted> {
       premium,
       premiumUntil: premium ? premiumUntil : null,
       notes,
-      extraPitches,
+      extraCollabs,
       referralDaily,
     };
   } catch {
@@ -149,7 +154,7 @@ function persist(state: DeckState) {
     premium: state.premium,
     premiumUntil: state.premiumUntil,
     notes: state.notes,
-    extraPitches: state.extraPitches,
+    extraCollabs: state.extraCollabs,
     referralDaily: state.referralDaily,
   };
   localStorage.setItem(KEY, JSON.stringify(data));
@@ -159,9 +164,9 @@ type DeckState = Persisted & {
   hydrated: boolean;
   premiumOpen: boolean;
   gate: Gate | null;
-  /** Friendly reason from the server when it refused a pitch. */
+  /** Friendly reason from the server when it refused a collab. */
   gateMessage: string | null;
-  /** Server's free-pitch counter (UTC day). */
+  /** Server's free-collab counter (UTC day). */
   serverFree: { day: string; count: number } | null;
   setServerFree: (day: string, count: number) => void;
   announcement: string;
@@ -187,8 +192,8 @@ type DeckState = Persisted & {
   openPremium: (gate?: Gate | null) => void;
   closePremium: () => void;
   setPremium: (premium: boolean, until?: number | null, announcement?: string) => void;
-  addExtraPitch: () => void;
-  addPurchasedPitches: (count: number) => void;
+  addExtraCollab: () => void;
+  addPurchasedCollabs: (count: number) => void;
   setReferralDaily: (count: number) => void;
   usedToday: () => number;
   members: Creator[];
@@ -198,7 +203,7 @@ type DeckState = Persisted & {
   matched: string[];
   setMatched: (ids: string[]) => void;
   setRemoteSwipes: (remote: RemoteSwipe[]) => void;
-  setPurchasedPitches: (count: number) => void;
+  setPurchasedCollabs: (count: number) => void;
   onMatch: ((creatorId: string) => void) | null;
   setOnMatch: (fn: ((creatorId: string) => void) | null) => void;
   authError: string | null;
@@ -217,7 +222,7 @@ export const useDeck = create<DeckState>((set, get) => ({
   premium: false,
   premiumUntil: null,
   notes: {},
-  extraPitches: 0,
+  extraCollabs: 0,
   referralDaily: 0,
   hydrated: false,
   premiumOpen: false,
@@ -290,8 +295,8 @@ export const useDeck = create<DeckState>((set, get) => ({
   },
   gateFor: (creator, direction) => {
     const state = get();
-    // Display-only pre-check; the server (POST /api/pitch) makes the real decision.
-    if (direction !== "pitch" || state.premium || state.extraPitches > 0) return null;
+    // Display-only pre-check; the server (POST /api/collab) makes the real decision.
+    if (direction !== "pitch" || state.premium || state.extraCollabs > 0) return null;
     if (isPlusChannel(creator.subscribers)) return "flagship";
     if (freeUsedToday(state) >= FREE_DAILY) return "limit";
     return null;
@@ -306,12 +311,12 @@ export const useDeck = create<DeckState>((set, get) => ({
       return;
     }
     const notes = { ...get().notes };
-    if (direction === "pitch" && !notes[creatorId]) notes[creatorId] = defaultPitch(creator, get().me);
+    if (direction === "pitch" && !notes[creatorId]) notes[creatorId] = defaultCollabNote(creator, get().me);
     const at = Date.now();
     const swipes = [...get().swipes, { creatorId, direction, day: todayKey(), at }];
     const announcement =
       direction === "pitch"
-        ? `Pitch queued for ${creator.channel}.`
+        ? `Collab queued for ${creator.channel}.`
         : `Passed on ${creator.channel}.`;
     set({ swipes, notes, announcement });
     persist(get());
@@ -319,9 +324,9 @@ export const useDeck = create<DeckState>((set, get) => ({
       void recordPass(creatorId).catch(reportSync);
       return;
     }
-    void sendPitch(creatorId, notes[creatorId] ?? "")
+    void sendCollab(creatorId, notes[creatorId] ?? "")
       .then((outcome) => {
-        set({ extraPitches: outcome.pitchCredits });
+        set({ extraCollabs: outcome.pitchCredits });
         get().setServerFree(outcome.day, outcome.freeUsedToday);
         persist(get());
         if (outcome.matched) get().onMatch?.(creatorId);
@@ -330,10 +335,10 @@ export const useDeck = create<DeckState>((set, get) => ({
         // The server refused or failed: put the card back in the deck.
         set({
           swipes: get().swipes.filter((swipe) => !(swipe.creatorId === creatorId && swipe.at === at)),
-          announcement: `Pitch to ${creator.channel} was not sent.`,
+          announcement: `Collab with ${creator.channel} was not sent.`,
         });
         persist(get());
-        if (error instanceof PitchError && (error.code === "over_limit" || error.code === "target_unverified" || error.code === "daily_limit")) {
+        if (error instanceof CollabError && (error.code === "over_limit" || error.code === "target_unverified" || error.code === "daily_limit")) {
           set({
             premiumOpen: true,
             gate: error.code === "daily_limit" ? "limit" : "flagship",
@@ -360,7 +365,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     const creator = get().members.find((item) => item.id === creatorId);
     set({
       swipes: get().swipes.filter((swipe) => swipe.creatorId !== creatorId),
-      announcement: creator ? `Pulled the pitch for ${creator.channel}.` : "",
+      announcement: creator ? `Pulled the collab for ${creator.channel}.` : "",
     });
     persist(get());
     void deleteSwipe(creatorId).catch(reportSync);
@@ -414,16 +419,16 @@ export const useDeck = create<DeckState>((set, get) => ({
     else if (!premium) clearPlusLocal();
   },
   usedToday: () => freeUsedToday(get()),
-  addExtraPitch: () => {
-    set({ extraPitches: get().extraPitches + 1, announcement: "1 extra pitch is ready." });
+  addExtraCollab: () => {
+    set({ extraCollabs: get().extraCollabs + 1, announcement: "1 extra collab is ready." });
     persist(get());
   },
-  addPurchasedPitches: (count) => {
+  addPurchasedCollabs: (count) => {
     const extra = Math.max(0, Math.floor(count));
     if (!extra) return;
     set({
-      extraPitches: get().extraPitches + extra,
-      announcement: extra === 1 ? "1 extra pitch is ready." : `${extra} extra pitches are ready.`,
+      extraCollabs: get().extraCollabs + extra,
+      announcement: extra === 1 ? "1 extra collab is ready." : `${extra} extra collabs are ready.`,
     });
     persist(get());
   },
@@ -433,7 +438,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     const gained = referralDaily - get().referralDaily;
     set({
       referralDaily,
-      announcement: `Invite bonus: +${gained} daily pitches.`,
+      announcement: `Invite bonus: +${gained} daily collabs.`,
     });
     persist(get());
   },
@@ -445,8 +450,8 @@ export const useDeck = create<DeckState>((set, get) => ({
   setMatched: (ids) => set({ matched: ids }),
   onMatch: null,
   setOnMatch: (fn) => set({ onMatch: fn }),
-  setPurchasedPitches: (count) => {
-    set({ extraPitches: Math.max(0, Math.floor(count)) });
+  setPurchasedCollabs: (count) => {
+    set({ extraCollabs: Math.max(0, Math.floor(count)) });
     persist(get());
   },
   setRemoteSwipes: (remote) => {
