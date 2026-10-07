@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
+import { SESSION_HINT_SCRIPT } from "@/lib/landing";
 
 const APP_NAME = "Smash Collab";
 const SITE_URL = "https://smashcollab.com";
@@ -46,6 +47,8 @@ export const Route = createRootRoute({
   component: () => (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Runs before React: hides the public landing page for signed-in creators so it never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: SESSION_HINT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -60,7 +63,7 @@ function NotFound() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
       <p className="text-xs font-medium tracking-widest text-muted uppercase">404</p>
-      <h1 className="font-display text-4xl leading-tight">This page is not on the desk.</h1>
+      <h1 className="font-display text-4xl leading-tight">We couldn’t find that page.</h1>
       <p className="max-w-md text-sm text-muted">The link may be old or mistyped.</p>
       <Link to="/" className="press h-12 rounded-control bg-accent px-6 text-sm leading-[3rem] font-medium text-on-accent">
         Back to Smash Collab

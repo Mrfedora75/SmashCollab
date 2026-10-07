@@ -1,7 +1,7 @@
 import { LegalLinks } from "@/components/site-footer";
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Loader2, Youtube } from "lucide-react";
+import { Loader2, X, Youtube } from "lucide-react";
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
 import {
   loadProfile,
@@ -19,9 +19,12 @@ import { CreateReadyView } from "@/components/matchcut/onboarding-create-ready";
 
 export function CreateProfile({
   onComplete,
+  onDismiss,
   verifiedChannel = null,
 }: {
   onComplete: (profile: DeskProfile, warning?: string) => void;
+  /** Close the prompt (back to the public landing page). Offered before sign-in starts. */
+  onDismiss?: () => void;
   verifiedChannel?: VerifiedChannel | null;
 }) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
@@ -155,6 +158,16 @@ export function CreateProfile({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
         >
+          {onDismiss && phase === "connect" ? (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="press absolute top-3 right-3 flex size-11 items-center justify-center rounded-full border border-cream-deep"
+              aria-label="Close and go back"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          ) : null}
           <p className="text-xs font-medium tracking-widest text-muted-strong">Smash Collab</p>
           <Dialog.Title className="mt-2 font-display text-3xl leading-tight">
             {(returning || hint) && phase === "connect" ? "Welcome back" : "Create Your Profile"}

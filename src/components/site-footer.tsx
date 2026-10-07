@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
-export const CONTACT_EMAIL = "warrenareasocietyofparanormal@gmail.com";
+export const CONTACT_EMAIL = "support@smashcollab.com";
 
 /** Privacy / Terms links, usable inside modals too. */
 export function LegalLinks({ className = "" }: { className?: string }) {
@@ -20,8 +20,14 @@ export function LegalLinks({ className = "" }: { className?: string }) {
 export function SiteFooter() {
   return (
     <footer className="border-t border-line px-4 py-4 text-center text-xs text-muted">
-      <nav aria-label="Legal" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+      <nav aria-label="Site" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         <span>© {new Date().getFullYear()} Smash Collab</span>
+        <Link to="/pricing" className="underline underline-offset-2">
+          Pricing
+        </Link>
+        <Link to="/info" className="underline underline-offset-2">
+          Info &amp; FAQ
+        </Link>
         <Link to="/privacy" className="underline underline-offset-2">
           Privacy Policy
         </Link>

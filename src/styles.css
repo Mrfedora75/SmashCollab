@@ -219,3 +219,8 @@
   transform: translate(-50%, -50%);
 }
 
+
+/* Signed-in (or mid sign-in) browsers: keep the public landing page hidden until the app decides. */
+html[data-session="1"] [data-landing] {
+  visibility: hidden;
+}

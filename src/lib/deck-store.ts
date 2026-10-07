@@ -376,7 +376,7 @@ export const useDeck = create<DeckState>((set, get) => ({
     const removed = get().swipes.filter((swipe) => !keep.has(swipe.creatorId)).map((swipe) => swipe.creatorId);
     set({
       swipes: get().swipes.filter((swipe) => keep.has(swipe.creatorId)),
-      announcement: "The desk is reset. Every unmatched channel is back in the deck.",
+      announcement: "Your swipes are reset. Every unmatched channel is back in the deck.",
     });
     persist(get());
     void deleteSwipes(removed).catch(reportSync);
@@ -411,7 +411,7 @@ export const useDeck = create<DeckState>((set, get) => ({
         announcement ??
         (premium
           ? "Plus is on."
-          : "Reverted to the free desk."),
+          : "Back on the free plan."),
     });
     persist(get());
     // Display cache only. Plus itself lives on the server (Stripe / tester comp / invites).

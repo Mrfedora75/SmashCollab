@@ -46,6 +46,8 @@ import { ReviewModal, type SavedReview } from "@/components/matchcut/review-moda
 import { PreferencesModal } from "@/components/matchcut/preferences";
 import { CreatorDashboard } from "@/components/matchcut/dashboard";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
+import { Landing } from "@/components/marketing/landing";
+import { showLanding, wantsAppFromSearch } from "@/lib/landing";
 
 export function MatchcutApp() {
   const hydrate = useDeck((state) => state.hydrate);
@@ -85,8 +87,20 @@ export function MatchcutApp() {
   const [profile, setProfile] = useState<DeskProfile | null>(null);
   const [pendingChannel, setPendingChannel] = useState<VerifiedChannel | null>(null);
   const [signedIn, setSignedIn] = useState(true);
+  // Signed-out visitors see the public landing page until they tap Get started / Sign in.
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
+    // Read before the effects below clear ?yt / ?checkout from the URL.
+    if (wantsAppFromSearch(window.location.search)) {
+      setEntered(true);
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("start")) {
+        params.delete("start");
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+        window.history.replaceState(null, "", next);
+      }
+    }
     hydrate();
     const storedProfile = loadProfile();
     const sessionOn = localStorage.getItem(SESSION_KEY) !== "0" && storedProfile != null;
@@ -197,6 +211,12 @@ export function MatchcutApp() {
   }, [memoryReady, reviews]);
 
   useEffect(() => {
+    // The pre-hydration script (see __root.tsx) hides the landing page while we find out
+    // whether this browser is signed in. Now we know, so let it show if it should.
+    if (memoryReady) document.documentElement.removeAttribute("data-session");
+  }, [memoryReady]);
+
+  useEffect(() => {
     useDeck.getState().setMe(profile ? { channel: profile.channel, subscribers: profile.subscribers, niches: profile.niches } : null);
   }, [profile]);
 
@@ -214,6 +234,7 @@ export function MatchcutApp() {
     clearSession();
     setSignedIn(false);
     setProfile(null);
+    setEntered(false);
     setDashboardOpen(false);
     setInboxOpen(false);
     setFiltersOpen(false);
@@ -455,6 +476,21 @@ export function MatchcutApp() {
     sort !== "fit";
   const deskReady = age === "adult" && terms && signedIn && profile != null;
   const deskProfile = profile ?? { channel: "", subscribers: 0, niches: [] as string[] };
+  const signedInWithProfile = signedIn && profile != null;
+  const toastView = (
+    <div className="toast" aria-live="polite">
+      {toast ? <p className="rounded-control bg-cream px-4 py-3 text-sm font-medium text-ink-text shadow-card">{toast}</p> : null}
+    </div>
+  );
+
+  if (showLanding({ signedIn, hasProfile: profile != null, entered })) {
+    return (
+      <>
+        <Landing onStart={() => setEntered(true)} />
+        {toastView}
+      </>
+    );
+  }
 
   return (
     <>
@@ -498,20 +534,18 @@ export function MatchcutApp() {
                 </p>
               </div>
             </div>
-          ) : (
-            <button type="button" onClick={() => setSignedIn(false)} className="press text-sm font-medium text-cream">
-              Sign In
-            </button>
-          )}
+          ) : null}
           <div className="flex w-full flex-wrap items-center gap-1.5 min-[400px]:gap-2 sm:ml-auto sm:w-auto sm:justify-end sm:gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="whitespace-nowrap text-sm">{premium ? "Unlimited collabs" : collabLabel}</p>
-              {!premium ? (
-                <div className="mt-1 ml-auto h-1 w-24 overflow-hidden rounded-full bg-line" aria-hidden="true">
-                  <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
-                </div>
-              ) : null}
-            </div>
+            {signedInWithProfile ? (
+              <div className="hidden text-right sm:block">
+                <p className="whitespace-nowrap text-sm">{premium ? "Unlimited collabs" : collabLabel}</p>
+                {!premium ? (
+                  <div className="mt-1 ml-auto h-1 w-24 overflow-hidden rounded-full bg-line" aria-hidden="true">
+                    <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => setInboxOpen(true)}
@@ -624,14 +658,16 @@ export function MatchcutApp() {
           <FilterPanel />
         </aside>
         <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="px-4 pt-4 sm:hidden">
-            <p className="text-sm text-muted">{premium ? "Unlimited collabs" : `${collabLabel} today`}</p>
-            {!premium ? (
-              <div className="mt-2 h-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
-                <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
-              </div>
-            ) : null}
-          </div>
+          {signedInWithProfile ? (
+            <div className="px-4 pt-4 sm:hidden">
+              <p className="text-sm text-muted">{premium ? "Unlimited collabs" : `${collabLabel} today`}</p>
+              {!premium ? (
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
+                  <div className="h-full bg-accent" style={{ width: `${meter}%` }} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {authError ? (
             <p className="mx-4 mt-4 rounded-control border border-line bg-ink-soft px-4 py-3 text-sm text-cream" role="alert">
               {authError}
@@ -781,11 +817,9 @@ export function MatchcutApp() {
     <AgeGate age={age} onChoose={choose} />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />
     {age === "adult" && terms && !profile ? (
-      <CreateProfile verifiedChannel={pendingChannel} onComplete={finishSignIn} />
+      <CreateProfile verifiedChannel={pendingChannel} onComplete={finishSignIn} onDismiss={() => setEntered(false)} />
     ) : null}
-    <div className="toast" aria-live="polite">
-      {toast ? <p className="rounded-control bg-cream px-4 py-3 text-sm font-medium text-ink-text shadow-card">{toast}</p> : null}
-    </div>
+    {toastView}
     </>
   );
 }

@@ -1,6 +1,6 @@
 # Smash Collab
 
-Smash Collab is a swipe-style desk where YouTube creators find collab partners.
+Smash Collab is a swipe-style app where YouTube creators find collab partners.
 Creators verify their channel with Google (read-only YouTube access), pick their
 niches, then **Pass** or **Collab** with other creators. When two creators both
 send a collab it's a **match**, and they can message. Free creators get 4 collabs a day
