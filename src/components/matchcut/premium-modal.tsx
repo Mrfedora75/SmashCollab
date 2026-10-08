@@ -83,7 +83,7 @@ export function PremiumModal() {
                 onClick={closePremium}
                 className="press mt-6 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent"
               >
-                Back to the desk
+                Back to browsing
               </button>
             </div>
           ) : (

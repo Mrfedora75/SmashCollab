@@ -187,7 +187,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                 : membersStatus === "loading"
                 ? "Pulling live profiles from the member list."
                 : membersStatus === "auth"
-                  ? "Verify via YouTube so this desk can read other creators."
+                  ? "Verify via YouTube to see other creators."
                   : membersStatus === "error"
                     ? "The member list did not load. Refresh and try again."
                     : members.length === 0
@@ -240,7 +240,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
         </button>
       </div>
       <p className="mt-3 hidden text-center text-xs text-muted md:block">
-        Drag the card, or use the arrow keys. Z brings the last one back. Free desks get {FREE_DAILY} collabs a day.
+        Drag the card, or use the arrow keys. Z brings the last one back. Free accounts get {FREE_DAILY} collabs a day.
       </p>
     </div>
   );

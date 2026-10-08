@@ -95,7 +95,7 @@ export function CreateReadyView({
         onClick={onEnter}
         className="press mt-5 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent disabled:opacity-40"
       >
-        Enter the desk
+        Start browsing creators
       </button>
     </div>
   );

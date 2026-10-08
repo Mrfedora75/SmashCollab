@@ -63,7 +63,7 @@ export function pairId(a: string, b: string): string {
 async function ctx(): Promise<{ db: NonNullable<Awaited<ReturnType<typeof firebaseDb>>>; uid: string }> {
   const [db, auth] = await Promise.all([firebaseDb(), firebaseAuth()]);
   const uid = auth?.currentUser?.uid;
-  if (!db || !uid) throw new Error("Sign in again to sync your desk.");
+  if (!db || !uid) throw new Error("Sign in again to sync your account.");
   return { db, uid };
 }
 
@@ -101,7 +101,7 @@ export type CollabOutcome = {
 async function idToken(): Promise<string> {
   const auth = await firebaseAuth();
   const user = auth?.currentUser;
-  if (!user) throw new CollabError("Sign in again to sync your desk.", "auth");
+  if (!user) throw new CollabError("Sign in again to sync your account.", "auth");
   return user.getIdToken();
 }
 

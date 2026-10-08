@@ -164,7 +164,7 @@ export function Inbox({
             <section>
               <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Matches</h3>
               {accepted.length === 0 ? (
-                <p className="mt-3 text-sm text-muted">No matches yet. Collab with creators from the desk, or accept a collab above.</p>
+                <p className="mt-3 text-sm text-muted">No matches yet. Tap Collab on creators while you browse, or accept a collab above.</p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
                   {accepted.map((collab) => {
@@ -208,7 +208,7 @@ export function Inbox({
           <section>
             <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Sent collabs</h3>
             {outbound.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">No collabs sent yet. Collab with a channel from the desk.</p>
+              <p className="mt-3 text-sm text-muted">No collabs sent yet. Tap Collab on a creator’s card while you browse.</p>
             ) : (
               <ul className="mt-3 flex flex-col gap-3">
                 {outbound.map((collab) => {
