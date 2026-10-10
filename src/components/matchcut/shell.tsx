@@ -21,7 +21,7 @@ import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } fro
 import { onAuthStateChanged } from "firebase/auth";
 import { saveLoginHint } from "@/lib/login-hint";
 import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
-import { fillFromSaved, reverifiedAvatar, reverifiedDisplayName } from "@/lib/profile-merge";
+import { fillFromSaved, reverifiedProfile } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
 import { utcDayKey } from "@/lib/collab-policy";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
@@ -168,19 +168,7 @@ export function MatchcutApp() {
           }
         }
         if (existing && existing.niches.length > 0) {
-          const next: DeskProfile = {
-            displayName: reverifiedDisplayName(existing, verified),
-            channel: verified.channel,
-            channelId: verified.channelId,
-            subscribers: verified.subscribers,
-            avgViews: verified.avgViews,
-            niches: existing.niches,
-            bio: existing.bio,
-            avatar: reverifiedAvatar(existing, verified),
-            country: existing.country,
-            state: existing.state,
-            county: existing.county,
-          };
+          const next: DeskProfile = reverifiedProfile(existing, verified);
           saveProfile(next);
           setProfile(next);
           setSignedIn(true);
