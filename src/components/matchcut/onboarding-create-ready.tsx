@@ -1,4 +1,5 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { AGE_CONFIRM_LABEL, MIN_AGE } from "@/lib/profile-policy";
 import { Check } from "lucide-react";
 import { NICHES } from "@/data/creators";
 import { formatCount } from "@/lib/format";
@@ -20,6 +21,7 @@ export function CreateReadyView({
   toggle: (niche: string) => void;
   onEnter: () => void;
 }) {
+  const [adult, setAdult] = useState(false);
   return (
     <div className="mt-6 text-left">
       <p
@@ -89,9 +91,25 @@ export function CreateReadyView({
           </ul>
         ) : null}
       </div>
+      <label className="mt-5 flex items-start gap-3 rounded-control border border-cream-deep p-3 text-sm">
+        <input
+          type="checkbox"
+          required
+          checked={adult}
+          onChange={(event) => setAdult(event.target.checked)}
+          className="mt-0.5 size-5 shrink-0"
+          aria-describedby="age-confirm-help"
+        />
+        <span>
+          <span className="font-medium">{AGE_CONFIRM_LABEL}</span>
+          <span id="age-confirm-help" className="mt-0.5 block text-xs text-muted-strong">
+            Required. Smash Collab is only for people {MIN_AGE} or older.
+          </span>
+        </span>
+      </label>
       <button
         type="button"
-        disabled={picked.length === 0}
+        disabled={picked.length === 0 || !adult}
         onClick={onEnter}
         className="press mt-5 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent disabled:opacity-40"
       >

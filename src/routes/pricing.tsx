@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { PublicPage } from "@/components/marketing/public-page";
 import { StartButton } from "@/components/marketing/public-header";
 import { PRICING, SUBSCRIBER_LIMIT_LABEL } from "@/lib/pricing";
+import { FreePlanDetails } from "@/components/marketing/free-plan-details";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -78,6 +79,8 @@ function PricingPage() {
           </p>
         </section>
       </div>
+
+      <FreePlanDetails className="mt-4" />
 
       <section className="mt-4 rounded-card border border-line p-6">
         <h2 className="font-display text-2xl">Extra collabs — {PRICING.extraCollab} each</h2>

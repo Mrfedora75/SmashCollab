@@ -1,7 +1,7 @@
-import { collection, getDocs } from "firebase/firestore";
 import type { Creator, ProfileCountry, UsState } from "@/data/creators";
 import { PROFILE_COUNTRIES, US_STATES } from "@/data/creators";
-import { firebaseAuth, firebaseDb } from "@/lib/firebase";
+import { firebaseAuth } from "@/lib/firebase";
+import { MEMBERS_MAX_PER_SESSION, MEMBERS_PAGE_SIZE } from "@/lib/profile-policy";
 import { isDisplayableAvatar } from "@/lib/avatar";
 
 const FALLBACK_THUMB =
@@ -56,24 +56,34 @@ export async function loadMemberCreators(self: { channelId?: string; channel?: s
   members: Creator[];
   status: "ready" | "auth";
 }> {
-  const db = await firebaseDb();
   const auth = await firebaseAuth();
   await auth?.authStateReady();
   const user = auth?.currentUser ?? null;
-  if (!db || !user) return { members: [], status: "auth" };
-  const snap = await getDocs(collection(db, "users"));
+  if (!user) return { members: [], status: "auth" };
+  const token = await user.getIdToken();
   const ownChannel = self.channel?.replace(/^@/, "").trim().toLowerCase() ?? "";
-  const members = snap.docs
-    .filter((item) => {
-      if (item.id === user.uid) return false;
-      const data = item.data() as Record<string, unknown>;
-      return !(self.channelId && data.channelId === self.channelId);
-    })
-    .map((item) => creatorFromMember(item.id, item.data() as Record<string, unknown>))
-    .filter((creator): creator is Creator => {
-      if (!creator) return false;
-      const handle = creator.channel.replace(/^@/, "").trim().toLowerCase();
-      return !ownChannel || handle !== ownChannel;
+  const members: Creator[] = [];
+  let cursor: string | null = null;
+  // Public profiles only, a page at a time, from the server (see /api/members).
+  do {
+    const params = new URLSearchParams({ limit: String(MEMBERS_PAGE_SIZE) });
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/members?${params}`, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
     });
+    if (res.status === 401) return { members: [], status: "auth" };
+    if (!res.ok) throw new Error("Could not load creators right now.");
+    const data = (await res.json()) as { members?: (Record<string, unknown> & { id: string })[]; nextCursor?: string | null };
+    for (const item of data.members ?? []) {
+      if (item.id === user.uid || (self.channelId && item.channelId === self.channelId)) continue;
+      const creator = creatorFromMember(item.id, item);
+      if (!creator) continue;
+      const handle = creator.channel.replace(/^@/, "").trim().toLowerCase();
+      if (ownChannel && handle === ownChannel) continue;
+      members.push(creator);
+    }
+    cursor = typeof data.nextCursor === "string" ? data.nextCursor : null;
+  } while (cursor && members.length < MEMBERS_MAX_PER_SESSION);
   return { members, status: "ready" };
 }

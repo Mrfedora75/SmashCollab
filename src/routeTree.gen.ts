@@ -14,7 +14,9 @@ import { Route as InfoRouteImport } from './routes/info'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TryRouteImport } from './routes/try'
 import { Route as ApiCollabRouteImport } from './routes/api/collab'
+import { Route as ApiMembersRouteImport } from './routes/api/members'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
 import { Route as ApiAuthRestoreRouteImport } from './routes/api/auth/restore'
 import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
@@ -57,9 +59,19 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TryRoute = TryRouteImport.update({
+  id: '/try',
+  path: '/try',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCollabRoute = ApiCollabRouteImport.update({
   id: '/api/collab',
   path: '/api/collab',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMembersRoute = ApiMembersRouteImport.update({
+  id: '/api/members',
+  path: '/api/members',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiReferralsRoute = ApiReferralsRouteImport.update({
@@ -149,7 +161,9 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/try': typeof TryRoute
   '/api/collab': typeof ApiCollabRoute
+  '/api/members': typeof ApiMembersRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
@@ -173,7 +187,9 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/try': typeof TryRoute
   '/api/collab': typeof ApiCollabRoute
+  '/api/members': typeof ApiMembersRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
@@ -198,7 +214,9 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/try': typeof TryRoute
   '/api/collab': typeof ApiCollabRoute
+  '/api/members': typeof ApiMembersRoute
   '/api/referrals': typeof ApiReferralsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
@@ -224,7 +242,9 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/terms'
+    | '/try'
     | '/api/collab'
+    | '/api/members'
     | '/api/referrals'
     | '/api/auth/restore'
     | '/api/firebase/config'
@@ -248,7 +268,9 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/terms'
+    | '/try'
     | '/api/collab'
+    | '/api/members'
     | '/api/referrals'
     | '/api/auth/restore'
     | '/api/firebase/config'
@@ -272,7 +294,9 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/terms'
+    | '/try'
     | '/api/collab'
+    | '/api/members'
     | '/api/referrals'
     | '/api/auth/restore'
     | '/api/firebase/config'
@@ -297,7 +321,9 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  TryRoute: typeof TryRoute
   ApiCollabRoute: typeof ApiCollabRoute
+  ApiMembersRoute: typeof ApiMembersRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
   ApiAuthRestoreRoute: typeof ApiAuthRestoreRoute
   ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
@@ -353,11 +379,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/try': {
+      id: '/try'
+      path: '/try'
+      fullPath: '/try'
+      preLoaderRoute: typeof TryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/collab': {
       id: '/api/collab'
       path: '/api/collab'
       fullPath: '/api/collab'
       preLoaderRoute: typeof ApiCollabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/members': {
+      id: '/api/members'
+      path: '/api/members'
+      fullPath: '/api/members'
+      preLoaderRoute: typeof ApiMembersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/referrals': {
@@ -481,7 +521,9 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  TryRoute: TryRoute,
   ApiCollabRoute: ApiCollabRoute,
+  ApiMembersRoute: ApiMembersRoute,
   ApiReferralsRoute: ApiReferralsRoute,
   ApiAuthRestoreRoute: ApiAuthRestoreRoute,
   ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,

@@ -27,7 +27,7 @@ service cloud.firestore {
     // verifiedChannelId, subsVerifiedAt, plus, plusUntil, plusSyncedAt.
     function clientProfileKeys() {
       return ['uid', 'displayName', 'channel', 'channelId', 'avgViews', 'niches',
-              'bio', 'avatar', 'country', 'state', 'county', 'createdAt', 'updatedAt'];
+              'bio', 'avatar', 'country', 'state', 'county', 'ageConfirmed', 'createdAt', 'updatedAt'];
     }
 
     // Profile photo: an https URL (YouTube / Google photo) or a small uploaded
@@ -54,17 +54,21 @@ service cloud.firestore {
         && validAvatar(data)
         && optionalString(data, 'country', 20)
         && optionalString(data, 'state', 40)
-        && optionalString(data, 'county', 40);
+        && optionalString(data, 'county', 40)
+        // "I am 18 or older" (src/lib/profile-policy.ts MIN_AGE): may only ever be true.
+        && (!('ageConfirmed' in data) || data.ageConfirmed == true);
     }
 
-    // ---- Creator profiles: readable by signed-in creators, writable only by the owner,
-    // and only for the owner-editable fields above.
+    // ---- Creator profiles: readable and writable only by the owner (only the owner-editable
+    // fields above). Other creators see public profiles through GET /api/members, which
+    // returns only verified + age-confirmed profiles and only their public fields.
     match /users/{uid} {
-      allow read: if signedIn();
+      allow read: if signedIn() && request.auth.uid == uid;
       allow delete: if signedIn() && request.auth.uid == uid;
       allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(clientProfileKeys())
+        && request.resource.data.ageConfirmed == true
         && validProfile(request.resource.data, uid);
       allow update: if signedIn()
         && request.auth.uid == uid
@@ -72,6 +76,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientProfileKeys().concat(['email']))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
             || !('email' in request.resource.data))
+        // The age confirmation can never be removed once given.
+        && (!('ageConfirmed' in resource.data) || request.resource.data.ageConfirmed == true)
         && validProfile(request.resource.data, uid);
     }
 

@@ -65,7 +65,7 @@ async function collab(from: string, to: string, opts: { key?: CryptoKey; auth?: 
 }
 
 function profile(uid: string, extra: Record<string, Plain> = {}) {
-  store.set(`users/${uid}`, { uid, channel: `@${uid}`, avgViews: 1, niches: ["Gaming"], ...extra });
+  store.set(`users/${uid}`, { uid, channel: `@${uid}`, avgViews: 1, niches: ["Gaming"], ageConfirmed: true, verifiedChannelId: `UC_${uid}`, ...extra });
 }
 
 beforeAll(async () => {
@@ -165,6 +165,15 @@ describe("POST /api/collab", () => {
     expect(res.status).toBe(200);
     expect(res.body.matched).toBe(true);
     expect(store.get("matches/free2_small2")?.users).toEqual(["free2", "small2"]);
+  });
+
+  it("refuses senders without the age confirmation and targets that are not public", async () => {
+    profile("noage", { ageConfirmed: false });
+    profile("target");
+    expect((await collab("noage", "target")).body.code).toBe("age_required");
+    profile("sender");
+    profile("unverified", { verifiedChannelId: null });
+    expect((await collab("sender", "unverified")).status).toBe(404);
   });
 
   it("rejects sending a collab to yourself or a missing creator", async () => {

@@ -12,7 +12,7 @@ import { CollabTray } from "@/components/matchcut/collab-tray";
 import { DeckStage } from "@/components/matchcut/deck-stage";
 import { PremiumModal } from "@/components/matchcut/premium-modal";
 import { OutOfSwipes } from "@/components/matchcut/out-of-swipes";
-import { AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
+import { AgeConfirmPrompt, AgeGate, useAgeGate } from "@/components/matchcut/age-gate";
 import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, saveProfile, SESSION_KEY, type DeskProfile } from "@/components/matchcut/onboarding";
 import { loadReviews, saveReviews } from "@/components/matchcut/desk-memory";
 import { InviteModal } from "@/components/matchcut/invite-modal";
@@ -815,6 +815,15 @@ export function MatchcutApp() {
     ) : null}
     <MemberSearch open={searchOpen} onOpenChange={setSearchOpen} />
     <AgeGate age={age} onChoose={choose} />
+    <AgeConfirmPrompt
+      open={deskReady && profile != null && profile.ageConfirmed !== true}
+      onConfirm={async () => {
+        if (!profile) return;
+        const saved = await saveFirebaseUser({ ...profile, ageConfirmed: true }, { mode: "onboarding" });
+        saveProfile(saved);
+        setProfile(saved);
+      }}
+    />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />
     {age === "adult" && terms && !profile ? (
       <CreateProfile verifiedChannel={pendingChannel} onComplete={finishSignIn} onDismiss={() => setEntered(false)} />

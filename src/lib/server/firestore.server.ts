@@ -340,3 +340,41 @@ export async function runTransaction<T>(
   }
   throw lastError ?? new TransactionAbortedError();
 }
+
+/**
+ * One page of a collection where `field == value`, ordered by document id.
+ * Returns the page and the id to pass as `startAfterId` for the next page (null at the end).
+ */
+export async function queryPage(
+  collectionId: string,
+  where: { field: string; equals: Plain },
+  limit: number,
+  startAfterId?: string | null,
+): Promise<{ docs: { id: string; data: Record<string, Plain> }[]; nextId: string | null }> {
+  const acct = account();
+  const token = await accessToken(acct);
+  const root = databaseRoot(acct);
+  const structuredQuery: Record<string, unknown> = {
+    from: [{ collectionId }],
+    where: { fieldFilter: { field: { fieldPath: where.field }, op: "EQUAL", value: encode(where.equals) } },
+    orderBy: [{ field: { fieldPath: "__name__" }, direction: "ASCENDING" }],
+    limit,
+  };
+  if (startAfterId) {
+    structuredQuery.startAt = {
+      values: [{ referenceValue: `${root}/${collectionId}/${safeDocId(startAfterId)}` }],
+      before: false,
+    };
+  }
+  const res = await fetch(`https://firestore.googleapis.com/v1/${root}:runQuery`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ structuredQuery }),
+  });
+  if (!res.ok) throw new Error(`Firestore query failed (${res.status}).`);
+  const rows = (await res.json()) as { document?: { name: string; fields?: Record<string, FsValue> } }[];
+  const docs = rows.flatMap((row) =>
+    row.document ? [{ id: row.document.name.split("/").pop() ?? "", data: decodeFields(row.document.fields ?? {}) }] : [],
+  );
+  return { docs, nextId: docs.length === limit ? docs[docs.length - 1].id : null };
+}

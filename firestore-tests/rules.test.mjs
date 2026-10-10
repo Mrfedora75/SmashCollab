@@ -10,13 +10,17 @@ let pass = 0, fail = 0;
 async function t(name, p) { try { await p; pass++; console.log("ok  ", name); } catch (e) { fail++; console.log("FAIL", name, e.message?.slice(0,120)); } }
 /** Writes done by the server (service account bypasses rules). */
 async function server(fn) { await env.withSecurityRulesDisabled(async (ctx) => fn(ctx.firestore())); }
-const prof = (uid) => ({ uid, displayName: "X", channel: "@x", channelId: "UC1", avgViews: 1, niches: ["Gaming"], bio: "", avatar: null, country: "", state: null, county: "", updatedAt: serverTimestamp() });
+const prof = (uid) => ({ uid, displayName: "X", channel: "@x", channelId: "UC1", avgViews: 1, niches: ["Gaming"], bio: "", avatar: null, country: "", state: null, county: "", ageConfirmed: true, updatedAt: serverTimestamp() });
 
 // ---- profiles
 await t("own profile write", assertSucceeds(setDoc(doc(A, "users/alice"), prof("alice"))));
 await t("other profile write denied", assertFails(setDoc(doc(A, "users/bob"), prof("bob"))));
 await t("email field denied", assertFails(setDoc(doc(A, "users/alice"), { ...prof("alice"), email: "a@b.c" })));
-await t("signed-in read profile", assertSucceeds(getDoc(doc(B, "users/alice"))));
+await t("own profile read", assertSucceeds(getDoc(doc(A, "users/alice"))));
+await t("other creator's profile read denied (use /api/members)", assertFails(getDoc(doc(B, "users/alice"))));
+await t("listing all profiles denied", assertFails(getDocs(collection(B, "users"))));
+await t("create without age confirmation denied", assertFails(setDoc(doc(C, "users/carol"), (({ ageConfirmed: _age, ...rest }) => rest)(prof("carol")))));
+await t("create with ageConfirmed false denied", assertFails(setDoc(doc(C, "users/carol"), { ...prof("carol"), ageConfirmed: false })));
 await t("anon read profile denied", assertFails(getDoc(doc(anon, "users/alice"))));
 await t("create with subscriberCount denied", assertFails(setDoc(doc(C, "users/carol"), { ...prof("carol"), subscriberCount: 1 })));
 await t("create with legacy subscribers denied", assertFails(setDoc(doc(C, "users/carol"), { ...prof("carol"), subscribers: 1 })));
@@ -89,7 +93,7 @@ await t("my swipes query", assertSucceeds(getDocs(query(collection(A, "swipes"),
 await t("inbound query", assertSucceeds(getDocs(query(collection(A, "swipes"), where("to", "==", "alice"), where("direction", "==", "pitch")))));
 await t("inbound query without direction denied", assertFails(getDocs(query(collection(A, "swipes"), where("to", "==", "alice")))));
 await t("matches query", assertSucceeds(getDocs(query(collection(A, "matches"), where("users", "array-contains", "alice")))));
-await t("users list", assertSucceeds(getDocs(collection(A, "users"))));
+await t("users list denied (server /api/members instead)", assertFails(getDocs(collection(A, "users"))));
 await t("collab note edit", assertSucceeds(updateDoc(doc(A, "swipes/alice_bob"), { note: "new" })));
 await t("can't retarget swipe", assertFails(updateDoc(doc(A, "swipes/alice_bob"), { to: "carol" })));
 await t("can't re-stamp a collab (would dodge the daily counter)", assertFails(updateDoc(doc(A, "swipes/alice_bob"), { createdAt: serverTimestamp() })));
@@ -103,6 +107,8 @@ await t("stripeSessions denied", assertFails(setDoc(doc(A, "stripeSessions/x"), 
 await t("channels read denied", assertFails(getDoc(doc(A, "channels/UCalice"))));
 await t("channels write denied", assertFails(setDoc(doc(A, "channels/UCalice"), { subscriberCount: 1, uid: "alice" })));
 await t("pitchUsage write denied", assertFails(setDoc(doc(A, "pitchUsage/alice"), { day: "2026-01-01", count: 0 })));
+await t("age confirmation can't be removed", assertFails(updateDoc(doc(A, "users/alice"), { ageConfirmed: deleteField() })));
+await t("age confirmation can't be set false", assertFails(updateDoc(doc(A, "users/alice"), { ageConfirmed: false })));
 await t("pitchUsage read denied", assertFails(getDoc(doc(A, "pitchUsage/alice"))));
 await t("other collection denied", assertFails(setDoc(doc(A, "random/x"), { a: 1 })));
 console.log(`\n${pass} passed, ${fail} failed`);

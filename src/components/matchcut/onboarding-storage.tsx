@@ -16,6 +16,8 @@ export type DeskProfile = {
   country?: ProfileCountry | "";
   state?: UsState | null;
   county?: string;
+  /** Ticked "I am 18 or older" (required before the profile is saved; see profile-policy.ts). */
+  ageConfirmed?: boolean;
 };
 
 export type VerifiedChannel = {
@@ -88,6 +90,7 @@ export function loadProfile(): DeskProfile | null {
       country,
       state,
       county,
+      ageConfirmed: parsed.ageConfirmed === true,
     };
   } catch {
     return null;
