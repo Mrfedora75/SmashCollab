@@ -41,6 +41,7 @@ export function profileFromDoc(data: Record<string, unknown> | null | undefined)
     country,
     state: country === "us" && isUsState(data.state) ? data.state : null,
     county: str(data.county).slice(0, 40),
+    ageConfirmed: data.ageConfirmed === true,
   };
 }
 
@@ -54,6 +55,7 @@ export function profileFromDoc(data: Record<string, unknown> | null | undefined)
 export function fillFromSaved(local: DeskProfile, saved: Record<string, unknown> | null | undefined): DeskProfile {
   if (!saved) return local;
   const next: DeskProfile = { ...local };
+  if (saved.ageConfirmed === true) next.ageConfirmed = true;
   if (!next.bio?.trim() && str(saved.bio).trim()) next.bio = str(saved.bio).slice(0, 150);
   if (!next.displayName?.trim() && str(saved.displayName).trim()) next.displayName = str(saved.displayName);
   if (!next.avatar && str(saved.avatar)) next.avatar = str(saved.avatar);

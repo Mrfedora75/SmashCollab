@@ -1,6 +1,17 @@
 export const PENDING_REF_KEY = "matchcut-pending-ref";
 export const REF_CLAIMED_KEY = "matchcut-ref-claimed";
 export const REFERRAL_PLUS_MS = 14 * 24 * 60 * 60 * 1000;
+/**
+ * Most invite rewards (free Plus time) one inviter can earn per calendar month (UTC).
+ * Invites past the cap still sign up normally and the new creator still gets their
+ * own invite Plus; only the inviter's extra Plus stops until next month.
+ */
+export const INVITE_REWARDS_PER_MONTH = 2;
+
+/** Calendar-month key (UTC) used for the invite reward cap, e.g. "2026-10". */
+export function rewardMonthKey(now = new Date()): string {
+  return now.toISOString().slice(0, 7);
+}
 
 export type ReferralStatus = {
   invites: number;

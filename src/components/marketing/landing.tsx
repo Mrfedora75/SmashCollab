@@ -3,6 +3,7 @@ import { ArrowRight, Check, Layers, MessageCircle, Send, ShieldCheck, UserPlus, 
 import { PublicHeader, StartButton } from "@/components/marketing/public-header";
 import { SiteFooter } from "@/components/site-footer";
 import { PRICING, SUBSCRIBER_LIMIT_LABEL } from "@/lib/pricing";
+import { FreePlanDetails } from "@/components/marketing/free-plan-details";
 
 const STEPS = [
   {
@@ -53,6 +54,12 @@ export function Landing({ onStart }: { onStart: () => void }) {
                 className="press inline-flex h-12 items-center justify-center rounded-control border border-line px-6 text-base text-cream"
               >
                 See how it works
+              </a>
+              <a
+                href="/try"
+                className="press inline-flex h-12 items-center justify-center rounded-control border border-line px-6 text-base text-cream"
+              >
+                Try it without signing in
               </a>
             </div>
             <p className="mt-4 text-sm text-muted">Free to join · Sign in with Google · 18+ only</p>
@@ -124,6 +131,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
                 ready for Plus? Extra collabs are {PRICING.extraCollab} each.
               </p>
             </div>
+            <FreePlanDetails className="md:col-span-2" />
             <p className="text-sm text-cream/80 md:col-span-2">
               <Link to="/pricing" className="underline underline-offset-2">
                 See full pricing

@@ -294,6 +294,7 @@ export function CreateProfile({
                   niches: picked,
                   bio: sameChannel ? (existing?.bio ?? "") : "",
                   avatar: verified.avatar ?? (sameChannel ? (existing?.avatar ?? null) : null),
+                  ageConfirmed: true,
                 };
                 saveProfile(profile);
                 void enterDesk(profile, "ready");

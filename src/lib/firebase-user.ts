@@ -15,6 +15,7 @@ import { firebaseAuth, firebaseDb } from "@/lib/firebase";
 import { syncProfileOnServer } from "@/lib/collab";
 import { fillFromSaved, profileFromDoc } from "@/lib/profile-merge";
 import { isStorableAvatar } from "@/lib/avatar";
+import { AGE_REQUIRED_MESSAGE } from "@/lib/profile-policy";
 import { clearServerSession } from "@/lib/youtube/client-logout";
 
 export function describeAuthError(error: unknown): string {
@@ -176,6 +177,9 @@ export async function saveFirebaseUser(
     options.mode === "onboarding" && savedData
       ? fillFromSaved(profile, savedData)
       : profile;
+  const ageConfirmed = merged.ageConfirmed === true || savedData?.ageConfirmed === true;
+  // Firestore rules refuse a new profile without the age confirmation; say so plainly first.
+  if (!ageConfirmed && !existing.exists()) throw new Error(AGE_REQUIRED_MESSAGE);
   const niches = merged.niches.flatMap((item) => {
     const next = normalizeFilterNiche(item);
     return next ? [next] : [];
@@ -197,6 +201,7 @@ export async function saveFirebaseUser(
     country: merged.country ?? "",
     state: merged.country === "us" ? (merged.state ?? null) : null,
     county: merged.county?.trim().slice(0, 40) ?? "",
+    ...(ageConfirmed ? { ageConfirmed: true } : {}),
     updatedAt: serverTimestamp(),
     ...(existing.exists() ? {} : { createdAt: serverTimestamp() }),
   };
@@ -225,9 +230,9 @@ export async function saveFirebaseUser(
   await syncProfileOnServer();
   if (photoError) {
     options.onPhotoNotSaved?.(photoError);
-    return { ...merged, niches, avatar: savedAvatar };
+    return { ...merged, niches, avatar: savedAvatar, ageConfirmed };
   }
-  return { ...merged, niches };
+  return { ...merged, niches, ageConfirmed };
 }
 
 /** The signed-in creator's saved Firestore profile (used to restore after logout / on a new device). */

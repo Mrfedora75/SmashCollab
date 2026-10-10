@@ -9,6 +9,7 @@
  * in one Firestore transaction with the service account.
  */
 import { decideCollab, COLLAB_MESSAGES, utcDayKey, type CollabRefusal } from "@/lib/collab-policy";
+import { AGE_REQUIRED_MESSAGE, hasConfirmedAge, isPublicProfile } from "@/lib/profile-policy";
 import { requestFirebaseUser } from "@/lib/server/firebase-auth.server";
 import {
   getDocument,
@@ -90,6 +91,11 @@ export async function handleCollabRequest(request: Request): Promise<Response> {
     const [senderProfile, targetProfile] = await Promise.all([getDocument(userPath(uid)), getDocument(userPath(to))]);
     if (!senderProfile) return json({ error: "Create your profile before sending a collab.", code: "no_profile" }, 409);
     if (!targetProfile) return json({ error: "That creator isn't on Smash Collab anymore.", code: "not_found" }, 404);
+    if (!hasConfirmedAge(senderProfile)) return json({ error: AGE_REQUIRED_MESSAGE, code: "age_required" }, 403);
+    // Only public profiles (verified channel + age confirmed) can receive collabs.
+    if (!isPublicProfile(targetProfile)) {
+      return json({ error: "That creator isn't on Smash Collab anymore.", code: "not_found" }, 404);
+    }
 
     const account = await senderChannel(request, uid, identity.email, senderProfile);
     const plus = account ? (await resolveStoredPlus(account)).premium : false;
