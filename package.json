@@ -15,6 +15,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "backfill:age": "npx -y tsx scripts/backfill-age-confirmed.ts",
     "test:rules": "npx -y firebase-tools@13 emulators:exec --only firestore --project demo-smash \"node firestore-tests/rules.test.mjs\""
   },
   "dependencies": {

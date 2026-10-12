@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillFromSaved, profileFromDoc, reverifiedAvatar, reverifiedDisplayName } from "@/lib/profile-merge";
+import { fillFromSaved, profileFromDoc, reverifiedAvatar, reverifiedProfile, reverifiedDisplayName } from "@/lib/profile-merge";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 
 const fresh: DeskProfile = {
@@ -87,5 +87,23 @@ describe("reverifiedAvatar (re-verify never overwrites an uploaded photo)", () =
 
   it("never carries another channel's photo", () => {
     expect(reverifiedAvatar({ avatar: uploaded, channelId: "UCother" }, { avatar: null, channelId: "UCw" })).toBeNull();
+  });
+});
+
+describe("reverifiedProfile (re-verify keeps the age confirmation)", () => {
+  const verified = { displayName: "New", channel: "@w", channelId: "UCw", subscribers: 10, avgViews: 2, avatar: null };
+  const base = { displayName: "Me", channel: "@w", channelId: "UCw", subscribers: 1, avgViews: 1, niches: ["Gaming"], bio: "hi", avatar: null };
+
+  it("keeps ageConfirmed for a confirmed creator, so they are not asked again", () => {
+    expect(reverifiedProfile({ ...base, ageConfirmed: true }, verified).ageConfirmed).toBe(true);
+  });
+
+  it("does not invent a confirmation", () => {
+    expect(reverifiedProfile(base, verified).ageConfirmed).toBe(false);
+  });
+
+  it("keeps the fields from the shell's rebuild and updates stats", () => {
+    const next = reverifiedProfile({ ...base, country: "us", state: "Ohio", county: "X" }, verified);
+    expect(next).toMatchObject({ niches: ["Gaming"], bio: "hi", country: "us", state: "Ohio", county: "X", subscribers: 10 });
   });
 });

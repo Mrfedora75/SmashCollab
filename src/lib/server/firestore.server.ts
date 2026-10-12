@@ -378,3 +378,24 @@ export async function queryPage(
   );
   return { docs, nextId: docs.length === limit ? docs[docs.length - 1].id : null };
 }
+
+/** One page of every document in a top-level collection (admin scripts). */
+export async function listDocumentsPage(
+  collectionId: string,
+  pageSize: number,
+  pageToken?: string | null,
+): Promise<{ docs: { id: string; data: Record<string, Plain> }[]; nextPageToken: string | null }> {
+  const acct = account();
+  const token = await accessToken(acct);
+  const params = new URLSearchParams({ pageSize: String(pageSize) });
+  if (pageToken) params.set("pageToken", pageToken);
+  const res = await fetch(`https://firestore.googleapis.com/v1/${databaseRoot(acct)}/${collectionId}?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Firestore list failed (${res.status}).`);
+  const data = (await res.json()) as { documents?: { name: string; fields?: Record<string, FsValue> }[]; nextPageToken?: string };
+  return {
+    docs: (data.documents ?? []).map((d) => ({ id: d.name.split("/").pop() ?? "", data: decodeFields(d.fields ?? {}) })),
+    nextPageToken: data.nextPageToken ?? null,
+  };
+}

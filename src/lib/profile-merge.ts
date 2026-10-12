@@ -101,3 +101,28 @@ export function reverifiedAvatar(
   if (sameChannel && isUploadedAvatar(existing.avatar)) return existing.avatar;
   return verified.avatar ?? (sameChannel ? existing.avatar : null);
 }
+
+/**
+ * Profile rebuilt after a YouTube re-verify: channel stats come from verification, everything
+ * the creator set (niches, bio, location, photo, name, age confirmation) is kept.
+ */
+export function reverifiedProfile(
+  existing: DeskProfile,
+  verified: { displayName: string; channel: string; channelId: string; subscribers: number; avgViews: number; avatar: string | null },
+): DeskProfile {
+  return {
+    displayName: reverifiedDisplayName(existing, verified),
+    channel: verified.channel,
+    channelId: verified.channelId,
+    subscribers: verified.subscribers,
+    avgViews: verified.avgViews,
+    niches: existing.niches,
+    bio: existing.bio,
+    avatar: reverifiedAvatar(existing, verified),
+    country: existing.country,
+    state: existing.state,
+    county: existing.county,
+    // Re-verifying never un-confirms the 18+ checkbox (and never confirms it either).
+    ageConfirmed: existing.ageConfirmed === true,
+  };
+}
