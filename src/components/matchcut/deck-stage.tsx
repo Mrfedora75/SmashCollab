@@ -194,7 +194,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                       ? "You're one of the first creators here. As other creators verify their channels they'll show up in your deck. Invite creators you'd like to work with!"
                       : matchCount === 0
                         ? "Widen the niches or the channel-size range to bring cards back."
-                        : "You've passed or sent a collab to everyone who matches. Reset swipes, or loosen the filters."}
+                        : "You've passed or sent a collab to everyone who matches. Loosen the filters to see more."}
             </p>
             {membersStatus === "auth" ? (
               <button
