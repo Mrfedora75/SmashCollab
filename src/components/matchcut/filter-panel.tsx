@@ -16,12 +16,10 @@ export function FilterPanel() {
   const minBracket = useDeck((state) => state.minBracket);
   const maxBracket = useDeck((state) => state.maxBracket);
   const sort = useDeck((state) => state.sort);
-  const swipes = useDeck((state) => state.swipes);
   const toggleNiche = useDeck((state) => state.toggleNiche);
   const setBrackets = useDeck((state) => state.setBrackets);
   const setSort = useDeck((state) => state.setSort);
   const clearFilters = useDeck((state) => state.clearFilters);
-  const resetSwipes = useDeck((state) => state.resetSwipes);
   const [sliderReady, setSliderReady] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -177,15 +175,6 @@ export function FilterPanel() {
             className="press min-h-11 rounded-control border border-line px-3 text-sm text-cream"
           >
             Clear filters
-          </button>
-        ) : null}
-        {swipes.length > 0 ? (
-          <button
-            type="button"
-            onClick={resetSwipes}
-            className="press min-h-11 rounded-control px-3 text-sm text-muted"
-          >
-            Reset swipes
           </button>
         ) : null}
       </div>
