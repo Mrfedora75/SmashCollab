@@ -145,6 +145,7 @@ export function FilterPanel() {
 
       <div>
         <h2 className="text-xs font-medium tracking-widest text-muted uppercase">Sort</h2>
+        <p className="mt-1 text-sm text-muted">Collab fit ranks channels against your niches, size, and location.</p>
         <div className="mt-3 grid gap-2" role="radiogroup" aria-label="Sort channels">
           {SORTS.map((option) => {
             const on = sort === option.id;

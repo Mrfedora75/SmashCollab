@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw, Send, X, Youtube } from "lucide-react";
 import { FREE_DAILY, isPlusChannel } from "@/data/creators";
+import { collabFit, type FitViewer } from "@/lib/collab-fit";
 import { formatCount } from "@/lib/format";
 import { useDeck, visibleCreators, type Direction } from "@/lib/deck-store";
 import { CardFace } from "@/components/matchcut/card-face";
@@ -8,7 +9,15 @@ import { startYouTubeVerify } from "@/lib/firebase-user";
 
 const THRESHOLD = 110;
 
-export function DeckStage({ channel, subscribers }: { channel: string; subscribers: number }) {
+export function DeckStage({
+  channel,
+  subscribers,
+  viewer,
+}: {
+  channel: string;
+  subscribers: number;
+  viewer: FitViewer | null;
+}) {
   const niches = useDeck((state) => state.niches);
   const minBracket = useDeck((state) => state.minBracket);
   const maxBracket = useDeck((state) => state.maxBracket);
@@ -20,7 +29,10 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
   const membersStatus = useDeck((state) => state.membersStatus);
   const authError = useDeck((state) => state.authError);
   const premium = useDeck((state) => state.premium);
-  const { unseen, matchCount } = visibleCreators({ niches, minBracket, maxBracket, location, usState, sort, swipes }, members);
+  const { unseen, matchCount } = useMemo(
+    () => visibleCreators({ niches, minBracket, maxBracket, location, usState, sort, swipes, me: viewer }, members),
+    [niches, minBracket, maxBracket, location, usState, sort, swipes, viewer, members],
+  );
   const top = unseen[0];
   const behind = unseen.slice(1, 3);
 
@@ -124,6 +136,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
                 creator={creator}
                 asHeading={false}
                 locked={!premium && isPlusChannel(creator.subscribers)}
+                fit={collabFit(viewer, creator)}
               />
             </div>
           );
@@ -164,7 +177,7 @@ export function DeckStage({ channel, subscribers }: { channel: string; subscribe
               requestAnimationFrame(() => setOffset({ x: 0, y: 0 }));
             }}
           >
-            <CardFace creator={top} locked={locked} passOpacity={passOpacity} collabOpacity={collabOpacity} />
+            <CardFace creator={top} locked={locked} passOpacity={passOpacity} collabOpacity={collabOpacity} fit={collabFit(viewer, top)} />
           </article>
         ) : (
           <div className="rounded-card border border-line bg-ink-soft px-6 py-12 text-center">

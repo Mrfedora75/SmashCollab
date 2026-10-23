@@ -11,12 +11,13 @@ import {
   type LocationId,
   type UsState,
 } from "@/data/creators";
+import { compareByCollabFit, type FitViewer } from "@/lib/collab-fit";
 import { defaultCollabNote, todayKey } from "@/lib/format";
 import { clearPlusLocal, readPlusLocal, writePlusLocal } from "@/lib/youtube/plus-client";
 import { CollabError, deleteSwipe, deleteSwipes, recordPass, sendCollab, updateSwipeNote, type RemoteSwipe } from "@/lib/collab";
 import { utcDayKey } from "@/lib/collab-policy";
 
-export type DeskSelf = { channel: string; subscribers: number; niches: string[] };
+export type DeskSelf = FitViewer & { channel: string };
 
 const noteTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -477,7 +478,9 @@ export const useDeck = create<DeckState>((set, get) => ({
 }));
 
 export function visibleCreators(
-  state: Pick<DeckState, "niches" | "minBracket" | "maxBracket" | "location" | "usState" | "sort" | "swipes">,
+  state: Pick<DeckState, "niches" | "minBracket" | "maxBracket" | "location" | "usState" | "sort" | "swipes"> & {
+    me?: FitViewer | null;
+  },
   members: Creator[],
 ) {
   const seen = new Set(state.swipes.map((swipe) => swipe.creatorId));
@@ -504,7 +507,7 @@ export function visibleCreators(
   unseen.sort((a, b) => {
     if (state.sort === "views") return b.avgViews - a.avgViews;
     if (state.sort === "subs") return b.subscribers - a.subscribers;
-    return b.fit - a.fit || a.channel.localeCompare(b.channel);
+    return compareByCollabFit(state.me, a, b);
   });
   return { unseen, matchCount: matched.length };
 }

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { SlidersHorizontal, Settings, Search, X } from "lucide-react";
 import { BRACKETS, FREE_DAILY, type Creator } from "@/data/creators";
 import type { AcceptedCollab, BlockedCreator, ChatMessage, InboundCollab } from "@/data/inbox";
 import { formatCount, todayKey } from "@/lib/format";
+import type { FitViewer } from "@/lib/collab-fit";
 import { useDeck } from "@/lib/deck-store";
 import { Mark } from "@/components/matchcut/mark";
 import { FilterPanel } from "@/components/matchcut/filter-panel";
@@ -204,9 +205,21 @@ export function MatchcutApp() {
     if (memoryReady) document.documentElement.removeAttribute("data-session");
   }, [memoryReady]);
 
-  useEffect(() => {
-    useDeck.getState().setMe(profile ? { channel: profile.channel, subscribers: profile.subscribers, niches: profile.niches } : null);
+  const viewer = useMemo<FitViewer | null>(() => {
+    if (!profile) return null;
+    return {
+      niches: profile.niches,
+      subscribers: profile.subscribers,
+      avgViews: profile.avgViews,
+      country: profile.country,
+      state: profile.state,
+      county: profile.county,
+    };
   }, [profile]);
+
+  useEffect(() => {
+    useDeck.getState().setMe(profile && viewer ? { channel: profile.channel, ...viewer } : null);
+  }, [profile, viewer]);
 
   useEffect(() => {
     useDeck.getState().setOnMatch((creatorId) => {
@@ -661,7 +674,7 @@ export function MatchcutApp() {
               {authError}
             </p>
           ) : null}
-          <DeckStage channel={deskProfile.channel} subscribers={deskProfile.subscribers} />
+          <DeckStage channel={deskProfile.channel} subscribers={deskProfile.subscribers} viewer={viewer} />
         </main>
         <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line xl:block">
           <CollabTray idPrefix="desk" />
