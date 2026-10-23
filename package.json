@@ -86,7 +86,7 @@
     "prettier": "^3.4.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.2.0",
+    "vite": "^8.3.5",
     "vitest": "^5.0.2"
   },
   "description": "Smash Collab — swipe YouTube creators and send collabs."
