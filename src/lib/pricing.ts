@@ -9,10 +9,16 @@ import { MIN_AGE } from "@/lib/profile-policy";
 export const PRICING = {
   freeDaily: FREE_DAILY,
   subscriberLimit: PLUS_SUBSCRIBER_MIN,
-  plusMonthly: "$7",
-  plusAnnual: "$75",
-  extraCollab: "$1",
+  plusMonthly: "$7.00",
+  plusAnnual: "$75.60",
+  extraCollab: "$0.99",
 } as const;
+
+/**
+ * Annual is 10% off twelve monthly payments.
+ * $7.00 × 12 = $84.00; $84.00 × 0.9 = $75.60.
+ */
+export const PLUS_ANNUAL_OFF_PERCENT = 10;
 
 export const SUBSCRIBER_LIMIT_LABEL = PLUS_SUBSCRIBER_MIN.toLocaleString("en-US");
 

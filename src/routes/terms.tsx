@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { H2, LegalPage } from "@/components/legal-page";
 import { CONTACT_EMAIL } from "@/components/site-footer";
+import { PLUS_ANNUAL_OFF_PERCENT, PRICING } from "@/lib/pricing";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/terms")({
 
 function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" updated="September 25, 2026">
+    <LegalPage title="Terms of Service" updated="October 23, 2026">
       <p>
         These terms apply when you use Smash Collab at smashcollab.com. By signing in you agree to them. If you do not agree,
         please do not use the service.
@@ -49,7 +50,7 @@ function TermsPage() {
 
       <H2>Plus and payments</H2>
       <p>
-        Smash Collab Plus is a paid subscription ($7/month or $75/year) and extra collabs can be bought for $1 each. Payments are
+        Smash Collab Plus is a paid subscription ({PRICING.plusMonthly}/month or {PRICING.plusAnnual}/year, {PLUS_ANNUAL_OFF_PERCENT}% off monthly) and extra collabs can be bought for {PRICING.extraCollab} each. Payments are
         processed by Stripe. Subscriptions renew automatically until canceled; canceling stops future renewals and Plus stays on
         until the end of the paid period. Prices may change with notice. Refunds are handled case by case — contact us.
       </p>

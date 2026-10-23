@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Layers, MessageCircle, Send, ShieldCheck, UserPlus, X } from "lucide-react";
+import { LaunchPromoNotice } from "@/components/launch-promo-field";
 import { PublicHeader, StartButton } from "@/components/marketing/public-header";
 import { SiteFooter } from "@/components/site-footer";
-import { PRICING, SUBSCRIBER_LIMIT_LABEL } from "@/lib/pricing";
+import { PLUS_ANNUAL_OFF_PERCENT, PRICING, SUBSCRIBER_LIMIT_LABEL } from "@/lib/pricing";
 import { FreePlanDetails } from "@/components/marketing/free-plan-details";
 
 const STEPS = [
@@ -127,9 +128,10 @@ export function Landing({ onStart }: { onStart: () => void }) {
                 <span className="text-base font-normal text-muted"> / month</span>
               </p>
               <p className="mt-3 text-sm leading-relaxed text-cream/80">
-                Or {PRICING.plusAnnual} a year. Unlimited collabs, including channels with {SUBSCRIBER_LIMIT_LABEL}+ subscribers. Not
-                ready for Plus? Extra collabs are {PRICING.extraCollab} each.
+                Or {PRICING.plusAnnual} a year ({PLUS_ANNUAL_OFF_PERCENT}% off monthly). Unlimited collabs, including channels with{" "}
+                {SUBSCRIBER_LIMIT_LABEL}+ subscribers. Not ready for Plus? Extra collabs are {PRICING.extraCollab} each.
               </p>
+              <LaunchPromoNotice />
             </div>
             <FreePlanDetails className="md:col-span-2" />
             <p className="text-sm text-cream/80 md:col-span-2">

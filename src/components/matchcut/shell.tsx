@@ -17,6 +17,7 @@ import { CreateProfile, TermsModal, clearSession, loadProfile, loadTerms, savePr
 import { loadReviews, saveReviews } from "@/components/matchcut/desk-memory";
 import { InviteModal } from "@/components/matchcut/invite-modal";
 import { MemberSearch } from "@/components/matchcut/member-search";
+import { captureLaunchPromoFromUrl } from "@/lib/launch-promo";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveLoginHint } from "@/lib/login-hint";
@@ -328,6 +329,7 @@ export function MatchcutApp() {
   }, [signedIn, profile]);
 
   useEffect(() => {
+    captureLaunchPromoFromUrl();
     captureReferralFromUrl();
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
