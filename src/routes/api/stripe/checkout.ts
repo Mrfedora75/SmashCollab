@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getAppHomeUrl } from "@/lib/youtube/config";
 import { isStorageConfigured } from "@/lib/server/firestore.server";
-import { liveModeBlocked, resolvePriceId, stripeRequest, stripeSecret, type Plan } from "@/lib/stripe-billing.server";
+import { accountHadPlus, applyPromoToCheckoutParams } from "@/lib/launch-promo";
+import { liveModeBlocked, readEntitlement, resolvePriceId, stripeRequest, stripeSecret, type Plan } from "@/lib/stripe-billing.server";
 import { requestAccount } from "@/lib/youtube/plus-entitlement";
 
 const noStore = { "Cache-Control": "no-store" };
@@ -17,9 +18,9 @@ export const Route = createFileRoute("/api/stripe/checkout")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        let body: { plan?: unknown } = {};
+        let body: { plan?: unknown; promo?: unknown } = {};
         try {
-          body = (await request.json()) as { plan?: unknown };
+          body = (await request.json()) as { plan?: unknown; promo?: unknown };
         } catch {
           body = {};
         }
@@ -63,6 +64,22 @@ export const Route = createFileRoute("/api/stripe/checkout")({
             params.set("subscription_data[metadata][channelId]", channelId);
             params.set("subscription_data[metadata][kind]", "plus");
             params.set("subscription_data[metadata][plan]", plan);
+            const promo = typeof body.promo === "string" ? body.promo : "";
+            if (promo.trim()) {
+              let hadPlus = true;
+              try {
+                hadPlus = accountHadPlus(await readEntitlement(channelId));
+              } catch {
+                return Response.json(
+                  { error: "We couldn't check that promo code. Try again in a minute." },
+                  { status: 503, headers: noStore },
+                );
+              }
+              const applied = applyPromoToCheckoutParams(params, { plan, promo, hadPlus });
+              if (applied.error) {
+                return Response.json({ error: applied.error }, { status: 400, headers: noStore });
+              }
+            }
           }
           const session = await stripeRequest<{ url?: string }>("checkout/sessions", params);
           if (!session.url) {

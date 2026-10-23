@@ -37,13 +37,15 @@ export async function confirmStripeSession(sessionId: string): Promise<string> {
   }
 }
 
-export async function startStripeCheckout(plan: "month" | "year" | "collab"): Promise<string | null> {
+export async function startStripeCheckout(plan: "month" | "year" | "collab", promo?: string): Promise<string | null> {
   try {
+    const body: { plan: typeof plan; promo?: string } = { plan };
+    if (promo && promo.trim() && plan !== "collab") body.promo = promo.trim();
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ plan }),
+      body: JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!res.ok || !data.url) return data.error ?? "Checkout could not start.";

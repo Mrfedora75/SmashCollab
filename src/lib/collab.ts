@@ -107,7 +107,7 @@ async function idToken(): Promise<string> {
 
 /**
  * Send a collab through the server, which checks the free-collab limits, spends a
- * $1 collab credit if needed, and creates the match if they already sent a collab you.
+ * $0.99 collab credit if needed, and creates the match if they already sent a collab you.
  */
 export async function sendCollab(to: string, note: string): Promise<CollabOutcome> {
   const token = await idToken();

@@ -3,6 +3,7 @@
  * the browser (which only uses them to show the right prompt up front).
  */
 import { FREE_DAILY, PLUS_SUBSCRIBER_MIN } from "@/data/creators";
+import { PRICING } from "@/lib/pricing";
 
 export type CollabRefusal = "over_limit" | "target_unverified" | "daily_limit";
 
@@ -11,10 +12,9 @@ export type CollabDecision =
   | { allowed: false; code: CollabRefusal };
 
 export const COLLAB_MESSAGES: Record<CollabRefusal, string> = {
-  over_limit: "This channel is over 5K — upgrade to Plus or use a $1 collab.",
-  target_unverified:
-    "This channel hasn't verified its subscriber count yet — upgrade to Plus or use a $1 collab.",
-  daily_limit: "You've used today's free collabs — upgrade to Plus or use a $1 collab.",
+  over_limit: `This channel is over 5K — upgrade to Plus or use a ${PRICING.extraCollab} collab.`,
+  target_unverified: `This channel hasn't verified its subscriber count yet — upgrade to Plus or use a ${PRICING.extraCollab} collab.`,
+  daily_limit: `You've used today's free collabs — upgrade to Plus or use a ${PRICING.extraCollab} collab.`,
 };
 
 /** Server day for the free-collab counter (UTC). */
@@ -25,7 +25,7 @@ export function utcDayKey(now = new Date()): string {
 /**
  * - Plus: always allowed, nothing is spent.
  * - Free, target under 5K and under today's free limit: allowed, counts as a free collab.
- * - Otherwise one purchased $1 collab credit is spent, or the collab is refused.
+ * - Otherwise one purchased $0.99 collab credit is spent, or the collab is refused.
  * A target without a server-verified subscriber count is treated as over the limit.
  */
 export function decideCollab(input: {

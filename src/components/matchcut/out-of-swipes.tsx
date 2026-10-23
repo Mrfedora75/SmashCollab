@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { FREE_DAILY } from "@/data/creators";
 import { useDeck } from "@/lib/deck-store";
+import { PRICING } from "@/lib/pricing";
 import { startStripeCheckout } from "@/lib/stripe-client";
 
 export function OutOfSwipes() {
@@ -45,7 +46,7 @@ export function OutOfSwipes() {
               onClick={() => openPremium(null)}
               className="press h-12 rounded-control bg-accent px-4 text-sm font-medium text-on-accent"
             >
-              Unlock Unlimited for $7/mo
+              Unlock Unlimited for {PRICING.plusMonthly}/mo
             </button>
             <button
               type="button"
@@ -60,7 +61,7 @@ export function OutOfSwipes() {
               }}
               className="press h-12 rounded-control border border-ink-text px-4 text-sm font-medium disabled:opacity-60"
             >
-              {buying ? "Opening checkout" : "Buy 1 Collab for $1.00"}
+              {buying ? "Opening checkout" : `Buy 1 Collab for ${PRICING.extraCollab}`}
             </button>
             {error ? (
               <p className="text-sm text-accent-deep" role="alert">

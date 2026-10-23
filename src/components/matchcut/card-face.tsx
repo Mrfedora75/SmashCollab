@@ -5,6 +5,7 @@ import type { CollabFit } from "@/lib/collab-fit";
 import { fitLabel, formatCount } from "@/lib/format";
 import { StarRow } from "@/components/matchcut/stars";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
+import { PRICING } from "@/lib/pricing";
 
 type CardFaceProps = {
   creator: Creator;
@@ -135,7 +136,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, c
           {locked ? (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-accent-deep">
               <Lock className="size-3.5" aria-hidden="true" />
-              Free accounts can't collab with channels that have 5,000 or more subscribers. Plus or a $1 collab unlocks this one.
+              Free accounts can't collab with channels that have 5,000 or more subscribers. Plus or a {PRICING.extraCollab} collab unlocks this one.
             </p>
           ) : null}
         </div>

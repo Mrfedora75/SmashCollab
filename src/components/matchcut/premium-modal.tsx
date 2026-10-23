@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, X } from "lucide-react";
+import { LaunchPromoField, useLaunchPromo } from "@/components/launch-promo-field";
 import { FREE_DAILY } from "@/data/creators";
 import { cn } from "@/lib/cn";
 import { useDeck } from "@/lib/deck-store";
+import { PLUS_ANNUAL_OFF_PERCENT, PRICING } from "@/lib/pricing";
 import { startStripeCheckout } from "@/lib/stripe-client";
 
 const PERKS = [
@@ -23,6 +25,7 @@ export function PremiumModal() {
   const [plan, setPlan] = useState<"month" | "year">("month");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
+  const { code: promoCode, setCode: setPromoCode, decision: promoDecision } = useLaunchPromo();
 
   useEffect(() => {
     if (!open) {
@@ -91,8 +94,8 @@ export function PremiumModal() {
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Plan">
                 {(
                   [
-                    { id: "month" as const, price: "$7", cadence: "per month" },
-                    { id: "year" as const, price: "$75", cadence: "per year" },
+                    { id: "month" as const, price: PRICING.plusMonthly, cadence: "per month" },
+                    { id: "year" as const, price: PRICING.plusAnnual, cadence: "per year" },
                   ]
                 ).map((option) => {
                   const on = plan === option.id;
@@ -114,7 +117,16 @@ export function PremiumModal() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-sm text-muted-strong">Annual is $75 for the year.</p>
+              <p className="mt-3 text-sm text-muted-strong">
+                Annual is {PRICING.plusAnnual} for the year ({PLUS_ANNUAL_OFF_PERCENT}% off monthly).
+              </p>
+              <LaunchPromoField
+                id="upgrade-promo"
+                variant="light"
+                code={promoCode}
+                onChange={setPromoCode}
+                decision={promoDecision}
+              />
               <ul className="mt-4 space-y-2">
                 {PERKS.map((perk) => (
                   <li key={perk} className="flex items-start gap-2 text-sm">
@@ -126,20 +138,30 @@ export function PremiumModal() {
               <p className="mt-4 text-sm text-muted-strong">
                 Free includes {FREE_DAILY} collabs a day, only with channels under 5,000 subscribers.
               </p>
-              <p className="mt-3 text-sm text-muted-strong">Have a promo code? Enter it on the secure Stripe checkout page.</p>
+              <p className="mt-3 text-sm text-muted-strong">Have a different promo code? Enter it on the secure Stripe checkout page.</p>
               <button
                 type="button"
-                disabled={checkingOut}
+                disabled={checkingOut || (promoDecision != null && !promoDecision.ok)}
                 onClick={() => {
+                  if (promoDecision && !promoDecision.ok) {
+                    setCheckoutError(promoDecision.message);
+                    return;
+                  }
                   setCheckingOut(true);
-                  void startStripeCheckout(plan).then((error) => {
+                  void startStripeCheckout(plan, promoDecision?.ok ? promoCode : undefined).then((error) => {
                     setCheckingOut(false);
                     setCheckoutError(error ?? "");
                   });
                 }}
                 className="press mt-5 h-12 w-full rounded-control bg-accent text-sm font-medium text-on-accent disabled:opacity-60"
               >
-                {checkingOut ? "Opening checkout" : plan === "year" ? "Continue with Annual" : "Continue with Monthly"}
+                {checkingOut
+                  ? "Opening checkout"
+                  : promoDecision?.ok
+                    ? "Start 14-day free trial"
+                    : plan === "year"
+                      ? "Continue with Annual"
+                      : "Continue with Monthly"}
               </button>
               {gate === "flagship" ? (
                 <button
@@ -154,7 +176,7 @@ export function PremiumModal() {
                   }}
                   className="press mt-2 h-12 w-full rounded-control border border-ink-text text-sm font-medium disabled:opacity-60"
                 >
-                  {buyingCollab ? "Opening checkout" : "Buy 1 Collab for $1.00"}
+                  {buyingCollab ? "Opening checkout" : `Buy 1 Collab for ${PRICING.extraCollab}`}
                 </button>
               ) : null}
               {checkoutError ? (

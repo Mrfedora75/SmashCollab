@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
+import { LaunchPromoField, useLaunchPromo } from "@/components/launch-promo-field";
 import { PublicPage } from "@/components/marketing/public-page";
 import { StartButton } from "@/components/marketing/public-header";
-import { PRICING, SUBSCRIBER_LIMIT_LABEL } from "@/lib/pricing";
+import { PLUS_ANNUAL_OFF_PERCENT, PRICING, SUBSCRIBER_LIMIT_LABEL } from "@/lib/pricing";
 import { FreePlanDetails } from "@/components/marketing/free-plan-details";
 
 export const Route = createFileRoute("/pricing")({
@@ -34,6 +35,7 @@ const PLUS = [
 ];
 
 function PricingPage() {
+  const { code, setCode, decision } = useLaunchPromo();
   return (
     <PublicPage>
       <p className="text-xs font-medium tracking-widest text-accent uppercase">Pricing</p>
@@ -65,7 +67,10 @@ function PricingPage() {
             {PRICING.plusMonthly}
             <span className="text-lg font-normal text-muted"> / month</span>
           </p>
-          <p className="mt-1 text-sm text-muted">or {PRICING.plusAnnual} / year</p>
+          <p className="mt-1 text-sm text-muted">
+            or {PRICING.plusAnnual} / year ({PLUS_ANNUAL_OFF_PERCENT}% off monthly)
+          </p>
+          <LaunchPromoField id="pricing-promo" code={code} onChange={setCode} decision={decision} />
           <ul className="mt-6 flex flex-col gap-3">
             {PLUS.map((item) => (
               <li key={item} className="flex gap-2 text-sm">

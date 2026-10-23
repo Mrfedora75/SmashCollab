@@ -114,7 +114,7 @@ describe("POST /api/collab", () => {
       const res = await collab("free", target);
       expect(res.status).toBe(403);
       expect(res.body.code).toBe("over_limit");
-      expect(String(res.body.error)).toContain("upgrade to Plus or use a $1 collab");
+      expect(String(res.body.error)).toContain("upgrade to Plus or use a $0.99 collab");
       expect(store.has(`swipes/free_${target}`)).toBe(false);
     }
   });
@@ -125,7 +125,7 @@ describe("POST /api/collab", () => {
     expect(res.body.code).toBe("target_unverified");
   });
 
-  it("spends one $1 collab credit for an over-5K target", async () => {
+  it("spends one $0.99 collab credit for an over-5K target", async () => {
     store.set("entitlements/UCfree", { channelId: "UCfree", pitchCredits: 1 });
     const res = await collab("free", "big");
     expect(res.status).toBe(200);
