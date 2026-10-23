@@ -47,6 +47,7 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
     duration: "Live",
     thumb: avatar ?? FALLBACK_THUMB,
     openTo: bio || "Open to collabs",
+    // Stored fit is unused. The deck scores each creator against the signed-in profile.
     fit: 0,
     rating: 0,
   };
