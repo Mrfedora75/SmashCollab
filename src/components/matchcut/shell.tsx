@@ -3,7 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { SlidersHorizontal, Settings, Search, X } from "lucide-react";
 import { BRACKETS, FREE_DAILY, type Creator } from "@/data/creators";
 import type { AcceptedCollab, BlockedCreator, ChatMessage, InboundCollab } from "@/data/inbox";
-import { formatCount, todayKey } from "@/lib/format";
+import { subscriberCountLabel, todayKey } from "@/lib/format";
 import type { FitViewer } from "@/lib/collab-fit";
 import { useDeck } from "@/lib/deck-store";
 import { Mark } from "@/components/matchcut/mark";
@@ -41,7 +41,8 @@ import {
   type RemoteMessage,
 } from "@/lib/collab";
 import { SiteFooter } from "@/components/site-footer";
-import { clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
+import { ChannelRetryNotice } from "@/components/matchcut/channel-retry-notice";
+import { canRetryChannelFetch, clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
 import { ReviewModal, type SavedReview } from "@/components/matchcut/review-modal";
@@ -84,6 +85,8 @@ export function MatchcutApp() {
   const [askingPush, setAskingPush] = useState(false);
   const [memoryReady, setMemoryReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [channelRetryReason, setChannelRetryReason] = useState<string | null>(null);
+  const [signInNotice, setSignInNotice] = useState<string | null>(null);
   const { age, choose } = useAgeGate();
   const [terms, setTerms] = useState(false);
   const [profile, setProfile] = useState<DeskProfile | null>(null);
@@ -118,10 +121,21 @@ export function MatchcutApp() {
     const yt = params.get("yt");
     if (yt !== "ok" && yt !== "error") return;
     if (yt === "error") {
-      setToast(ytErrorMessage(params.get("reason")));
+      const reason = params.get("reason");
+      if (canRetryChannelFetch(reason)) {
+        setChannelRetryReason(reason);
+        setSignInNotice(null);
+      } else {
+        setChannelRetryReason(null);
+        const message = ytErrorMessage(reason);
+        setSignInNotice(message);
+        setToast(message);
+      }
       clearYtQueryParams();
       return;
     }
+    setChannelRetryReason(null);
+    setSignInNotice(null);
     clearYtQueryParams();
     void (async () => {
       try {
@@ -140,6 +154,8 @@ export function MatchcutApp() {
           channel: data.channel,
           channelId: data.channelId,
           subscribers: data.subscribers,
+          subscribersKnown: data.subscribersKnown !== false,
+          subscribersHidden: data.subscribersHidden === true,
           avgViews: data.avgViews,
           avatar: data.avatar,
           premium: data.premium === true,
@@ -478,7 +494,15 @@ export function MatchcutApp() {
     maxBracket !== BRACKETS.length - 1 ||
     sort !== "fit";
   const deskReady = age === "adult" && terms && signedIn && profile != null;
-  const deskProfile = profile ?? { channel: "", subscribers: 0, niches: [] as string[] };
+  const deskProfile: DeskProfile = profile ?? {
+    channel: "",
+    subscribers: 0,
+    avgViews: 0,
+    niches: [],
+    displayName: "",
+    bio: "",
+    avatar: null,
+  };
   const signedInWithProfile = signedIn && profile != null;
   const toastView = (
     <div className="toast" aria-live="polite">
@@ -532,7 +556,7 @@ export function MatchcutApp() {
                   {premium ? <PlusBadge size={20} /> : null}
                 </p>
                 <p className="mt-0.5 truncate text-sm text-cream/75">
-                  {formatCount(deskProfile.subscribers)} subscribers
+                  {subscriberCountLabel(deskProfile)}
                   {deskProfile.niches.length > 0 ? ` · ${deskProfile.niches.join(" & ")}` : ""}
                 </p>
               </div>
@@ -676,7 +700,18 @@ export function MatchcutApp() {
               {authError}
             </p>
           ) : null}
-          <DeckStage channel={deskProfile.channel} subscribers={deskProfile.subscribers} viewer={viewer} />
+          {profile && channelRetryReason ? (
+            <div className="px-4 pt-4">
+              <ChannelRetryNotice reason={channelRetryReason} tone="dark" />
+            </div>
+          ) : null}
+          <DeckStage
+            channel={deskProfile.channel}
+            subscribers={deskProfile.subscribers}
+            subscribersKnown={deskProfile.subscribersKnown}
+            subscribersHidden={deskProfile.subscribersHidden}
+            viewer={viewer}
+          />
         </main>
         <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line xl:block">
           <CollabTray idPrefix="desk" />
@@ -829,7 +864,13 @@ export function MatchcutApp() {
     />
     <TermsModal open={age === "adult" && !terms} onAccept={() => setTerms(true)} />
     {age === "adult" && terms && !profile ? (
-      <CreateProfile verifiedChannel={pendingChannel} onComplete={finishSignIn} onDismiss={() => setEntered(false)} />
+      <CreateProfile
+        verifiedChannel={pendingChannel}
+        channelRetryReason={channelRetryReason}
+        signInNotice={signInNotice}
+        onComplete={finishSignIn}
+        onDismiss={() => setEntered(false)}
+      />
     ) : null}
     {toastView}
     </>

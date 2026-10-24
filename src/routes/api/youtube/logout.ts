@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { clearPlusCookie, clearYtAccountCookie } from "@/lib/youtube/plus-entitlement";
 import {
   clearCookie,
+  YT_ACCESS_COOKIE,
   YT_CHANNEL_COOKIE,
   YT_ID_TOKEN_COOKIE,
   YT_STATE_COOKIE,
@@ -19,6 +20,7 @@ function logoutResponse(request: Request): Response {
   headers.append("Set-Cookie", clearCookie(request, YT_STATE_COOKIE));
   headers.append("Set-Cookie", clearCookie(request, YT_CHANNEL_COOKIE));
   headers.append("Set-Cookie", clearCookie(request, YT_ID_TOKEN_COOKIE));
+  headers.append("Set-Cookie", clearCookie(request, YT_ACCESS_COOKIE));
   headers.append("Set-Cookie", clearYtAccountCookie(request));
   headers.append("Set-Cookie", clearPlusCookie(request));
   headers.append("Set-Cookie", "matchcut_ref=; Path=/; Max-Age=0; SameSite=Lax");

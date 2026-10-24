@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw, Send, X, Youtube } from "lucide-react";
 import { FREE_DAILY, isPlusChannel } from "@/data/creators";
 import { collabFit, type FitViewer } from "@/lib/collab-fit";
-import { formatCount } from "@/lib/format";
+import { subscriberCountLabel } from "@/lib/format";
 import { useDeck, visibleCreators, type Direction } from "@/lib/deck-store";
 import { CardFace } from "@/components/matchcut/card-face";
 import { startYouTubeVerify } from "@/lib/firebase-user";
@@ -12,10 +12,14 @@ const THRESHOLD = 110;
 export function DeckStage({
   channel,
   subscribers,
+  subscribersKnown,
+  subscribersHidden,
   viewer,
 }: {
   channel: string;
   subscribers: number;
+  subscribersKnown?: boolean;
+  subscribersHidden?: boolean;
   viewer: FitViewer | null;
 }) {
   const niches = useDeck((state) => state.niches);
@@ -115,7 +119,7 @@ export function DeckStage({
       <p className="mb-3 text-center text-sm text-muted">
         {unseen.length > 0
           ? `${unseen.length} in your deck · sending as ${channel}`
-          : `Sending as ${channel} · ${formatCount(subscribers)}`}
+          : `Sending as ${channel} · ${subscriberCountLabel({ subscribers, subscribersKnown, subscribersHidden })}`}
       </p>
 
       <div className="relative pb-6">

@@ -9,6 +9,10 @@ export type DeskProfile = {
   channel: string;
   channelId?: string;
   subscribers: number;
+  /** False when YouTube did not return a usable subscriber count. */
+  subscribersKnown?: boolean;
+  /** True when the channel hides its subscriber count. */
+  subscribersHidden?: boolean;
   avgViews: number;
   niches: string[];
   bio: string;
@@ -25,6 +29,8 @@ export type VerifiedChannel = {
   channel: string;
   channelId: string;
   subscribers: number;
+  subscribersKnown?: boolean;
+  subscribersHidden?: boolean;
   avgViews: number;
   avatar: string | null;
   premium?: boolean;
@@ -83,6 +89,8 @@ export function loadProfile(): DeskProfile | null {
       channel: parsed.channel,
       channelId: typeof parsed.channelId === "string" ? parsed.channelId : undefined,
       subscribers: parsed.subscribers,
+      subscribersKnown: parsed.subscribersKnown === false ? false : undefined,
+      subscribersHidden: parsed.subscribersHidden === true ? true : undefined,
       avgViews: typeof parsed.avgViews === "number" ? parsed.avgViews : 0,
       niches,
       bio: typeof parsed.bio === "string" ? parsed.bio.slice(0, 150) : "",

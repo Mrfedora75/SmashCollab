@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Camera, Check, X } from "lucide-react";
 import { NICHES, PROFILE_COUNTRIES, US_STATES, normalizeFilterNiche, type ProfileCountry, type UsState } from "@/data/creators";
-import { formatCount } from "@/lib/format";
+import { formatCount, subscriberFigure } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { saveProfile, type DeskProfile } from "@/components/matchcut/onboarding";
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
@@ -394,7 +394,7 @@ export function CreatorDashboard({
             <dl className="mt-4 grid grid-cols-2 gap-3">
               <div>
                 <dt className="text-xs text-muted">Subscribers</dt>
-                <dd className="mt-1 font-display text-3xl leading-none">{formatCount(profile.subscribers)}</dd>
+                <dd className="mt-1 font-display text-3xl leading-none">{subscriberFigure(profile)}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted">Average views</dt>

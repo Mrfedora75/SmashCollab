@@ -32,6 +32,7 @@ import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhoo
 import { Route as ApiYoutubeCallbackRouteImport } from './routes/api/youtube/callback'
 import { Route as ApiYoutubeLogoutRouteImport } from './routes/api/youtube/logout'
 import { Route as ApiYoutubeMeRouteImport } from './routes/api/youtube/me'
+import { Route as ApiYoutubeRetryRouteImport } from './routes/api/youtube/retry'
 import { Route as ApiYoutubeStartRouteImport } from './routes/api/youtube/start'
 
 const IndexRoute = IndexRouteImport.update({
@@ -149,6 +150,11 @@ const ApiYoutubeMeRoute = ApiYoutubeMeRouteImport.update({
   path: '/api/youtube/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiYoutubeRetryRoute = ApiYoutubeRetryRouteImport.update({
+  id: '/api/youtube/retry',
+  path: '/api/youtube/retry',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiYoutubeStartRoute = ApiYoutubeStartRouteImport.update({
   id: '/api/youtube/start',
   path: '/api/youtube/start',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/api/youtube/callback': typeof ApiYoutubeCallbackRoute
   '/api/youtube/logout': typeof ApiYoutubeLogoutRoute
   '/api/youtube/me': typeof ApiYoutubeMeRoute
+  '/api/youtube/retry': typeof ApiYoutubeRetryRoute
   '/api/youtube/start': typeof ApiYoutubeStartRoute
 }
 export interface FileRoutesByTo {
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/api/youtube/callback': typeof ApiYoutubeCallbackRoute
   '/api/youtube/logout': typeof ApiYoutubeLogoutRoute
   '/api/youtube/me': typeof ApiYoutubeMeRoute
+  '/api/youtube/retry': typeof ApiYoutubeRetryRoute
   '/api/youtube/start': typeof ApiYoutubeStartRoute
 }
 export interface FileRoutesById {
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/api/youtube/callback': typeof ApiYoutubeCallbackRoute
   '/api/youtube/logout': typeof ApiYoutubeLogoutRoute
   '/api/youtube/me': typeof ApiYoutubeMeRoute
+  '/api/youtube/retry': typeof ApiYoutubeRetryRoute
   '/api/youtube/start': typeof ApiYoutubeStartRoute
 }
 export interface FileRouteTypes {
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/api/youtube/callback'
     | '/api/youtube/logout'
     | '/api/youtube/me'
+    | '/api/youtube/retry'
     | '/api/youtube/start'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/api/youtube/callback'
     | '/api/youtube/logout'
     | '/api/youtube/me'
+    | '/api/youtube/retry'
     | '/api/youtube/start'
   id:
     | '__root__'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/api/youtube/callback'
     | '/api/youtube/logout'
     | '/api/youtube/me'
+    | '/api/youtube/retry'
     | '/api/youtube/start'
   fileRoutesById: FileRoutesById
 }
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   ApiYoutubeCallbackRoute: typeof ApiYoutubeCallbackRoute
   ApiYoutubeLogoutRoute: typeof ApiYoutubeLogoutRoute
   ApiYoutubeMeRoute: typeof ApiYoutubeMeRoute
+  ApiYoutubeRetryRoute: typeof ApiYoutubeRetryRoute
   ApiYoutubeStartRoute: typeof ApiYoutubeStartRoute
 }
 
@@ -505,6 +518,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiYoutubeMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/youtube/retry': {
+      id: '/api/youtube/retry'
+      path: '/api/youtube/retry'
+      fullPath: '/api/youtube/retry'
+      preLoaderRoute: typeof ApiYoutubeRetryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/youtube/start': {
       id: '/api/youtube/start'
       path: '/api/youtube/start'
@@ -539,6 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiYoutubeCallbackRoute: ApiYoutubeCallbackRoute,
   ApiYoutubeLogoutRoute: ApiYoutubeLogoutRoute,
   ApiYoutubeMeRoute: ApiYoutubeMeRoute,
+  ApiYoutubeRetryRoute: ApiYoutubeRetryRoute,
   ApiYoutubeStartRoute: ApiYoutubeStartRoute,
 }
 export const routeTree = rootRouteImport

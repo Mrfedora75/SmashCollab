@@ -1,5 +1,25 @@
 import type { Creator } from "@/data/creators";
 
+export function subscriberCountLabel(input: {
+  subscribers: number;
+  subscribersKnown?: boolean;
+  subscribersHidden?: boolean;
+}): string {
+  if (input.subscribersHidden && input.subscribersKnown === false) return "Subscribers hidden";
+  if (input.subscribersKnown === false) return "Subscriber count unavailable";
+  return `${formatCount(input.subscribers)} subscribers`;
+}
+
+export function subscriberFigure(input: {
+  subscribers: number;
+  subscribersKnown?: boolean;
+  subscribersHidden?: boolean;
+}): string {
+  if (input.subscribersHidden && input.subscribersKnown === false) return "Hidden";
+  if (input.subscribersKnown === false) return "Unavailable";
+  return formatCount(input.subscribers);
+}
+
 export function formatCount(value: number): string {
   if (value >= 1_000_000) {
     const millions = value / 1_000_000;

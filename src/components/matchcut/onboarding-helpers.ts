@@ -9,12 +9,19 @@ export function ytErrorMessage(reason: string | null): string {
     case "token":
       return "We couldn’t finish Google sign-in. Please try again.";
     case "no_channel":
-      return "This Google account doesn’t have a YouTube channel. Create one, then verify again.";
+      return "We couldn’t find a YouTube channel on this Google account. Try loading it again, or sign in and choose the channel you use. If you don’t have a channel yet, create one on YouTube first.";
     case "api":
-      return "YouTube didn’t return channel stats. Please try again in a moment.";
+      return "We couldn’t load your YouTube channel just now. Your Google sign-in is saved, so you can try again without another Google prompt.";
+    case "retry":
+      return "That channel check expired. Please sign in with Google again.";
     default:
       return "YouTube verification failed. Please try again.";
   }
+}
+
+/** The access token is still saved, so this failure can be retried without Google consent. */
+export function canRetryChannelFetch(reason: string | null): boolean {
+  return reason === "api" || reason === "no_channel";
 }
 
 export function clearYtQueryParams() {

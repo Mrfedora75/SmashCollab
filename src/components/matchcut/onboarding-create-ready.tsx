@@ -2,7 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from "react";
 import { AGE_CONFIRM_LABEL, MIN_AGE } from "@/lib/profile-policy";
 import { Check } from "lucide-react";
 import { NICHES } from "@/data/creators";
-import { formatCount } from "@/lib/format";
+import { subscriberCountLabel } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 
@@ -41,7 +41,7 @@ export function CreateReadyView({
         ) : null}
         <p className="font-display text-3xl leading-tight">{verified.channel}</p>
         <p className="text-sm text-muted-strong">
-          {formatCount(verified.subscribers)} subscribers | read-only
+          {subscriberCountLabel(verified)} | read-only
         </p>
       </div>
       <div className="relative mt-6">

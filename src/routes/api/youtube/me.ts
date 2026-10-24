@@ -51,6 +51,8 @@ export const Route = createFileRoute("/api/youtube/me")({
             displayName: channel.displayName,
             channel: channel.channel,
             subscribers: channel.subscribers,
+            subscribersKnown: channel.subscribersKnown !== false,
+            subscribersHidden: channel.subscribersHidden === true,
             avgViews: channel.avgViews,
             avatar: channel.avatar,
             premium: plus.premium,
