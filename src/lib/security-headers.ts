@@ -1,8 +1,15 @@
 /**
  * Security headers for every response (applied by Nitro routeRules on Vercel, see vite.config.ts).
  * The CSP allows what the app really loads: Google sign-in / Firebase Auth (popup + auth iframe on
- * *.firebaseapp.com), Firestore, YouTube/Google profile photos, Google Fonts, and Stripe.
+ * *.firebaseapp.com), Firestore, YouTube/Google profile photos, Google Fonts, Stripe, and Vercel
+ * Web Analytics.
  * 'unsafe-inline' scripts are needed for the SSR hydration scripts TanStack Start inlines.
+ *
+ * Production Web Analytics loads the first-party script `/_vercel/insights/script.js` and posts
+ * page views to `/_vercel/insights/view` (same origin). `script-src 'self'` and `connect-src 'self'`
+ * already allow those. `@vercel/analytics` only requests `https://va.vercel-scripts.com` for its
+ * development debug script, when NODE_ENV is development or test. Production builds do not request
+ * it, and these headers apply to built deployments, so that host stays off the policy.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
