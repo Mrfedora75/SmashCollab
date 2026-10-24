@@ -2,7 +2,9 @@ import { LegalLinks } from "@/components/site-footer";
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, X, Youtube } from "lucide-react";
+import { ChannelRetryNotice } from "@/components/matchcut/channel-retry-notice";
 import { OauthNotice } from "@/components/matchcut/oauth-notice";
+import { canRetryChannelFetch } from "@/components/matchcut/onboarding-helpers";
 import {
   loadProfile,
   saveProfile,
@@ -21,11 +23,17 @@ export function CreateProfile({
   onComplete,
   onDismiss,
   verifiedChannel = null,
+  channelRetryReason = null,
+  signInNotice = null,
 }: {
   onComplete: (profile: DeskProfile, warning?: string) => void;
   /** Close the prompt (back to the public landing page). Offered before sign-in starts. */
   onDismiss?: () => void;
   verifiedChannel?: VerifiedChannel | null;
+  /** Set when channel lookup failed and the Google sign-in is still saved. */
+  channelRetryReason?: string | null;
+  /** Shown in the dialog when sign-in failed and there is no saved token to retry with. */
+  signInNotice?: string | null;
 }) {
   const [phase, setPhase] = useState<"connect" | "loading" | "ready">("connect");
   const [loadingLabel, setLoadingLabel] = useState("Connecting to YouTube");
@@ -186,6 +194,18 @@ export function CreateProfile({
 
           {phase === "connect" ? (
             <div className="mt-8">
+              {canRetryChannelFetch(channelRetryReason) ? (
+                <div className="mx-auto mb-6 max-w-sm">
+                  <ChannelRetryNotice reason={channelRetryReason} />
+                </div>
+              ) : signInNotice ? (
+                <p
+                  className="mx-auto mb-6 max-w-sm rounded-control border border-cream-deep bg-cream-deep/60 px-3 py-3 text-left text-sm text-ink-text"
+                  role="alert"
+                >
+                  {signInNotice}
+                </p>
+              ) : null}
               {returning ? (
                 <div className="mx-auto max-w-sm">
                   <p className="font-display text-2xl leading-tight">{returning.channel}</p>
@@ -252,7 +272,7 @@ export function CreateProfile({
                 type="button"
                 onClick={startYouTubeVerify}
                 className={
-                  returning
+                  returning || canRetryChannelFetch(channelRetryReason)
                     ? "press mx-auto mt-3 flex h-12 items-center justify-center gap-2 rounded-control border border-cream-deep px-6 text-sm font-medium"
                     : "press mx-auto flex h-12 items-center justify-center gap-2 rounded-control bg-accent px-6 text-sm font-medium text-on-accent"
                 }
@@ -290,6 +310,8 @@ export function CreateProfile({
                   channel: verified.channel,
                   channelId: verified.channelId,
                   subscribers: verified.subscribers,
+                  subscribersKnown: verified.subscribersKnown,
+                  subscribersHidden: verified.subscribersHidden,
                   avgViews: verified.avgViews,
                   niches: picked,
                   bio: sameChannel ? (existing?.bio ?? "") : "",

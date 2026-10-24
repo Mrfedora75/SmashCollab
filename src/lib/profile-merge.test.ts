@@ -47,6 +47,13 @@ describe("profileFromDoc", () => {
     expect(p?.state).toBeNull();
   });
 
+  it("treats an explicit null server count as hidden, not as zero subscribers", () => {
+    const p = profileFromDoc({ channel: "@w", niches: ["A"], subscriberCount: null, subscribers: 1100 });
+    expect(p?.subscribers).toBe(0);
+    expect(p?.subscribersKnown).toBe(false);
+    expect(p?.subscribersHidden).toBe(true);
+  });
+
   it("returns null for unfinished profiles", () => {
     expect(profileFromDoc({ channel: "@w", niches: [] })).toBeNull();
     expect(profileFromDoc(null)).toBeNull();
@@ -100,6 +107,12 @@ describe("reverifiedProfile (re-verify keeps the age confirmation)", () => {
 
   it("does not invent a confirmation", () => {
     expect(reverifiedProfile(base, verified).ageConfirmed).toBe(false);
+  });
+
+  it("keeps a previous count when a re-verify comes back without statistics", () => {
+    const next = reverifiedProfile(base, { ...verified, subscribers: 0, avgViews: 0, subscribersKnown: false });
+    expect(next.subscribers).toBe(1);
+    expect(next.avgViews).toBe(1);
   });
 
   it("keeps the fields from the shell's rebuild and updates stats", () => {

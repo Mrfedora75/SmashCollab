@@ -1,10 +1,16 @@
-import { SignJWT, jwtVerify } from "jose";
+import { EncryptJWT, jwtDecrypt, SignJWT, jwtVerify } from "jose";
 import { env, isDeployed } from "@/lib/env.server";
 import { getGoogleClientSecret, isSecureRequest } from "./config";
 
 export const YT_STATE_COOKIE = "yt_oauth_state";
 export const YT_CHANNEL_COOKIE = "yt_verified_channel";
 export const YT_ID_TOKEN_COOKIE = "yt_google_id";
+/**
+ * Encrypted access token kept only when channel lookup fails, so the creator
+ * can retry that lookup without another Google consent. About 10 minutes.
+ */
+export const YT_ACCESS_COOKIE = "yt_oauth_retry";
+export const YT_ACCESS_MAX_AGE_SEC = 600;
 
 export type VerifiedYouTubeChannel = {
   channelId: string;
@@ -17,6 +23,18 @@ export type VerifiedYouTubeChannel = {
   email: string | null;
   /** True when the channel hides its subscriber count (only set right after the YouTube API read). */
   subscribersHidden?: boolean;
+  /**
+   * False when YouTube did not return a usable subscriber count (hidden, or the
+   * statistics object was missing). Absent on older session cookies, which did
+   * have a count.
+   */
+  subscribersKnown?: boolean;
+  /** False when `channels.list` returned the channel but no statistics object. */
+  statisticsAvailable?: boolean;
+};
+
+export type PendingYouTubeAuth = {
+  accessToken: string;
 };
 
 /**
@@ -103,6 +121,8 @@ export async function signVerifiedChannel(
     avgViews: channel.avgViews,
     avatar: channel.avatar,
     email: channel.email,
+    subscribersKnown: channel.subscribersKnown !== false,
+    subscribersHidden: channel.subscribersHidden === true,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -134,7 +154,38 @@ export async function readVerifiedChannel(
       avgViews: Number.isFinite(avgViews) ? Math.max(0, Math.floor(avgViews)) : 0,
       avatar,
       email: typeof payload.email === "string" && payload.email ? payload.email : null,
+      subscribersKnown: payload.subscribersKnown === false ? false : true,
+      subscribersHidden: payload.subscribersHidden === true,
     };
+  } catch {
+    return null;
+  }
+}
+
+async function pendingAuthKey(): Promise<Uint8Array> {
+  const digest = await crypto.subtle.digest("SHA-256", getYoutubeSigningKey() as BufferSource);
+  return new Uint8Array(digest);
+}
+
+/** Encrypt the YouTube access token. The cookie value must not be the raw token. */
+export async function sealPendingYouTubeAuth(pending: PendingYouTubeAuth): Promise<string> {
+  return new EncryptJWT({ accessToken: pending.accessToken })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuedAt()
+    .setExpirationTime(`${YT_ACCESS_MAX_AGE_SEC}s`)
+    .encrypt(await pendingAuthKey());
+}
+
+export async function openPendingYouTubeAuth(token: string | undefined): Promise<PendingYouTubeAuth | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtDecrypt(token, await pendingAuthKey(), {
+      contentEncryptionAlgorithms: ["A256GCM"],
+      keyManagementAlgorithms: ["dir"],
+    });
+    const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
+    if (!accessToken) return null;
+    return { accessToken };
   } catch {
     return null;
   }

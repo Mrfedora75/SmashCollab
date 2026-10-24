@@ -31,9 +31,13 @@ export function profileFromDoc(data: Record<string, unknown> | null | undefined)
     subscribers:
       typeof data.subscriberCount === "number"
         ? data.subscriberCount
-        : typeof data.subscribers === "number"
-          ? data.subscribers
-          : 0,
+        : data.subscriberCount === null
+          ? 0
+          : typeof data.subscribers === "number"
+            ? data.subscribers
+            : 0,
+    subscribersKnown: data.subscriberCount === null ? false : undefined,
+    subscribersHidden: data.subscriberCount === null ? true : undefined,
     avgViews: typeof data.avgViews === "number" ? data.avgViews : 0,
     niches,
     bio: str(data.bio).slice(0, 150),
@@ -108,14 +112,27 @@ export function reverifiedAvatar(
  */
 export function reverifiedProfile(
   existing: DeskProfile,
-  verified: { displayName: string; channel: string; channelId: string; subscribers: number; avgViews: number; avatar: string | null },
+  verified: {
+    displayName: string;
+    channel: string;
+    channelId: string;
+    subscribers: number;
+    subscribersKnown?: boolean;
+    subscribersHidden?: boolean;
+    avgViews: number;
+    avatar: string | null;
+  },
 ): DeskProfile {
+  // Statistics were missing entirely: keep the counts we already had.
+  const statsMissing = verified.subscribersKnown === false && verified.subscribersHidden !== true;
   return {
     displayName: reverifiedDisplayName(existing, verified),
     channel: verified.channel,
     channelId: verified.channelId,
-    subscribers: verified.subscribers,
-    avgViews: verified.avgViews,
+    subscribers: statsMissing ? existing.subscribers : verified.subscribers,
+    subscribersKnown: statsMissing ? existing.subscribersKnown : verified.subscribersKnown,
+    subscribersHidden: verified.subscribersHidden === true ? true : statsMissing ? existing.subscribersHidden : false,
+    avgViews: statsMissing && verified.avgViews === 0 ? existing.avgViews : verified.avgViews,
     niches: existing.niches,
     bio: existing.bio,
     avatar: reverifiedAvatar(existing, verified),

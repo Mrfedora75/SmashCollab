@@ -49,6 +49,38 @@ export async function readChannelRecord(channelId: string, get = getDocument): P
   };
 }
 
+/**
+ * Fields written for a channel YouTube just returned.
+ * A hidden count is stored as null (fail closed for free collabs).
+ * When statistics were not returned, the count and average are left untouched
+ * so a later retry does not wipe a count we already verified.
+ */
+export function verifiedChannelFields(channel: {
+  channelId: string;
+  channel: string;
+  email: string | null;
+  subscribers: number;
+  subscribersHidden?: boolean;
+  subscribersKnown?: boolean;
+  statisticsAvailable?: boolean;
+  avgViews: number;
+  now?: number;
+}): Record<string, Plain> {
+  const fields: Record<string, Plain> = {
+    channelId: channel.channelId,
+    channel: channel.channel,
+    email: channel.email,
+    verifiedAt: channel.now ?? Date.now(),
+  };
+  if (channel.statisticsAvailable === false) return fields;
+  fields.avgViews = Math.max(0, Math.floor(channel.avgViews));
+  fields.subscriberCount =
+    channel.subscribersHidden || channel.subscribersKnown === false
+      ? null
+      : Math.max(0, Math.floor(channel.subscribers));
+  return fields;
+}
+
 /** Called from the YouTube OAuth callback with numbers read from the YouTube Data API. */
 export async function recordVerifiedChannel(channel: {
   channelId: string;
@@ -56,19 +88,14 @@ export async function recordVerifiedChannel(channel: {
   email: string | null;
   subscribers: number;
   subscribersHidden?: boolean;
+  subscribersKnown?: boolean;
+  statisticsAvailable?: boolean;
   avgViews: number;
 }): Promise<void> {
   await commit([
     {
       path: channelPath(channel.channelId),
-      fields: {
-        channelId: channel.channelId,
-        channel: channel.channel,
-        email: channel.email,
-        subscriberCount: channel.subscribersHidden ? null : Math.max(0, Math.floor(channel.subscribers)),
-        avgViews: Math.max(0, Math.floor(channel.avgViews)),
-        verifiedAt: Date.now(),
-      },
+      fields: verifiedChannelFields(channel),
     },
   ]);
 }
@@ -136,7 +163,7 @@ export async function bindProfileToChannel(identity: FirebaseIdentity, account: 
     ...publicPlusFields(status),
   };
   if (record) {
-    // null = the channel hides its count; free collabs to it are then refused (fail closed).
+    // null = the count is hidden or was not returned; free collabs to it are then refused (fail closed).
     fields.subscriberCount = subscriberCount;
     fields.subsVerifiedAt = Date.now();
     // Legacy display field, overwritten so an old browser-written value can't linger.

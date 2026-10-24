@@ -1,45 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getAppHomeUrl } from "@/lib/youtube/config";
-import {
-  errorHomeRedirect,
-  exchangeCodeForTokens,
-  fetchVerifiedChannel,
-  type YouTubeOAuthErrorReason,
-} from "@/lib/youtube/oauth";
-import {
-  buildYtAccountCookie,
-  signYtAccount,
-} from "@/lib/youtube/plus-entitlement";
-import { isStorageConfigured } from "@/lib/server/firestore.server";
-import { recordVerifiedChannel } from "@/lib/server/public-profile.server";
-import {
-  buildCookie,
-  clearCookie,
-  parseCookieHeader,
-  signVerifiedChannel,
-  YT_CHANNEL_COOKIE,
-  YT_ID_TOKEN_COOKIE,
-  YT_STATE_COOKIE,
-} from "@/lib/youtube/session";
-
-function redirectOk(home: string, setCookies: string[]): Response {
-  const url = new URL(home);
-  url.searchParams.set("yt", "ok");
-  const headers = new Headers({ Location: url.toString() });
-  for (const cookie of setCookies) headers.append("Set-Cookie", cookie);
-  return new Response(null, { status: 302, headers });
-}
-
-function redirectError(
-  request: Request,
-  home: string,
-  reason: YouTubeOAuthErrorReason,
-): Response {
-  const response = errorHomeRedirect(home, reason);
-  const headers = new Headers(response.headers);
-  headers.append("Set-Cookie", clearCookie(request, YT_STATE_COOKIE));
-  return new Response(null, { status: 302, headers });
-}
+import { exchangeCodeForTokens } from "@/lib/youtube/oauth";
+import { completeYouTubeGrant, redirectOAuthError } from "@/lib/youtube/oauth-result";
+import { parseCookieHeader, YT_STATE_COOKIE } from "@/lib/youtube/session";
 
 function sameState(a: string, b: string): boolean {
   if (a.length !== b.length || a.length < 32) return false;
@@ -55,7 +18,7 @@ export const Route = createFileRoute("/api/youtube/callback")({
         const home = getAppHomeUrl(request);
         const url = new URL(request.url);
         if (url.searchParams.get("error")) {
-          return redirectError(request, home, "denied");
+          return redirectOAuthError(request, home, "denied");
         }
 
         const code = url.searchParams.get("code");
@@ -65,40 +28,15 @@ export const Route = createFileRoute("/api/youtube/callback")({
 
         // CSRF protection: the state must match the one we stored in an HttpOnly cookie.
         if (!code || !state || !expectedState || !sameState(state, expectedState)) {
-          return redirectError(request, home, "state");
+          return redirectOAuthError(request, home, "state");
         }
 
         const tokenResult = await exchangeCodeForTokens(request, code);
         if ("reason" in tokenResult) {
-          return redirectError(request, home, tokenResult.reason);
+          return redirectOAuthError(request, home, tokenResult.reason);
         }
 
-        const channelResult = await fetchVerifiedChannel(tokenResult.accessToken);
-        if ("reason" in channelResult) {
-          return redirectError(request, home, channelResult.reason);
-        }
-
-        // Subscriber count straight from the YouTube Data API, stored server-side only.
-        // The profile picks it up via /api/profile/sync once the creator is signed in to Firebase.
-        if (isStorageConfigured()) {
-          try {
-            await recordVerifiedChannel(channelResult);
-          } catch {
-            // Non-fatal: sign-in still works; collabs to this channel stay limited until it re-verifies.
-          }
-        }
-
-        const signedChannel = await signVerifiedChannel(channelResult);
-        const signedAccount = await signYtAccount(channelResult.channelId, channelResult.channel, channelResult.email);
-        const setCookies = [
-          clearCookie(request, YT_STATE_COOKIE),
-          buildCookie(request, YT_CHANNEL_COOKIE, signedChannel, 600),
-          buildYtAccountCookie(request, signedAccount),
-        ];
-        if (tokenResult.idToken) {
-          setCookies.push(buildCookie(request, YT_ID_TOKEN_COOKIE, tokenResult.idToken, 600));
-        }
-        return redirectOk(home, setCookies);
+        return completeYouTubeGrant(request, home, tokenResult);
       },
     },
   },

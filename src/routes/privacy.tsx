@@ -47,7 +47,10 @@ function PrivacyPage() {
         We request the <code>youtube.readonly</code> scope only. We use it once, when you verify, to confirm you own the channel
         and to fill in your public creator card (channel name, picture, and size) so other creators can decide whether to send a collab to
         you. We never upload, edit, delete, comment, or post anything on YouTube, and we do not access your private videos,
-        analytics, or messages. We do not store your Google/YouTube access token after verification.
+        analytics, or messages. If YouTube does not answer on the first try, we keep the access token in a short-lived
+        encrypted cookie (about 10 minutes) so you can load the channel again without another Google prompt. That cookie
+        is deleted when verification finishes, when you sign out, or when it expires. We do not keep a refresh token, and
+        we do not store the access token after verification.
       </p>
       <p>
         Smash Collab uses YouTube API Services. By using Smash Collab you also agree to the{" "}
