@@ -1,6 +1,8 @@
-import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
+import { Analytics } from "@vercel/analytics/react";
+import { createRootRoute, HeadContent, Link, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { SESSION_HINT_SCRIPT } from "@/lib/landing";
+import { redactAnalyticsEvent } from "@/lib/web-analytics";
 
 const APP_NAME = "Smash Collab";
 const SITE_URL = "https://smashcollab.com";
@@ -53,11 +55,18 @@ export const Route = createRootRoute({
       </head>
       <body>
         <Outlet />
+        <RouteAnalytics />
         <Scripts />
       </body>
     </html>
   ),
 });
+
+function RouteAnalytics() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  // Both props are required. Setting `route` alone turns off the script's history listener and then sends no page views.
+  return <Analytics beforeSend={redactAnalyticsEvent} path={pathname} route={pathname} />;
+}
 
 function NotFound() {
   return (

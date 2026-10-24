@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { H2, LegalPage } from "@/components/legal-page";
 import { CONTACT_EMAIL } from "@/components/site-footer";
+import { ANALYTICS_PRIVACY_SENTENCE } from "@/lib/web-analytics";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/privacy")({
 
 function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="September 25, 2026">
+    <LegalPage title="Privacy Policy" updated="October 24, 2026">
       <p>
         Smash Collab (“we”, “us”) helps YouTube creators find collaboration partners. This policy explains what we collect, why,
         and how you can have it deleted. Questions: <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
@@ -97,6 +98,7 @@ function PrivacyPage() {
         We use essential, secure cookies to keep you signed in and to remember your Plus status, and your browser’s local storage
         to remember settings like filters. Logging out clears them. We do not use advertising cookies.
       </p>
+      <p>{ANALYTICS_PRIVACY_SENTENCE}</p>
 
       <H2>Age</H2>
       <p>Smash Collab is only for people 18 or older.</p>
