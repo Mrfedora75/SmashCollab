@@ -12,6 +12,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // Permanent Search Console ownership proof for Google OAuth app verification.
+      { name: "google-site-verification", content: "0hR4_OeCnfoAXtLX5FQvhUmxxaLlhAOBQSJawT1JLQM" },
       { title: `${APP_NAME} · Find YouTube collab partners` },
       { name: "description", content: DESCRIPTION },
       { name: "theme-color", content: "#141210" },
