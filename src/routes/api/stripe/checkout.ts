@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getAppHomeUrl } from "@/lib/youtube/config";
 import { isStorageConfigured } from "@/lib/server/firestore.server";
-import { accountHadPlus, applyPromoToCheckoutParams } from "@/lib/launch-promo";
+import { accountHadPlus, applyPromoToCheckoutParams, COLLECT_STRIPE_PROMOTION_CODES } from "@/lib/launch-promo";
 import { liveModeBlocked, readEntitlement, resolvePriceId, stripeRequest, stripeSecret, type Plan } from "@/lib/stripe-billing.server";
 import { requestAccount } from "@/lib/youtube/plus-entitlement";
 
@@ -56,7 +56,9 @@ export const Route = createFileRoute("/api/stripe/checkout")({
           params.set("success_url", `${home}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`);
           params.set("cancel_url", `${home}/?checkout=cancel`);
           params.set("client_reference_id", channelId);
-          params.set("allow_promotion_codes", "true");
+          // The in-app promo field is the only place to enter a code. Stripe's box
+          // would be a second field, and this launch trial is not a Stripe promotion code.
+          if (COLLECT_STRIPE_PROMOTION_CODES) params.set("allow_promotion_codes", "true");
           params.set("metadata[channelId]", channelId);
           params.set("metadata[kind]", plan === "collab" ? "collab" : "plus");
           params.set("metadata[plan]", plan);

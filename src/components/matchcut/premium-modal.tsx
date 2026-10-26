@@ -138,7 +138,6 @@ export function PremiumModal() {
               <p className="mt-4 text-sm text-muted-strong">
                 Free includes {FREE_DAILY} collabs a day, only with channels under 5,000 subscribers.
               </p>
-              <p className="mt-3 text-sm text-muted-strong">Have a different promo code? Enter it on the secure Stripe checkout page.</p>
               <button
                 type="button"
                 disabled={checkingOut || (promoDecision != null && !promoDecision.ok)}

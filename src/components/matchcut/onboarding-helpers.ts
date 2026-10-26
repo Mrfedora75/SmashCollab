@@ -1,3 +1,5 @@
+export const NO_CHANNEL_TITLE = "You need a YouTube channel to use Smash Collab";
+
 export function ytErrorMessage(reason: string | null): string {
   switch (reason) {
     case "config":
@@ -9,7 +11,7 @@ export function ytErrorMessage(reason: string | null): string {
     case "token":
       return "We couldn’t finish Google sign-in. Please try again.";
     case "no_channel":
-      return "We couldn’t find a YouTube channel on this Google account. Try loading it again, or sign in and choose the channel you use. If you don’t have a channel yet, create one on YouTube first.";
+      return "The Google account you signed in with doesn't have a YouTube channel. Create one on YouTube, or try a different Google account.";
     case "api":
       return "We couldn’t load your YouTube channel just now. Your Google sign-in is saved, so you can try again without another Google prompt.";
     case "retry":
@@ -21,7 +23,8 @@ export function ytErrorMessage(reason: string | null): string {
 
 /** The access token is still saved, so this failure can be retried without Google consent. */
 export function canRetryChannelFetch(reason: string | null): boolean {
-  return reason === "api" || reason === "no_channel";
+  // no_channel will not succeed by calling YouTube again with the same Google account.
+  return reason === "api";
 }
 
 export function clearYtQueryParams() {

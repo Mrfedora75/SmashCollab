@@ -1,6 +1,8 @@
 /**
  * One-time launch promo. Display and eligibility live here; Checkout applies a
- * Stripe trial only after the server accepts the code.
+ * Stripe trial only after the server accepts the code. The in-app field is the
+ * only place to enter a code — Checkout does not show Stripe's own promo box,
+ * because this trial is not a Stripe promotion code.
  *
  * Code THECONSULTANT, case-insensitive, spaces ignored.
  * Valid until 2026-10-26T18:40:00-04:00. Plus monthly or annual only.
@@ -17,9 +19,26 @@ export const LAUNCH_PROMO_STORAGE_KEY = "smashcollab-launch-promo";
 
 export const LAUNCH_PROMO_COPY = `14 days free, then ${PRICING.plusMonthly}/month (or ${PRICING.plusAnnual}/year). Cancel anytime before the trial ends and you won't be charged.`;
 
+/** Hint inside the empty promo box. Must never be a real code. */
+export const PROMO_CODE_PLACEHOLDER = "Enter promo code";
+
 export const PROMO_INVALID_MESSAGE = "That promo code isn't valid.";
 export const PROMO_EXPIRED_MESSAGE = "That promo code has expired.";
 export const PROMO_USED_MESSAGE = "That promo code is only for creators who haven't had Plus before.";
+export const PROMO_DUE_TODAY =
+  "Due today: $0. A card is saved for after the trial. The Stripe page shows this free trial.";
+
+/**
+ * Stripe Checkout's "Add promotion code" box stays off. This launch trial is
+ * applied on the session itself, and a second box would not recognize the code.
+ */
+export const COLLECT_STRIPE_PROMOTION_CODES = false;
+
+/** Text Stripe shows under the payment form when the trial is on the session. */
+export function trialCheckoutMessage(plan: "month" | "year"): string {
+  const price = plan === "year" ? `${PRICING.plusAnnual}/year` : `${PRICING.plusMonthly}/month`;
+  return `${LAUNCH_PROMO_CODE} applied: ${LAUNCH_TRIAL_DAYS} days free, then ${price}. Due today: $0. Cancel before the trial ends and you won't be charged.`;
+}
 
 export type PromoDecision =
   | { ok: true }
@@ -71,9 +90,13 @@ export function applyPromoToCheckoutParams(
   if (!input.promo.trim() || input.plan === "collab") return { error: null };
   const decision = evaluateLaunchPromo({ code: input.promo, now: input.now, hadPlus: input.hadPlus });
   if (!decision.ok) return { error: decision.message };
+  params.delete("allow_promotion_codes");
   params.set("subscription_data[trial_period_days]", String(LAUNCH_TRIAL_DAYS));
   // A trial is due $0 today. Always collect a card so the subscription can renew.
   params.set("payment_method_collection", "always");
+  params.set("metadata[promo]", LAUNCH_PROMO_CODE);
+  params.set("subscription_data[metadata][promo]", LAUNCH_PROMO_CODE);
+  params.set("custom_text[submit][message]", trialCheckoutMessage(input.plan));
   return { error: null };
 }
 
