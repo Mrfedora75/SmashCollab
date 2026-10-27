@@ -70,7 +70,13 @@ function PricingPage() {
           <p className="mt-1 text-sm text-muted">
             or {PRICING.plusAnnual} / year ({PLUS_ANNUAL_OFF_PERCENT}% off monthly)
           </p>
-          <LaunchPromoField id="pricing-promo" code={code} onChange={setCode} decision={decision} />
+          <LaunchPromoField
+            id="pricing-promo"
+            code={code}
+            onChange={setCode}
+            decision={decision}
+            appliedNote="Saved for checkout. Sign in, then tap Upgrade."
+          />
           <ul className="mt-6 flex flex-col gap-3">
             {PLUS.map((item) => (
               <li key={item} className="flex gap-2 text-sm">

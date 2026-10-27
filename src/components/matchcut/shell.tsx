@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import * as Dialog from "@radix-ui/react-dialog";
 import { SlidersHorizontal, Settings, Search, X } from "lucide-react";
 import { BRACKETS, FREE_DAILY, type Creator } from "@/data/creators";
@@ -42,6 +43,7 @@ import {
 } from "@/lib/collab";
 import { SiteFooter } from "@/components/site-footer";
 import { ChannelRetryNotice } from "@/components/matchcut/channel-retry-notice";
+import { NoYouTubeChannelNotice } from "@/components/matchcut/no-channel-notice";
 import { canRetryChannelFetch, clearYtQueryParams, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import type { VerifiedChannel } from "@/components/matchcut/onboarding-storage";
 import { Inbox, ChatThread } from "@/components/matchcut/inbox";
@@ -50,7 +52,7 @@ import { PreferencesModal } from "@/components/matchcut/preferences";
 import { CreatorDashboard } from "@/components/matchcut/dashboard";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
 import { Landing } from "@/components/marketing/landing";
-import { showLanding, wantsAppFromSearch } from "@/lib/landing";
+import { isNoChannelSearch, showLanding, wantsAppFromSearch } from "@/lib/landing";
 
 export function MatchcutApp() {
   const hydrate = useDeck((state) => state.hydrate);
@@ -88,6 +90,8 @@ export function MatchcutApp() {
   const [channelRetryReason, setChannelRetryReason] = useState<string | null>(null);
   const [signInNotice, setSignInNotice] = useState<string | null>(null);
   const { age, choose } = useAgeGate();
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const noChannel = isNoChannelSearch(searchStr);
   const [terms, setTerms] = useState(false);
   const [profile, setProfile] = useState<DeskProfile | null>(null);
   const [pendingChannel, setPendingChannel] = useState<VerifiedChannel | null>(null);
@@ -120,6 +124,12 @@ export function MatchcutApp() {
     const params = new URLSearchParams(window.location.search);
     const yt = params.get("yt");
     if (yt !== "ok" && yt !== "error") return;
+    if (yt === "error" && params.get("reason") === "no_channel") {
+      // The full-page notice reads this query. Leave it in place, and don't enter the app.
+      setChannelRetryReason(null);
+      setSignInNotice(null);
+      return;
+    }
     if (yt === "error") {
       const reason = params.get("reason");
       if (canRetryChannelFetch(reason)) {
@@ -510,11 +520,14 @@ export function MatchcutApp() {
     </div>
   );
 
-  if (showLanding({ signedIn, hasProfile: profile != null, entered })) {
+  const noChannelNotice = noChannel ? <NoYouTubeChannelNotice /> : null;
+
+  if (showLanding({ signedIn, hasProfile: profile != null, entered, noChannel })) {
     return (
       <>
         <Landing onStart={() => setEntered(true)} />
         {toastView}
+        {noChannelNotice}
       </>
     );
   }
@@ -873,6 +886,7 @@ export function MatchcutApp() {
       />
     ) : null}
     {toastView}
+    {noChannelNotice}
     </>
   );
 }

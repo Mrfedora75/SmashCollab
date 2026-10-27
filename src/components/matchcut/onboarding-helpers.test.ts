@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canRetryChannelFetch, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
+import { NO_CHANNEL_TITLE, canRetryChannelFetch, ytErrorMessage } from "@/components/matchcut/onboarding-helpers";
 import { subscriberCountLabel, subscriberFigure } from "@/lib/format";
 
 describe("ytErrorMessage", () => {
@@ -8,7 +8,14 @@ describe("ytErrorMessage", () => {
     expect(message.toLowerCase()).toContain("google sign-in is saved");
     expect(message.toLowerCase()).not.toContain("try again in a moment");
     expect(canRetryChannelFetch("api")).toBe(true);
-    expect(canRetryChannelFetch("no_channel")).toBe(true);
+    expect(canRetryChannelFetch("no_channel")).toBe(false);
+  });
+
+  it("tells a Google account with no channel how to continue", () => {
+    expect(NO_CHANNEL_TITLE).toBe("You need a YouTube channel to use Smash Collab");
+    const message = ytErrorMessage("no_channel");
+    expect(message.toLowerCase()).toContain("youtube channel");
+    expect(message.toLowerCase()).toContain("different google account");
   });
 
   it("does not offer a token retry when there is no token to reuse", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SESSION_HINT_SCRIPT, showLanding, wantsAppFromSearch } from "@/lib/landing";
+import { HIDE_LANDING_SEARCH, SESSION_HINT_SCRIPT, isNoChannelSearch, showLanding, wantsAppFromSearch } from "@/lib/landing";
 import { SESSION_KEY } from "@/components/matchcut/onboarding-storage";
 
 describe("showLanding", () => {
@@ -15,6 +15,11 @@ describe("showLanding", () => {
   it("hides it once a visitor taps Get started / Sign in", () => {
     expect(showLanding({ signedIn: false, hasProfile: false, entered: true })).toBe(false);
   });
+
+  it("stays on the landing page when Google has no YouTube channel", () => {
+    expect(showLanding({ signedIn: false, hasProfile: false, entered: true, noChannel: true })).toBe(true);
+    expect(showLanding({ signedIn: true, hasProfile: true, entered: true, noChannel: true })).toBe(true);
+  });
 });
 
 describe("wantsAppFromSearch", () => {
@@ -23,6 +28,12 @@ describe("wantsAppFromSearch", () => {
     expect(wantsAppFromSearch("?yt=error&reason=denied")).toBe(true);
     expect(wantsAppFromSearch("?checkout=success&session_id=cs_test")).toBe(true);
     expect(wantsAppFromSearch("?start=1")).toBe(true);
+  });
+
+  it("does not enter the locked app when the Google account has no channel", () => {
+    expect(isNoChannelSearch("?yt=error&reason=no_channel")).toBe(true);
+    expect(wantsAppFromSearch("?yt=error&reason=no_channel")).toBe(false);
+    expect(wantsAppFromSearch("?yt=error&reason=api")).toBe(true);
   });
 
   it("keeps plain visits and invite links on the landing page", () => {
@@ -39,5 +50,14 @@ describe("SESSION_HINT_SCRIPT", () => {
 
   it("is valid JavaScript", () => {
     expect(() => new Function(SESSION_HINT_SCRIPT)).not.toThrow();
+  });
+
+  it("does not hide the page for a YouTube error redirect", () => {
+    expect(HIDE_LANDING_SEARCH.test("?yt=error&reason=no_channel")).toBe(false);
+    expect(HIDE_LANDING_SEARCH.test("?yt=error&reason=denied")).toBe(false);
+    expect(HIDE_LANDING_SEARCH.test("?yt=ok")).toBe(true);
+    expect(HIDE_LANDING_SEARCH.test("?checkout=success&session_id=cs_test")).toBe(true);
+    expect(HIDE_LANDING_SEARCH.test("?start=1")).toBe(true);
+    expect(SESSION_HINT_SCRIPT).toContain(HIDE_LANDING_SEARCH.toString());
   });
 });

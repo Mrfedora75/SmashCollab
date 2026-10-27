@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  COLLECT_STRIPE_PROMOTION_CODES,
   LAUNCH_PROMO_CODE,
   LAUNCH_PROMO_COPY,
   LAUNCH_PROMO_EXPIRES_AT,
   LAUNCH_TRIAL_DAYS,
+  PROMO_CODE_PLACEHOLDER,
   PROMO_EXPIRED_MESSAGE,
   PROMO_INVALID_MESSAGE,
   PROMO_USED_MESSAGE,
@@ -13,6 +15,7 @@ import {
   isLaunchPromoCode,
   normalizePromoCode,
   promoFromSearch,
+  trialCheckoutMessage,
 } from "@/lib/launch-promo";
 import { PLUS_ANNUAL_OFF_PERCENT, PRICING } from "@/lib/pricing";
 
@@ -81,6 +84,12 @@ describe("launch promo code", () => {
       "14 days free, then $7.00/month (or $75.60/year). Cancel anytime before the trial ends and you won't be charged.",
     );
   });
+
+  it("uses a generic placeholder that is not a real code", () => {
+    expect(PROMO_CODE_PLACEHOLDER).toBe("Enter promo code");
+    expect(isLaunchPromoCode(PROMO_CODE_PLACEHOLDER)).toBe(false);
+    expect(PROMO_CODE_PLACEHOLDER.toUpperCase()).not.toContain(LAUNCH_PROMO_CODE);
+  });
 });
 
 describe("checkout trial params", () => {
@@ -96,7 +105,19 @@ describe("checkout trial params", () => {
       expect(result).toEqual({ error: null });
       expect(params.get("subscription_data[trial_period_days]")).toBe(String(LAUNCH_TRIAL_DAYS));
       expect(params.get("payment_method_collection")).toBe("always");
+      expect(params.get("metadata[promo]")).toBe(LAUNCH_PROMO_CODE);
+      expect(params.get("subscription_data[metadata][promo]")).toBe(LAUNCH_PROMO_CODE);
+      expect(params.get("custom_text[submit][message]")).toBe(trialCheckoutMessage(plan));
+      expect(params.has("allow_promotion_codes")).toBe(false);
+      expect(params.get("custom_text[submit][message]")).toContain("Due today: $0");
     }
+  });
+
+  it("does not ask Stripe Checkout for its own promotion-code field", () => {
+    expect(COLLECT_STRIPE_PROMOTION_CODES).toBe(false);
+    const params = new URLSearchParams({ allow_promotion_codes: "true" });
+    applyPromoToCheckoutParams(params, { plan: "month", promo: "theconsultant", hadPlus: false, now: BEFORE });
+    expect(params.has("allow_promotion_codes")).toBe(false);
   });
 
   it("does not start a trial for a collab, a blank code, an expired code, a used account, or LIVE14", () => {
