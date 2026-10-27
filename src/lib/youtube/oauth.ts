@@ -68,7 +68,7 @@ export function buildGoogleAuthUrl(request: Request, state: string): string | nu
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", YOUTUBE_SCOPES);
-  url.searchParams.set("access_type", "offline");
+  // Online access only. Sign-in uses a short-lived access token and never stores a refresh token.
   // select_account: always let the creator pick which Google account / channel to verify.
   url.searchParams.set("prompt", "consent select_account");
   url.searchParams.set("include_granted_scopes", "true");

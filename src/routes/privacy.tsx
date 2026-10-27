@@ -15,7 +15,7 @@ export const Route = createFileRoute("/privacy")({
 
 function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="October 24, 2026">
+    <LegalPage title="Privacy Policy" updated="October 27, 2026">
       <p>
         Smash Collab (“we”, “us”) helps YouTube creators find collaboration partners. This policy explains what we collect, why,
         and how you can have it deleted. Questions: <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
@@ -80,7 +80,20 @@ function PrivacyPage() {
         Signed-in creators can see your public creator card (channel name, picture, subscriber count, average views, niches,
         bio, and location if you add it). Collab notes are visible to the creator you send them to. Messages are visible only to you and
         the creator you matched with. We share data with service providers that run the app for us — Google Firebase (sign-in
-        and database), Vercel (hosting), and Stripe (payments) — only as needed to provide the service.
+        and database), Vercel (hosting), and Stripe (payments) — only as needed to provide the service. We do not sell, rent, or
+        transfer Google user data (raw, derived, aggregated, or anonymized) to advertisers, data brokers, or any other third party,
+        and we do not send it to any AI or machine-learning service or use it to train AI/ML models. We do not create aggregated or
+        anonymized datasets from Google user data.
+      </p>
+
+      <H2>How we protect your data</H2>
+      <p>
+        The hosted Smash Collab site is served over HTTPS, so traffic between your browser and the app is encrypted in transit
+        with TLS. Your profile and YouTube channel data are stored in Google Cloud Firestore, which encrypts data at rest.
+        Firestore security rules let each signed-in creator read and change only their own profile. The verified YouTube channel
+        record is closed to the browser; only our server writes it. The temporary YouTube access token is kept only inside an
+        encrypted, HttpOnly cookie for about 10 minutes. On HTTPS that cookie is also marked Secure. The token is never written
+        to our database or logs. We do not store Google refresh tokens.
       </p>
 
       <H2>Keeping and deleting your data</H2>
@@ -93,7 +106,9 @@ function PrivacyPage() {
         <a className="underline" href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">
           myaccount.google.com/permissions
         </a>
-        .
+        . If you revoke access, we keep only the channel details already shown on your creator card until you ask us to delete
+        your account. We cannot read anything new from your YouTube account. Deleting your account removes your YouTube channel
+        data from our database.
       </p>
 
       <H2>Cookies and local storage</H2>

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { YOUTUBE_SCOPES } from "@/lib/youtube/config";
 import {
+  buildGoogleAuthUrl,
   fetchVerifiedChannel,
   isRetryableYouTubeFailure,
   YOUTUBE_CHANNEL_RETRY_DELAYS_MS,
@@ -198,6 +200,32 @@ describe("fetchVerifiedChannel", () => {
     const channel = await fetchVerifiedChannel(TOKEN, deps);
     if ("reason" in channel) throw new Error(channel.reason);
     expect(channel.subscribers).toBe(1100);
+  });
+});
+
+describe("buildGoogleAuthUrl", () => {
+  const saved = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  it("requests an authorization code without a refresh token", () => {
+    process.env.GOOGLE_CLIENT_ID = "test-client";
+    const request = new Request("https://smashcollab.com/api/youtube/start");
+    const built = buildGoogleAuthUrl(request, "state-token");
+    expect(built).toBeTruthy();
+    const url = new URL(built!);
+    expect(`${url.origin}${url.pathname}`).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("client_id")).toBe("test-client");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://smashcollab.com/api/youtube/callback");
+    expect(url.searchParams.get("scope")).toBe(YOUTUBE_SCOPES);
+    expect(url.searchParams.get("prompt")).toBe("consent select_account");
+    expect(url.searchParams.get("include_granted_scopes")).toBe("true");
+    expect(url.searchParams.get("state")).toBe("state-token");
+    expect(url.searchParams.get("access_type")).toBeNull();
+    expect(url.searchParams.has("refresh_token")).toBe(false);
   });
 });
 
