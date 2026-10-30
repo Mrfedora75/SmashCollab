@@ -57,14 +57,35 @@ export function fitLabel(fit: number): string {
   return "Stretch collab";
 }
 
+/** Invisible characters a phone keyboard or paste can leave in a bio. */
+const INVISIBLE = /[\u200B-\u200D\u2060\uFEFF]/g;
+/** One leading "open to", any case, with any spaces (including non-breaking) or : , - after it. */
+const OPEN_TO_PREFIX = /^open[\s\u00A0]+to(?![a-z])[\s\u00A0:,\-–—]*/i;
+
+/** Trim, drop invisible characters and squash runs of spaces. */
+function tidy(value: string): string {
+  return value.replace(INVISIBLE, "").replace(/[\s\u00A0]+/g, " ").trim();
+}
+
+/**
+ * A bio with any repeated "Open to" at the start collapsed to a single one, so
+ * "open to open to collabs." shows as "open to collabs.". Display only; stored data is untouched.
+ */
+export function collapseOpenTo(value: string): string {
+  const text = tidy(value);
+  const match = /^(?:open[\s\u00A0]+to(?![a-z])[\s\u00A0:,\-–—]*){2,}/i.exec(text);
+  if (!match) return text;
+  return `${text.slice(0, 7)} ${text.slice(match[0].length)}`.replace(/\s+/g, " ").trim();
+}
+
 /**
  * The "Open to …" line on a card. Bios often already start with "Open to" (and the
- * default is "Open to collabs"), so drop any leading "open to" before adding ours.
+ * default is "Open to collabs"), so strip every leading "open to" (any case, any
+ * spacing) and any trailing periods before adding ours, so it never doubles.
  */
-export function openToLine(value: string): string {
-  const rest = value
-    .trim()
-    .replace(/^(?:open\s+to\b[\s:,-]*)+/i, "")
-    .replace(/[.\s]+$/, "");
+export function openToLine(value: string | null | undefined): string {
+  let rest = tidy(value ?? "");
+  while (OPEN_TO_PREFIX.test(rest)) rest = rest.replace(OPEN_TO_PREFIX, "");
+  rest = rest.replace(/[.\s…]+$/, "");
   return rest ? `Open to ${rest.toLowerCase()}.` : "Open to collabs.";
 }
