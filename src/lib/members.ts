@@ -3,6 +3,7 @@ import { PROFILE_COUNTRIES, US_STATES } from "@/data/creators";
 import { firebaseAuth } from "@/lib/firebase";
 import { MEMBERS_MAX_PER_SESSION, MEMBERS_PAGE_SIZE } from "@/lib/profile-policy";
 import { isDisplayableAvatar } from "@/lib/avatar";
+import { collapseOpenTo } from "@/lib/format";
 
 const FALLBACK_THUMB =
   "data:image/svg+xml;utf8," +
@@ -21,7 +22,8 @@ export function creatorFromMember(id: string, data: Record<string, unknown>): Cr
     ? data.niches.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
   const avatar = isDisplayableAvatar(data.avatar) ? data.avatar : null;
-  const bio = typeof data.bio === "string" ? data.bio.trim() : "";
+  // collapseOpenTo: a bio saved as "Open to open to collabs." must not show doubled on any surface.
+  const bio = typeof data.bio === "string" ? collapseOpenTo(data.bio) : "";
   const name = typeof data.displayName === "string" ? data.displayName.trim() : "";
   const country = PROFILE_COUNTRIES.some((item) => item.id === data.country) ? (data.country as ProfileCountry) : "";
   const state =
