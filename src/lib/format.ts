@@ -56,3 +56,15 @@ export function fitLabel(fit: number): string {
   if (fit >= 60) return "Worth a collab";
   return "Stretch collab";
 }
+
+/**
+ * The "Open to …" line on a card. Bios often already start with "Open to" (and the
+ * default is "Open to collabs"), so drop any leading "open to" before adding ours.
+ */
+export function openToLine(value: string): string {
+  const rest = value
+    .trim()
+    .replace(/^(?:open\s+to\b[\s:,-]*)+/i, "")
+    .replace(/[.\s]+$/, "");
+  return rest ? `Open to ${rest.toLowerCase()}.` : "Open to collabs.";
+}

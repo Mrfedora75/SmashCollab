@@ -2,7 +2,7 @@ import { Lock, Play } from "lucide-react";
 import { bracketOf, type Creator } from "@/data/creators";
 import { cn } from "@/lib/cn";
 import type { CollabFit } from "@/lib/collab-fit";
-import { fitLabel, formatCount } from "@/lib/format";
+import { fitLabel, formatCount, openToLine } from "@/lib/format";
 import { StarRow } from "@/components/matchcut/stars";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
 import { PRICING } from "@/lib/pricing";
@@ -129,7 +129,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, c
             );
           })}
         </ul>
-        <p className="text-sm leading-relaxed text-muted-strong">Open to {creator.openTo.toLowerCase()}.</p>
+        <p className="text-sm leading-relaxed text-muted-strong">{openToLine(creator.openTo)}</p>
         <div className="border-t border-cream-deep pt-3">
           <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">Latest</p>
           <p className="mt-1 text-sm font-medium">{creator.videoTitle}</p>
