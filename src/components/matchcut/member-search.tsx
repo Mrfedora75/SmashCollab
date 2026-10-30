@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Search, X } from "lucide-react";
-import { bracketOf } from "@/data/creators";
+import { bracketOf, isPlusChannel, type Creator } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
+import { CardFace } from "@/components/matchcut/card-face";
 
 export function MemberSearch({
   open,
@@ -16,7 +17,9 @@ export function MemberSearch({
   const members = useDeck((state) => state.members);
   const membersStatus = useDeck((state) => state.membersStatus);
   const authError = useDeck((state) => state.authError);
+  const premium = useDeck((state) => state.premium);
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Creator | null>(null);
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -67,7 +70,20 @@ export function MemberSearch({
               <li className="text-sm text-muted">No creators match that search.</li>
             ) : (
               results.map((creator) => (
-                <li key={creator.id} className="rounded-control border border-line bg-ink-soft p-3">
+                <li
+                  key={creator.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${creator.channel}`}
+                  onClick={() => setSelected(creator)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelected(creator);
+                    }
+                  }}
+                  className="press cursor-pointer rounded-control border border-line bg-ink-soft p-3 text-left"
+                >
                   <p className="flex items-center gap-1 font-medium">
                     <span>{creator.channel}</span>
                     {creator.plus ? <PlusBadge /> : null}
@@ -96,6 +112,25 @@ export function MemberSearch({
           </ul>
         </Dialog.Content>
       </Dialog.Portal>
+      <Dialog.Root open={selected != null} onOpenChange={(next) => (next ? null : setSelected(null))}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="overlay" />
+          <Dialog.Content className="dashboard-panel rounded-card border border-line bg-ink p-5 text-cream shadow-card sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <Dialog.Title className="font-display text-2xl leading-tight">{selected?.channel ?? "Member"}</Dialog.Title>
+              <Dialog.Close className="press flex size-11 shrink-0 items-center justify-center rounded-full border border-line" aria-label="Close member card">
+                <X className="size-4" />
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="sr-only">Member card</Dialog.Description>
+            {selected ? (
+              <div className="mt-4">
+                <CardFace creator={selected} locked={!premium && isPlusChannel(selected.subscribers)} asHeading={false} />
+              </div>
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </Dialog.Root>
   );
 }
