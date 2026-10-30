@@ -54,6 +54,15 @@ import { PlusBadge } from "@/components/matchcut/plus-badge";
 import { Landing } from "@/components/marketing/landing";
 import { isNoChannelSearch, showLanding, wantsAppFromSearch } from "@/lib/landing";
 
+/**
+ * Start loading Firebase Auth as soon as a visitor taps Sign in, while they answer the
+ * age check and terms, so the Google window opens straight from the later tap and is
+ * not popup-blocked. Only warms the same cached instance; no sign-in happens here.
+ */
+function warmUpSignIn(): void {
+  void firebaseAuth().catch(() => null);
+}
+
 export function MatchcutApp() {
   const hydrate = useDeck((state) => state.hydrate);
   const premium = useDeck((state) => state.premium);
@@ -102,6 +111,7 @@ export function MatchcutApp() {
   useEffect(() => {
     // Read before the effects below clear ?yt / ?checkout from the URL.
     if (wantsAppFromSearch(window.location.search)) {
+      warmUpSignIn();
       setEntered(true);
       const params = new URLSearchParams(window.location.search);
       if (params.has("start")) {
@@ -525,7 +535,12 @@ export function MatchcutApp() {
   if (showLanding({ signedIn, hasProfile: profile != null, entered, noChannel })) {
     return (
       <>
-        <Landing onStart={() => setEntered(true)} />
+        <Landing
+          onStart={() => {
+            warmUpSignIn();
+            setEntered(true);
+          }}
+        />
         {toastView}
         {noChannelNotice}
       </>
