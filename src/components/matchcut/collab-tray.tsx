@@ -2,6 +2,10 @@ import { bracketOf } from "@/data/creators";
 import { formatCount } from "@/lib/format";
 import { useDeck } from "@/lib/deck-store";
 import { PlusBadge } from "@/components/matchcut/plus-badge";
+import { updateSwipeNote } from "@/lib/collab";
+import { useState } from "react";
+
+type SendState = "idle" | "sending" | "sent" | "error";
 
 export function CollabTray({ idPrefix = "note", heading = true }: { idPrefix?: string; heading?: boolean }) {
   const swipes = useDeck((state) => state.swipes);
@@ -9,6 +13,19 @@ export function CollabTray({ idPrefix = "note", heading = true }: { idPrefix?: s
   const notes = useDeck((state) => state.notes);
   const setNote = useDeck((state) => state.setNote);
   const removeSwipe = useDeck((state) => state.removeSwipe);
+  const [sendState, setSendState] = useState<Record<string, SendState>>({});
+  const mark = (id: string, value: SendState) => setSendState((prev) => ({ ...prev, [id]: value }));
+  const sendNote = async (id: string) => {
+    const text = (notes[id] ?? "").trim();
+    if (!text || sendState[id] === "sending") return;
+    mark(id, "sending");
+    try {
+      await updateSwipeNote(id, notes[id] ?? "");
+      mark(id, "sent");
+    } catch {
+      mark(id, "error");
+    }
+  };
   const collabs = swipes.filter((swipe) => swipe.direction === "pitch").slice().reverse();
 
   return (
@@ -54,9 +71,28 @@ export function CollabTray({ idPrefix = "note", heading = true }: { idPrefix?: s
                   id={`${idPrefix}-${creator.id}`}
                   rows={4}
                   value={notes[creator.id] ?? ""}
-                  onChange={(event) => setNote(creator.id, event.target.value)}
+                  onChange={(event) => {
+                    setNote(creator.id, event.target.value);
+                    if (sendState[creator.id] && sendState[creator.id] !== "sending") mark(creator.id, "idle");
+                  }}
                   className="mt-1 w-full resize-none rounded-control border border-line bg-ink px-3 py-2 text-sm leading-relaxed text-cream"
                 />
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void sendNote(creator.id)}
+                    disabled={(notes[creator.id] ?? "").trim().length === 0 || sendState[creator.id] === "sending"}
+                    className="press h-11 shrink-0 rounded-control bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-40"
+                  >
+                    {sendState[creator.id] === "sending" ? "Sending…" : "Send"}
+                  </button>
+                  <span aria-live="polite" className="text-sm">
+                    {sendState[creator.id] === "sent" ? <span className="text-cream">Sent ✓</span> : null}
+                    {sendState[creator.id] === "error" ? (
+                      <span className="text-accent" role="alert">Couldn't send. Try again.</span>
+                    ) : null}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => removeSwipe(creator.id)}
