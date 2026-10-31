@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, X } from "lucide-react";
 import { LaunchPromoField, useLaunchPromo } from "@/components/launch-promo-field";
+import { trialButtonLabel } from "@/lib/launch-promo";
 import { FREE_DAILY } from "@/data/creators";
 import { cn } from "@/lib/cn";
 import { useDeck } from "@/lib/deck-store";
@@ -157,7 +158,7 @@ export function PremiumModal() {
                 {checkingOut
                   ? "Opening checkout"
                   : promoDecision?.ok
-                    ? "Start 14-day free trial"
+                    ? trialButtonLabel(promoDecision.promo.trialDays)
                     : plan === "year"
                       ? "Continue with Annual"
                       : "Continue with Monthly"}
