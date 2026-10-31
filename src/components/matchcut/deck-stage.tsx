@@ -148,7 +148,7 @@ export function DeckStage({
 
         {top ? (
           <article
-            className="relative z-20 touch-none select-none"
+            className="relative z-20 touch-pan-y select-none"
             style={{
               transform,
               transition: dragging ? "none" : "transform 280ms cubic-bezier(0.2, 0, 0, 1)",
