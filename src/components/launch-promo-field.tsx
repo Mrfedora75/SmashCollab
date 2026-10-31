@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { Check } from "lucide-react";
 import {
-  LAUNCH_PROMO_CODE,
-  LAUNCH_PROMO_COPY,
   PROMO_CODE_PLACEHOLDER,
   PROMO_DUE_TODAY,
   captureLaunchPromoFromUrl,
   evaluateLaunchPromo,
+  promoCopy,
   promoFromSearch,
   readRememberedPromo,
   rememberLaunchPromo,
@@ -68,9 +67,9 @@ export function LaunchPromoMessage({
       >
         <p className="flex items-center gap-2 font-medium">
           <Check className="size-4 shrink-0 text-status-accepted" aria-hidden="true" />
-          {LAUNCH_PROMO_CODE} applied
+          {decision.promo.code} applied
         </p>
-        <p className="mt-1 leading-relaxed">{LAUNCH_PROMO_COPY}</p>
+        <p className="mt-1 leading-relaxed">{promoCopy(decision.promo.trialDays)}</p>
         <p className="mt-1 leading-relaxed">{PROMO_DUE_TODAY}</p>
         {appliedNote ? <p className="mt-1 leading-relaxed">{appliedNote}</p> : null}
       </div>
