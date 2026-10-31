@@ -2,7 +2,8 @@ import { Analytics } from "@vercel/analytics/react";
 import { createRootRoute, HeadContent, Link, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { SESSION_HINT_SCRIPT } from "@/lib/landing";
-import { redactAnalyticsEvent } from "@/lib/web-analytics";
+import { analyticsBeforeSend, applyOwnerParam } from "@/lib/web-analytics";
+import { useEffect } from "react";
 
 const APP_NAME = "Smash Collab";
 const SITE_URL = "https://smashcollab.com";
@@ -66,8 +67,11 @@ export const Route = createRootRoute({
 
 function RouteAnalytics() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  useEffect(() => {
+    applyOwnerParam();
+  }, []);
   // Both props are required. Setting `route` alone turns off the script's history listener and then sends no page views.
-  return <Analytics beforeSend={redactAnalyticsEvent} path={pathname} route={pathname} />;
+  return <Analytics beforeSend={analyticsBeforeSend} path={pathname} route={pathname} />;
 }
 
 function NotFound() {
