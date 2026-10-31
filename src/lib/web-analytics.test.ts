@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { ANALYTICS_PRIVACY_SENTENCE, redactAnalyticsEvent } from "@/lib/web-analytics";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ANALYTICS_PRIVACY_SENTENCE, analyticsBeforeSend, applyOwnerParam, isAnalyticsDisabled, redactAnalyticsEvent } from "@/lib/web-analytics";
 import { CONTENT_SECURITY_POLICY } from "@/lib/security-headers";
 
 describe("redactAnalyticsEvent", () => {
@@ -81,3 +81,42 @@ function directive(policy: string, name: string): string {
 function externalSources(policy: string): string[] {
   return [...policy.matchAll(/(?:https|wss):\/\/[^\s;]+/g)].map((match) => match[0]);
 }
+
+describe("owner opt-out", () => {
+  const store = new Map<string, string>();
+  const replaceState = vi.fn();
+  beforeEach(() => {
+    store.clear();
+    replaceState.mockReset();
+    vi.stubGlobal("window", {
+      location: { href: "https://smashcollab.com/" },
+      history: { state: null, replaceState },
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+      },
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("?owner=1 disables, strips param, and drops events", () => {
+    (window.location as { href: string }).href = "https://smashcollab.com/deck?owner=1&x=2";
+    expect(analyticsBeforeSend({ type: "pageview", url: "https://smashcollab.com/deck" })).toBeNull();
+    expect(store.get("va-disable")).toBe("1");
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/deck?x=2");
+  });
+
+  it("?owner=0 re-enables", () => {
+    store.set("va-disable", "1");
+    (window.location as { href: string }).href = "https://smashcollab.com/?owner=0";
+    applyOwnerParam();
+    expect(isAnalyticsDisabled()).toBe(false);
+    expect(analyticsBeforeSend({ type: "pageview", url: "https://smashcollab.com/" })).not.toBeNull();
+  });
+
+  it("survives storage throwing", () => {
+    vi.stubGlobal("window", { location: { href: "https://smashcollab.com/" }, get localStorage() { throw new Error("blocked"); } });
+    expect(isAnalyticsDisabled()).toBe(false);
+  });
+});
