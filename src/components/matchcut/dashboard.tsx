@@ -93,6 +93,7 @@ export function CreatorDashboard({
   const [stateName, setStateName] = useState<UsState | "">(profile.state ?? "");
   const [county, setCounty] = useState(profile.county ?? "");
   const [avatar, setAvatar] = useState<string | null>(profile.avatar);
+  const [paused, setPaused] = useState(profile.paused === true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -110,6 +111,7 @@ export function CreatorDashboard({
     setStateName(profile.state ?? "");
     setCounty(profile.county ?? "");
     setAvatar(profile.avatar);
+    setPaused(profile.paused === true);
     setMenuOpen(false);
     setSaved(false);
     setSaving(false);
@@ -191,11 +193,41 @@ export function CreatorDashboard({
             {plus ? <PlusBadge size={18} /> : null}
           </p>
           {plus ? <p className="mt-1 text-center text-xs text-muted">Smash Collab Plus member</p> : null}
+          {profile.paused ? (
+            <p className="mt-2 flex justify-center">
+              <span className="rounded-full border border-accent px-3 py-1 text-xs font-medium tracking-wide text-accent uppercase">Paused</span>
+            </p>
+          ) : null}
           {photoError ? (
             <p className="mt-2 text-center text-sm text-accent" role="alert">
               {photoError}
             </p>
           ) : null}
+
+          <div className="mt-6 flex items-start justify-between gap-4 rounded-card border border-line bg-ink-soft p-4">
+            <div className="min-w-0">
+              <p id="dash-paused" className="text-sm font-medium">Pause collabs (hide me from the deck)</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {paused
+                  ? "Other creators won't see you in their deck or search. Your matches and chats keep working, and you can still send collabs."
+                  : "Turn on to take a break. Your matches and chats keep working."}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={paused}
+              aria-labelledby="dash-paused"
+              onClick={() => {
+                setPaused((value) => !value);
+                setSaved(false);
+              }}
+              className={cn("press relative h-8 w-14 shrink-0 rounded-full border border-line transition-colors", paused ? "bg-accent" : "bg-ink")}
+            >
+              <span className={cn("absolute top-1 left-1 size-6 rounded-full bg-cream transition-transform", paused ? "translate-x-6" : "")} />
+            </button>
+          </div>
+          {paused !== (profile.paused === true) ? <p className="mt-2 text-xs text-muted">Tap Save Changes to apply.</p> : null}
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
@@ -420,6 +452,7 @@ export function CreatorDashboard({
                 country,
                 state: country === "us" && stateName ? stateName : null,
                 county: county.trim(),
+                paused,
               };
               // Keep the edit on this device either way, but only say "saved" once the account has it.
               saveProfile(next);

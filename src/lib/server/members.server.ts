@@ -7,7 +7,7 @@
  * and only the public fields (PUBLIC_PROFILE_FIELDS). firestore.rules no longer lets
  * a browser read anyone else's users/{uid} document.
  */
-import { MEMBERS_PAGE_SIZE, isPublicProfile, publicProfileView } from "@/lib/profile-policy";
+import { MEMBERS_PAGE_SIZE, isDiscoverableProfile, publicProfileView } from "@/lib/profile-policy";
 import { requestFirebaseUser } from "@/lib/server/firebase-auth.server";
 import { isStorageConfigured, queryPage } from "@/lib/server/firestore.server";
 
@@ -27,7 +27,7 @@ export async function handleMembersRequest(request: Request, query = queryPage):
   try {
     const page = await query("users", { field: "ageConfirmed", equals: true }, limit, cursor);
     const members = page.docs
-      .filter((doc) => doc.id !== identity.uid && isPublicProfile(doc.data))
+      .filter((doc) => doc.id !== identity.uid && isDiscoverableProfile(doc.data))
       .map((doc) => ({ id: doc.id, ...publicProfileView(doc.data) }));
     return json({ members, nextCursor: page.nextId });
   } catch {

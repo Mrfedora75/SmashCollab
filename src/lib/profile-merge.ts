@@ -46,6 +46,7 @@ export function profileFromDoc(data: Record<string, unknown> | null | undefined)
     state: country === "us" && isUsState(data.state) ? data.state : null,
     county: str(data.county).slice(0, 40),
     ageConfirmed: data.ageConfirmed === true,
+    paused: data.paused === true,
   };
 }
 
@@ -60,6 +61,7 @@ export function fillFromSaved(local: DeskProfile, saved: Record<string, unknown>
   if (!saved) return local;
   const next: DeskProfile = { ...local };
   if (saved.ageConfirmed === true) next.ageConfirmed = true;
+  if (next.paused === undefined && typeof saved.paused === "boolean") next.paused = saved.paused;
   if (!next.bio?.trim() && str(saved.bio).trim()) next.bio = str(saved.bio).slice(0, 150);
   if (!next.displayName?.trim() && str(saved.displayName).trim()) next.displayName = str(saved.displayName);
   if (!next.avatar && str(saved.avatar)) next.avatar = str(saved.avatar);
@@ -141,5 +143,6 @@ export function reverifiedProfile(
     county: existing.county,
     // Re-verifying never un-confirms the 18+ checkbox (and never confirms it either).
     ageConfirmed: existing.ageConfirmed === true,
+    paused: existing.paused === true,
   };
 }

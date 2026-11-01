@@ -22,6 +22,8 @@ export type DeskProfile = {
   county?: string;
   /** Ticked "I am 18 or older" (required before the profile is saved; see profile-policy.ts). */
   ageConfirmed?: boolean;
+  /** "Pause collabs": hidden from other creators' decks and search. Missing = not paused. */
+  paused?: boolean;
 };
 
 export type VerifiedChannel = {
@@ -99,6 +101,7 @@ export function loadProfile(): DeskProfile | null {
       state,
       county,
       ageConfirmed: parsed.ageConfirmed === true,
+      ...(typeof parsed.paused === "boolean" ? { paused: parsed.paused } : {}),
     };
   } catch {
     return null;

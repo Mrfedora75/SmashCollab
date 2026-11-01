@@ -47,6 +47,11 @@ export function isPublicProfile(doc: Doc | null | undefined): boolean {
   return hasConfirmedAge(doc) && hasVerifiedChannel(doc) && typeof doc?.channel === "string" && doc.channel.trim() !== "";
 }
 
+/** Shown in other creators' decks and search: public AND not paused. Collabs can still be sent to/from paused members. */
+export function isDiscoverableProfile(doc: Doc | null | undefined): boolean {
+  return isPublicProfile(doc) && doc?.paused !== true;
+}
+
 export function publicProfileView(doc: Doc): Doc {
   const out: Doc = {};
   for (const key of PUBLIC_PROFILE_FIELDS) if (key in doc) out[key] = doc[key];

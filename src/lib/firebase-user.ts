@@ -202,6 +202,8 @@ export async function saveFirebaseUser(
     state: merged.country === "us" ? (merged.state ?? null) : null,
     county: merged.county?.trim().slice(0, 40) ?? "",
     ...(ageConfirmed ? { ageConfirmed: true } : {}),
+    // Only written when this device knows the setting, so an older device never un-pauses.
+    ...(typeof merged.paused === "boolean" ? { paused: merged.paused } : {}),
     updatedAt: serverTimestamp(),
     ...(existing.exists() ? {} : { createdAt: serverTimestamp() }),
   };

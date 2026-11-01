@@ -109,6 +109,9 @@ await t("channels write denied", assertFails(setDoc(doc(A, "channels/UCalice"), 
 await t("pitchUsage write denied", assertFails(setDoc(doc(A, "pitchUsage/alice"), { day: "2026-01-01", count: 0 })));
 await t("age confirmation can't be removed", assertFails(updateDoc(doc(A, "users/alice"), { ageConfirmed: deleteField() })));
 await t("age confirmation can't be set false", assertFails(updateDoc(doc(A, "users/alice"), { ageConfirmed: false })));
+await t("owner can pause", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: true })));
+await t("owner can unpause", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: false })));
+await t("paused must be a boolean", assertFails(updateDoc(doc(A, "users/alice"), { paused: "yes" })));
 await t("pitchUsage read denied", assertFails(getDoc(doc(A, "pitchUsage/alice"))));
 await t("other collection denied", assertFails(setDoc(doc(A, "random/x"), { a: 1 })));
 console.log(`\n${pass} passed, ${fail} failed`);
