@@ -399,3 +399,31 @@ export async function listDocumentsPage(
     nextPageToken: data.nextPageToken ?? null,
   };
 }
+
+/**
+ * Count documents in a top-level collection with a server-side aggregation (no documents are read back).
+ * `since` (ms) limits to docs whose `field` timestamp is >= since.
+ */
+export async function countDocuments(collectionId: string, filter?: { field: string; sinceMs: number }): Promise<number> {
+  const acct = account();
+  const token = await accessToken(acct);
+  const root = databaseRoot(acct);
+  const structuredQuery: Record<string, unknown> = { from: [{ collectionId }] };
+  if (filter) {
+    structuredQuery.where = {
+      fieldFilter: {
+        field: { fieldPath: filter.field },
+        op: "GREATER_THAN_OR_EQUAL",
+        value: { timestampValue: new Date(filter.sinceMs).toISOString() },
+      },
+    };
+  }
+  const res = await fetch(`https://firestore.googleapis.com/v1/${root}:runAggregationQuery`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ structuredAggregationQuery: { structuredQuery, aggregations: [{ alias: "n", count: {} }] } }),
+  });
+  if (!res.ok) throw new Error(`Firestore count failed (${res.status}).`);
+  const rows = (await res.json()) as { result?: { aggregateFields?: { n?: { integerValue?: string } } } }[];
+  return Number(rows[0]?.result?.aggregateFields?.n?.integerValue ?? 0);
+}
