@@ -46,4 +46,15 @@ describe("GET /api/members", () => {
     expect(query.mock.calls[0][2]).toBe(50);
     expect(body.members).toEqual([{ id: "pub", channel: "@pub" }]);
   });
+
+  it("leaves out members who paused collabs", async () => {
+    const docs: { id: string; data: Record<string, Plain> }[] = [
+      { id: "paused", data: { channel: "@p", ageConfirmed: true, verifiedChannelId: "UCp", paused: true } },
+      { id: "active", data: { channel: "@a", ageConfirmed: true, verifiedChannelId: "UCa", paused: false } },
+    ];
+    const query = vi.fn(async () => ({ docs, nextId: null }));
+    const res = await handleMembersRequest(new Request("http://x/api/members", { headers: { Authorization: `Bearer ${await token("me")}` } }), query);
+    const body = (await res.json()) as { members: Record<string, unknown>[] };
+    expect(body.members.map((m) => m.id)).toEqual(["active"]);
+  });
 });

@@ -27,7 +27,7 @@ service cloud.firestore {
     // verifiedChannelId, subsVerifiedAt, plus, plusUntil, plusSyncedAt.
     function clientProfileKeys() {
       return ['uid', 'displayName', 'channel', 'channelId', 'avgViews', 'niches',
-              'bio', 'avatar', 'country', 'state', 'county', 'ageConfirmed', 'createdAt', 'updatedAt'];
+              'bio', 'avatar', 'country', 'state', 'county', 'ageConfirmed', 'paused', 'createdAt', 'updatedAt'];
     }
 
     // Profile photo: an https URL (YouTube / Google photo) or a small uploaded
@@ -56,7 +56,9 @@ service cloud.firestore {
         && optionalString(data, 'state', 40)
         && optionalString(data, 'county', 40)
         // "I am 18 or older" (src/lib/profile-policy.ts MIN_AGE): may only ever be true.
-        && (!('ageConfirmed' in data) || data.ageConfirmed == true);
+        && (!('ageConfirmed' in data) || data.ageConfirmed == true)
+        // "Pause collabs" (hide me from the deck): optional, boolean only.
+        && (!('paused' in data) || data.paused is bool);
     }
 
     // ---- Creator profiles: readable and writable only by the owner (only the owner-editable
