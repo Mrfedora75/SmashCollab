@@ -5,7 +5,10 @@
   "type": "module",
   "overrides": {
     "nf3": "0.3.17",
-    "@grpc/grpc-js": "^1.13.6"
+    "@grpc/grpc-js": "^1.13.6",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
+    }
   },
   "scripts": {
     "dev": "vite dev --host 0.0.0.0 --port 8080",
