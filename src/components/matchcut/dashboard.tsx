@@ -243,16 +243,14 @@ export function CreatorDashboard({
               />
             </label>
             <label className="block text-sm">
-              Nickname / Channel Name
+              YouTube channel
               <input
                 value={channel}
-                onChange={(event) => {
-                  setChannel(event.target.value);
-                  setSaved(false);
-                }}
+                readOnly
                 maxLength={40}
                 className="mt-2 h-12 w-full rounded-control border border-line bg-ink px-3 text-sm text-cream"
               />
+              <span className="mt-1 block text-xs text-muted">From your verified YouTube channel. Display name is the name you can edit.</span>
             </label>
           </div>
 

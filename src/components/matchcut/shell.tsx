@@ -34,7 +34,7 @@ import {
   sendMessage,
   syncProfileOnServer,
   setMatchBlocked,
-  watchInbound,
+  watchInboundFeed,
   watchMatches,
   watchMessages,
   type InboundRemote,
@@ -82,6 +82,8 @@ export function MatchcutApp() {
   const [reviewFor, setReviewFor] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Record<string, SavedReview>>({});
   const [inbound, setInbound] = useState<InboundRemote[]>([]);
+  const [inboundPlus, setInboundPlus] = useState(false);
+  const [inboundCount, setInboundCount] = useState(0);
   const [matches, setMatches] = useState<RemoteMatch[]>([]);
   const [myUid, setMyUid] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -318,6 +320,8 @@ export function MatchcutApp() {
         setMyUid(user?.uid ?? null);
         if (!user) {
           setInbound([]);
+          setInboundPlus(false);
+          setInboundCount(0);
           setMatches([]);
           if (restoreTried) {
             useDeck.getState().setMembers([], "auth");
@@ -340,7 +344,14 @@ export function MatchcutApp() {
         void firebaseDb().then((db) => {
           if (!db || ticket !== request) return;
           const onError = (error: unknown) => useDeck.getState().setAuthError(describeAuthError(error));
-          unwatch.push(watchInbound(db, user.uid, setInbound, onError));
+          unwatch.push(
+            watchInboundFeed((snap) => {
+              if (ticket !== request) return;
+              setInboundPlus(snap.plus);
+              setInboundCount(snap.count);
+              setInbound(snap.plus ? snap.items : []);
+            }, onError),
+          );
           unwatch.push(watchMatches(db, user.uid, setMatches, onError));
         });
         // Server writes the verified subscriber count + Plus flag onto this profile and reports today's free collabs.
@@ -422,12 +433,14 @@ export function MatchcutApp() {
   const lookup = (creatorId: string): Creator | undefined => members.find((item) => item.id === creatorId);
   const swipedIds = new Set(swipes.map((swipe) => swipe.creatorId));
   const hiddenMatches = new Set(matches.filter((match) => match.blockedBy).map((match) => match.other));
-  const pending: InboundCollab[] = inbound
+  const revealedInbound = inboundPlus ? inbound : [];
+  const pending: InboundCollab[] = revealedInbound
     .filter((item) => !swipedIds.has(item.from) && !hiddenMatches.has(item.from))
     .map((item) => ({ creatorId: item.from, ago: timeAgo(item.at), message: item.note || "Wants to collab.", title: "Collab request" }));
+  const inboxCount = inboundPlus ? pending.length : inboundCount;
   const collabFor = (match: RemoteMatch): AcceptedCollab => {
     const creator = lookup(match.other);
-    const theirNote = inbound.find((item) => item.from === match.other)?.note;
+    const theirNote = revealedInbound.find((item) => item.from === match.other)?.note;
     return {
       id: match.id,
       creatorId: match.other,
@@ -678,7 +691,7 @@ export function MatchcutApp() {
             className="press flex h-11 items-center justify-center rounded-control border border-line text-sm sm:hidden"
           >
             Matches & Messages
-            {pending.length > 0 ? ` · ${pending.length}` : ""}
+            {inboxCount > 0 ? ` · ${inboxCount}` : ""}
           </button>
           <div className="flex gap-2">
             <button
@@ -782,7 +795,8 @@ export function MatchcutApp() {
             pending={pending}
             accepted={accepted}
             outbound={outbound}
-            premium={premium}
+            revealInbound={inboundPlus}
+            lockedCount={inboundCount}
             reviews={reviews}
             heading={false}
             onUpgrade={() => {

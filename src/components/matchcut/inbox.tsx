@@ -18,7 +18,8 @@ export function Inbox({
   pending,
   accepted,
   outbound,
-  premium,
+  revealInbound,
+  lockedCount,
   reviews,
   onAccept,
   onDecline,
@@ -32,7 +33,10 @@ export function Inbox({
   pending: InboundCollab[];
   accepted: AcceptedCollab[];
   outbound: OutboundCollab[];
-  premium: boolean;
+  /** True only when the server confirmed Plus. Local storage must not unlock this. */
+  revealInbound: boolean;
+  /** Count of inbound collabs when the server withheld identities. */
+  lockedCount: number;
   reviews: Record<string, SavedReview>;
   onAccept: (collab: InboundCollab) => void;
   onDecline: (creatorId: string) => void;
@@ -42,7 +46,6 @@ export function Inbox({
   heading?: boolean;
 }) {
   const [tab, setTab] = useState<"inbound" | "outbound">("inbound");
-  const locked = !premium;
 
   return (
     <div className="flex h-full flex-col">
@@ -85,43 +88,34 @@ export function Inbox({
           <>
             <section>
               <h3 className="text-xs font-medium tracking-widest text-muted uppercase">Pending inbound</h3>
-              {pending.length === 0 ? (
+              {!revealInbound ? (
+                lockedCount === 0 ? (
+                  <p className="mt-3 text-sm text-muted">No collabs waiting.</p>
+                ) : (
+                  <ul className="mt-3 flex flex-col gap-3">
+                    {Array.from({ length: lockedCount }, (_, index) => (
+                      <li key={index}>
+                        <button
+                          type="button"
+                          onClick={onUpgrade}
+                          className="press flex w-full items-center gap-3 rounded-card border border-line bg-ink-soft p-3 text-left"
+                        >
+                          <Lock className="size-5 shrink-0 text-cream" aria-hidden="true" />
+                          <span className="text-sm leading-relaxed">
+                            Someone sent you a collab. Upgrade to Plus to see who and read the note.
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : pending.length === 0 ? (
                 <p className="mt-3 text-sm text-muted">No collabs waiting.</p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
                   {pending.map((collab) => {
                     const creator = lookup(collab.creatorId);
                     if (!creator) return null;
-                    if (locked) {
-                      return (
-                        <li key={collab.creatorId}>
-                          <button
-                            type="button"
-                            onClick={onUpgrade}
-                            className="press relative w-full overflow-hidden rounded-card border border-line bg-ink-soft p-3 text-left"
-                          >
-                            <div className="pointer-events-none blur-2xl select-none" aria-hidden="true">
-                              <div className="flex gap-3">
-                                <img src={creator.thumb} alt="" className="h-14 w-24 shrink-0 rounded-control object-cover" />
-                                <div className="min-w-0">
-                                  <p className="truncate font-medium">{creator.channel}</p>
-                                  <p className="text-sm text-muted">
-                                    {creator.name} · {collab.ago}
-                                  </p>
-                                </div>
-                              </div>
-                              <p className="mt-3 text-sm leading-relaxed text-cream">{collab.message}</p>
-                            </div>
-                            <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/80 px-4 text-center">
-                              <Lock className="size-5 text-cream" aria-hidden="true" />
-                              <span className="text-sm leading-relaxed">
-                                Upgrade to Plus to see who sent you a collab and reply.
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    }
                     return (
                       <li key={collab.creatorId} className="rounded-card border border-line bg-ink-soft p-3">
                         <div className="flex gap-3">

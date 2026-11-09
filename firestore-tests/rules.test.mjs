@@ -32,6 +32,10 @@ await t("owner can't change subscribers", assertFails(updateDoc(doc(A, "users/al
 await t("owner can't set plus false->true / change plus", assertFails(updateDoc(doc(A, "users/alice"), { plus: false })));
 await t("owner can't extend plusUntil", assertFails(updateDoc(doc(A, "users/alice"), { plusUntil: 9e13 })));
 await t("owner can't change verifiedChannelId", assertFails(updateDoc(doc(A, "users/alice"), { verifiedChannelId: "UCother" })));
+await t("owner can't change channel handle", assertFails(updateDoc(doc(A, "users/alice"), { channel: "@other" })));
+await t("owner can't change channelId", assertFails(updateDoc(doc(A, "users/alice"), { channelId: "UCother" })));
+await t("owner can't change avgViews", assertFails(updateDoc(doc(A, "users/alice"), { avgViews: 999 })));
+await t("owner can still update bio", assertSucceeds(updateDoc(doc(A, "users/alice"), { bio: "still me" })));
 await t("owner can't overwrite profile without server fields", assertFails(setDoc(doc(A, "users/alice"), prof("alice"))));
 await t("new profile without subscribers ok", assertSucceeds(setDoc(doc(B, "users/bob"), prof("bob"))));
 await t("bob can't grant himself plus", assertFails(setDoc(doc(B, "users/bob"), { plus: true, plusUntil: 9e12 }, { merge: true })));
@@ -65,14 +69,15 @@ await t("pass -> collab overwrite denied", assertFails(setDoc(doc(C, "swipes/car
 await t("forged pass denied", assertFails(setDoc(doc(C, "swipes/bob_carol"), sw("bob", "carol", "pass"))));
 await t("self swipe denied", assertFails(setDoc(doc(A, "swipes/alice_alice"), sw("alice", "alice", "pass"))));
 await server((db) => setDoc(doc(db, "swipes/alice_bob"), { from: "alice", to: "bob", direction: "pitch", note: "hi", createdAt: Timestamp.now() }));
-await t("target reads collab", assertSucceeds(getDoc(doc(B, "swipes/alice_bob"))));
+await t("sender reads own collab", assertSucceeds(getDoc(doc(A, "swipes/alice_bob"))));
+await t("target cannot read inbound collab", assertFails(getDoc(doc(B, "swipes/alice_bob"))));
 await t("third party can't read collab", assertFails(getDoc(doc(C, "swipes/alice_bob"))));
 await t("match before mutual denied", assertFails(setDoc(doc(A, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
 await t("carol passes alice", assertSucceeds(setDoc(doc(C, "swipes/carol_alice"), sw("carol", "alice", "pass"))));
 await t("alice can't read carol's pass", assertFails(getDoc(doc(A, "swipes/carol_alice"))));
 await server((db) => setDoc(doc(db, "swipes/bob_alice"), { from: "bob", to: "alice", direction: "pitch", note: "yo", createdAt: Timestamp.now() }));
 await t("carol can't create alice_bob match", assertFails(setDoc(doc(C, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
-await t("get nonexistent match ok", assertSucceeds(getDoc(doc(B, "matches/alice_bob"))));
+await t("get nonexistent match denied", assertFails(getDoc(doc(B, "matches/alice_bob"))));
 await t("client match create denied even after mutual collab", assertFails(setDoc(doc(B, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: serverTimestamp(), blockedBy: null, lastMessageAt: null })));
 await server((db) => setDoc(doc(db, "matches/alice_bob"), { users: ["alice", "bob"], createdAt: Timestamp.now(), blockedBy: null, lastMessageAt: null }));
 
@@ -90,7 +95,7 @@ await t("bob can't unblock alice's block", assertFails(updateDoc(doc(B, "matches
 await t("no messages while blocked", assertFails(addDoc(collection(B, "matches/alice_bob/messages"), { from: "bob", text: "hey", createdAt: serverTimestamp() })));
 await t("alice unblocks", assertSucceeds(updateDoc(doc(A, "matches/alice_bob"), { blockedBy: null })));
 await t("my swipes query", assertSucceeds(getDocs(query(collection(A, "swipes"), where("from", "==", "alice")))));
-await t("inbound query", assertSucceeds(getDocs(query(collection(A, "swipes"), where("to", "==", "alice"), where("direction", "==", "pitch")))));
+await t("inbound query denied", assertFails(getDocs(query(collection(A, "swipes"), where("to", "==", "alice"), where("direction", "==", "pitch")))));
 await t("inbound query without direction denied", assertFails(getDocs(query(collection(A, "swipes"), where("to", "==", "alice")))));
 await t("matches query", assertSucceeds(getDocs(query(collection(A, "matches"), where("users", "array-contains", "alice")))));
 await t("users list denied (server /api/members instead)", assertFails(getDocs(collection(A, "users"))));

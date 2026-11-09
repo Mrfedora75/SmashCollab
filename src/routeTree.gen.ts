@@ -18,10 +18,12 @@ import { Route as TryRouteImport } from './routes/try'
 import { Route as ApiCollabRouteImport } from './routes/api/collab'
 import { Route as ApiMembersRouteImport } from './routes/api/members'
 import { Route as ApiReferralsRouteImport } from './routes/api/referrals'
+import { Route as OwnerStatsRouteImport } from './routes/owner/stats'
 import { Route as ApiAuthRestoreRouteImport } from './routes/api/auth/restore'
 import { Route as ApiFirebaseConfigRouteImport } from './routes/api/firebase/config'
 import { Route as ApiFirebaseCustomTokenRouteImport } from './routes/api/firebase/custom-token'
 import { Route as ApiFirebaseSessionRouteImport } from './routes/api/firebase/session'
+import { Route as ApiOwnerStatsRouteImport } from './routes/api/owner/stats'
 import { Route as ApiPlusGrantRouteImport } from './routes/api/plus/grant'
 import { Route as ApiPlusStatusRouteImport } from './routes/api/plus/status'
 import { Route as ApiProfileSyncRouteImport } from './routes/api/profile/sync'
@@ -80,6 +82,11 @@ const ApiReferralsRoute = ApiReferralsRouteImport.update({
   path: '/api/referrals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerStatsRoute = OwnerStatsRouteImport.update({
+  id: '/owner/stats',
+  path: '/owner/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthRestoreRoute = ApiAuthRestoreRouteImport.update({
   id: '/api/auth/restore',
   path: '/api/auth/restore',
@@ -98,6 +105,11 @@ const ApiFirebaseCustomTokenRoute = ApiFirebaseCustomTokenRouteImport.update({
 const ApiFirebaseSessionRoute = ApiFirebaseSessionRouteImport.update({
   id: '/api/firebase/session',
   path: '/api/firebase/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOwnerStatsRoute = ApiOwnerStatsRouteImport.update({
+  id: '/api/owner/stats',
+  path: '/api/owner/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPlusGrantRoute = ApiPlusGrantRouteImport.update({
@@ -171,10 +183,12 @@ export interface FileRoutesByFullPath {
   '/api/collab': typeof ApiCollabRoute
   '/api/members': typeof ApiMembersRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/owner/stats': typeof OwnerStatsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
+  '/api/owner/stats': typeof ApiOwnerStatsRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
   '/api/profile/sync': typeof ApiProfileSyncRoute
@@ -198,10 +212,12 @@ export interface FileRoutesByTo {
   '/api/collab': typeof ApiCollabRoute
   '/api/members': typeof ApiMembersRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/owner/stats': typeof OwnerStatsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
+  '/api/owner/stats': typeof ApiOwnerStatsRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
   '/api/profile/sync': typeof ApiProfileSyncRoute
@@ -226,10 +242,12 @@ export interface FileRoutesById {
   '/api/collab': typeof ApiCollabRoute
   '/api/members': typeof ApiMembersRoute
   '/api/referrals': typeof ApiReferralsRoute
+  '/owner/stats': typeof OwnerStatsRoute
   '/api/auth/restore': typeof ApiAuthRestoreRoute
   '/api/firebase/config': typeof ApiFirebaseConfigRoute
   '/api/firebase/custom-token': typeof ApiFirebaseCustomTokenRoute
   '/api/firebase/session': typeof ApiFirebaseSessionRoute
+  '/api/owner/stats': typeof ApiOwnerStatsRoute
   '/api/plus/grant': typeof ApiPlusGrantRoute
   '/api/plus/status': typeof ApiPlusStatusRoute
   '/api/profile/sync': typeof ApiProfileSyncRoute
@@ -255,10 +273,12 @@ export interface FileRouteTypes {
     | '/api/collab'
     | '/api/members'
     | '/api/referrals'
+    | '/owner/stats'
     | '/api/auth/restore'
     | '/api/firebase/config'
     | '/api/firebase/custom-token'
     | '/api/firebase/session'
+    | '/api/owner/stats'
     | '/api/plus/grant'
     | '/api/plus/status'
     | '/api/profile/sync'
@@ -282,10 +302,12 @@ export interface FileRouteTypes {
     | '/api/collab'
     | '/api/members'
     | '/api/referrals'
+    | '/owner/stats'
     | '/api/auth/restore'
     | '/api/firebase/config'
     | '/api/firebase/custom-token'
     | '/api/firebase/session'
+    | '/api/owner/stats'
     | '/api/plus/grant'
     | '/api/plus/status'
     | '/api/profile/sync'
@@ -309,10 +331,12 @@ export interface FileRouteTypes {
     | '/api/collab'
     | '/api/members'
     | '/api/referrals'
+    | '/owner/stats'
     | '/api/auth/restore'
     | '/api/firebase/config'
     | '/api/firebase/custom-token'
     | '/api/firebase/session'
+    | '/api/owner/stats'
     | '/api/plus/grant'
     | '/api/plus/status'
     | '/api/profile/sync'
@@ -337,10 +361,12 @@ export interface RootRouteChildren {
   ApiCollabRoute: typeof ApiCollabRoute
   ApiMembersRoute: typeof ApiMembersRoute
   ApiReferralsRoute: typeof ApiReferralsRoute
+  OwnerStatsRoute: typeof OwnerStatsRoute
   ApiAuthRestoreRoute: typeof ApiAuthRestoreRoute
   ApiFirebaseConfigRoute: typeof ApiFirebaseConfigRoute
   ApiFirebaseCustomTokenRoute: typeof ApiFirebaseCustomTokenRoute
   ApiFirebaseSessionRoute: typeof ApiFirebaseSessionRoute
+  ApiOwnerStatsRoute: typeof ApiOwnerStatsRoute
   ApiPlusGrantRoute: typeof ApiPlusGrantRoute
   ApiPlusStatusRoute: typeof ApiPlusStatusRoute
   ApiProfileSyncRoute: typeof ApiProfileSyncRoute
@@ -420,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReferralsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/owner/stats': {
+      id: '/owner/stats'
+      path: '/owner/stats'
+      fullPath: '/owner/stats'
+      preLoaderRoute: typeof OwnerStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/restore': {
       id: '/api/auth/restore'
       path: '/api/auth/restore'
@@ -446,6 +479,13 @@ declare module '@tanstack/react-router' {
       path: '/api/firebase/session'
       fullPath: '/api/firebase/session'
       preLoaderRoute: typeof ApiFirebaseSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/owner/stats': {
+      id: '/api/owner/stats'
+      path: '/api/owner/stats'
+      fullPath: '/api/owner/stats'
+      preLoaderRoute: typeof ApiOwnerStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/plus/grant': {
@@ -545,10 +585,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCollabRoute: ApiCollabRoute,
   ApiMembersRoute: ApiMembersRoute,
   ApiReferralsRoute: ApiReferralsRoute,
+  OwnerStatsRoute: OwnerStatsRoute,
   ApiAuthRestoreRoute: ApiAuthRestoreRoute,
   ApiFirebaseConfigRoute: ApiFirebaseConfigRoute,
   ApiFirebaseCustomTokenRoute: ApiFirebaseCustomTokenRoute,
   ApiFirebaseSessionRoute: ApiFirebaseSessionRoute,
+  ApiOwnerStatsRoute: ApiOwnerStatsRoute,
   ApiPlusGrantRoute: ApiPlusGrantRoute,
   ApiPlusStatusRoute: ApiPlusStatusRoute,
   ApiProfileSyncRoute: ApiProfileSyncRoute,

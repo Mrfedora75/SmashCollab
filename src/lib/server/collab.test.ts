@@ -33,13 +33,23 @@ vi.mock("@/lib/server/firestore.server", async (importOriginal) => {
       applyWrites(planned.writes);
       return planned.result;
     },
+    queryPage: async (collectionId: string, where: { field: string; equals: Plain }, limit: number, startAfterId?: string | null) => {
+      const prefix = `${collectionId}/`;
+      const docs = [...store.entries()]
+        .filter(([path, data]) => path.startsWith(prefix) && data[where.field] === where.equals)
+        .map(([path, data]) => ({ id: path.slice(prefix.length), data: { ...data } }))
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const start = startAfterId ? docs.findIndex((doc) => doc.id === startAfterId) + 1 : 0;
+      const page = docs.slice(Math.max(0, start), Math.max(0, start) + limit);
+      return { docs: page, nextId: page.length === limit ? page[page.length - 1]?.id ?? null : null };
+    },
   };
 });
 
 const { decideCollab } = await import("@/lib/collab-policy");
-const { handleCollabRequest } = await import("@/lib/server/collab.server");
+const { handleCollabRequest, handleInboundRequest } = await import("@/lib/server/collab.server");
 const { setFirebaseKeysForTests } = await import("@/lib/server/firebase-auth.server");
-const { bindProfileToChannel, ProfileBindError } = await import("@/lib/server/public-profile.server");
+const { bindProfileToChannel, channelBindAllowed, ProfileBindError } = await import("@/lib/server/public-profile.server");
 
 let privateKey: CryptoKey;
 let attackerKey: CryptoKey;
@@ -182,11 +192,53 @@ describe("POST /api/collab", () => {
   });
 });
 
+describe("GET /api/collab inbound", () => {
+  async function inbound(uid: string) {
+    const res = await handleInboundRequest(
+      new Request("http://localhost/api/collab", { headers: { Authorization: `Bearer ${await tokenFor(uid)}` } }),
+    );
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+  }
+
+  it("requires a Firebase token and withholds sender identity without Plus", async () => {
+    expect((await handleInboundRequest(new Request("http://localhost/api/collab"))).status).toBe(401);
+    store.set("swipes/small_free", { from: "small", to: "free", direction: "pitch", note: "secret-note", createdAt: 10 });
+    store.set("swipes/edge_free", { from: "edge", to: "free", direction: "pass", note: "nope", createdAt: 11 });
+    const res = await inbound("free");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ plus: false, count: 1 });
+    expect(JSON.stringify(res.body)).not.toContain("secret-note");
+    expect(JSON.stringify(res.body)).not.toContain("small");
+  });
+
+  it("returns sender and note only when durable Plus is active", async () => {
+    store.set("entitlements/UCfree", { channelId: "UCfree", plusUntil: Date.now() + 60_000 });
+    store.set("swipes/small_free", { from: "small", to: "free", direction: "pitch", note: "hello there", createdAt: 10 });
+    store.set("swipes/free_small", { from: "free", to: "small", direction: "pass", note: "", createdAt: 9 });
+    const res = await inbound("free");
+    expect(res.body.plus).toBe(true);
+    expect(res.body.count).toBe(0);
+    expect(res.body.items).toEqual([{ from: "small", note: "hello there", at: 10 }]);
+  });
+});
+
 describe("profile binding", () => {
   it("refuses to link a YouTube channel verified with a different Google account", async () => {
     await expect(
       bindProfileToChannel({ uid: "free", email: "a@example.com", emailVerified: true }, { channelId: "UCx", channel: "@x", email: "b@example.com" }),
     ).rejects.toBeInstanceOf(ProfileBindError);
+  });
+
+  it("refuses an unverified Firebase email and a takeover with no email", () => {
+    expect(
+      channelBindAllowed({ uid: "free", email: "a@example.com", emailVerified: false }, { channelId: "UCx", channel: "@x", email: "a@example.com" }, null),
+    ).toBe(false);
+    expect(
+      channelBindAllowed({ uid: "thief", email: null, emailVerified: false }, { channelId: "UCt", channel: "@t", email: null }, { email: null, uid: "owner" }),
+    ).toBe(false);
+    expect(
+      channelBindAllowed({ uid: "newbie", email: null, emailVerified: false }, { channelId: "UCnew", channel: "@new", email: null }, { email: null, uid: null }),
+    ).toBe(true);
   });
 
   it("writes the YouTube-verified subscriber count and Plus flag onto the profile", async () => {
