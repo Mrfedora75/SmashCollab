@@ -25,9 +25,17 @@ service cloud.firestore {
     // server-controlled (written with the service account, which bypasses these
     // rules): subscriberCount / subscribers (from the YouTube Data API),
     // verifiedChannelId, subsVerifiedAt, plus, plusUntil, plusSyncedAt.
-    function clientProfileKeys() {
+    function clientProfileCreateKeys() {
       return ['uid', 'displayName', 'channel', 'channelId', 'avgViews', 'niches',
               'bio', 'avatar', 'country', 'state', 'county', 'ageConfirmed', 'createdAt', 'updatedAt'];
+    }
+
+    // After create, the YouTube handle, channel id, and average views are server-written
+    // (profile sync / collab bind). The browser may still edit the nickname fields
+    // displayName and bio, plus location and photo.
+    function clientProfileUpdateKeys() {
+      return ['uid', 'displayName', 'niches', 'bio', 'avatar', 'country', 'state', 'county',
+              'ageConfirmed', 'createdAt', 'updatedAt'];
     }
 
     // Profile photo: an https URL (YouTube / Google photo) or a small uploaded
@@ -67,13 +75,13 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == uid;
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(clientProfileKeys())
+        && request.resource.data.keys().hasOnly(clientProfileCreateKeys())
         && request.resource.data.ageConfirmed == true
         && validProfile(request.resource.data, uid);
       allow update: if signedIn()
         && request.auth.uid == uid
         // 'email' may only be removed (legacy docs stored it); it can never be set or changed.
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientProfileKeys().concat(['email']))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(clientProfileUpdateKeys().concat(['email']))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['email'])
             || !('email' in request.resource.data))
         // The age confirmation can never be removed once given.
@@ -81,14 +89,14 @@ service cloud.firestore {
         && validProfile(request.resource.data, uid);
     }
 
-    // ---- Swipes: id is "{fromUid}_{toUid}". Target can read collabs aimed at them.
+    // ---- Swipes: id is "{fromUid}_{toUid}".
     // Collabs are created ONLY by the server (POST /api/collab), which enforces the
-    // free-collab limits. The browser may record a Pass, edit its own collab note,
-    // withdraw a collab (turn it into a Pass or delete it), but never create a collab.
+    // free-collab limits. Only the sender can read a swipe. Inbound collab identity
+    // is served by GET /api/collab, and only to Plus members. The browser may record
+    // a Pass, edit its own collab note, withdraw a collab (turn it into a Pass or
+    // delete it), but never create a collab.
     match /swipes/{swipeId} {
-      allow read: if signedIn() && (
-        resource.data.from == request.auth.uid ||
-        (resource.data.to == request.auth.uid && resource.data.direction == 'pitch'));
+      allow read: if signedIn() && resource.data.from == request.auth.uid;
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['from', 'to', 'direction', 'note', 'createdAt'])
         && request.resource.data.from == request.auth.uid
@@ -118,7 +126,9 @@ service cloud.firestore {
 
     // ---- Matches: id is "{uidA}_{uidB}" (sorted). Created only by the server after a mutual collab.
     match /matches/{matchId} {
-      allow get: if signedIn() && (resource == null || request.auth.uid in resource.data.users);
+      // A missing match and a match you are not in must look the same. Allowing
+      // resource == null made "not found" distinct from "permission denied".
+      allow get: if signedIn() && resource != null && request.auth.uid in resource.data.users;
       allow list: if signedIn() && request.auth.uid in resource.data.users;
       // Matches are created only by the server (POST /api/collab) after a mutual collab.
       allow create: if false;

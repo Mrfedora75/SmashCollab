@@ -21,6 +21,8 @@ export type ChannelRecord = {
   email: string | null;
   /** null when the channel hides its subscriber count or it has never been verified. */
   subscriberCount: number | null;
+  /** null when YouTube did not return statistics for this verification. */
+  avgViews: number | null;
   uid: string | null;
 };
 
@@ -45,8 +47,27 @@ export async function readChannelRecord(channelId: string, get = getDocument): P
     channel: str(doc.channel),
     email: str(doc.email),
     subscriberCount: typeof subs === "number" && Number.isFinite(subs) && subs >= 0 ? Math.floor(subs) : null,
+    avgViews: typeof doc.avgViews === "number" && Number.isFinite(doc.avgViews) && doc.avgViews >= 0 ? Math.floor(doc.avgViews) : null,
     uid: str(doc.uid),
   };
+}
+
+/**
+ * Whether this Firebase user may be linked to this YouTube channel.
+ * A YouTube email (from the signed session or the channel record) must match a
+ * verified Firebase email. With no email on either side, a channel already
+ * linked to someone else cannot be moved.
+ */
+export function channelBindAllowed(
+  identity: FirebaseIdentity,
+  account: YtAccount,
+  record: { email?: string | null; uid?: string | null } | null,
+): boolean {
+  const trusted = identity.emailVerified && identity.email ? identity.email.trim().toLowerCase() : null;
+  const youtubeEmail = (account.email || record?.email || "").trim().toLowerCase() || null;
+  if (youtubeEmail) return trusted === youtubeEmail;
+  if (record?.uid && record.uid !== identity.uid) return false;
+  return true;
 }
 
 /**
@@ -145,23 +166,27 @@ export type BindResult = {
 
 /**
  * Link a signed-in Firebase user to the YouTube channel proven by the signed
- * session cookie, then write the server-controlled profile fields. The
- * Firebase account and the YouTube grant must be the same Google account
- * whenever both carry an email.
+ * session cookie, then write the server-controlled profile fields. When the
+ * YouTube grant or the channel record has an email, the Firebase token must
+ * carry that same verified email. See channelBindAllowed.
  */
 export async function bindProfileToChannel(identity: FirebaseIdentity, account: YtAccount): Promise<BindResult> {
-  if (account.email && identity.email && account.email.toLowerCase() !== identity.email.toLowerCase()) {
-    throw new ProfileBindError("This YouTube channel was verified with a different Google account.", 403);
-  }
+  const record = await readChannelRecord(account.channelId);
   const profile = await getDocument(userPath(identity.uid));
   if (!profile) throw new ProfileBindError("Create your profile first.", 409);
-  const record = await readChannelRecord(account.channelId);
+  if (!channelBindAllowed(identity, account, record)) {
+    throw new ProfileBindError("This YouTube channel was verified with a different Google account.", 403);
+  }
   const status = await resolveStoredPlus(account);
   const subscriberCount = record?.subscriberCount ?? null;
+  const canonicalChannel = record?.channel || account.channel || null;
   const fields: Record<string, Plain> = {
     verifiedChannelId: account.channelId,
+    channelId: account.channelId,
     ...publicPlusFields(status),
   };
+  if (canonicalChannel) fields.channel = canonicalChannel;
+  if (record?.avgViews != null) fields.avgViews = record.avgViews;
   if (record) {
     // null = the count is hidden or was not returned; free collabs to it are then refused (fail closed).
     fields.subscriberCount = subscriberCount;

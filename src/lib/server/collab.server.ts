@@ -10,10 +10,11 @@
  */
 import { decideCollab, COLLAB_MESSAGES, utcDayKey, type CollabRefusal } from "@/lib/collab-policy";
 import { AGE_REQUIRED_MESSAGE, hasConfirmedAge, isPublicProfile } from "@/lib/profile-policy";
-import { requestFirebaseUser } from "@/lib/server/firebase-auth.server";
+import { requestFirebaseUser, type FirebaseIdentity } from "@/lib/server/firebase-auth.server";
 import {
   getDocument,
   isStorageConfigured,
+  queryPage,
   runTransaction,
   safeDocId,
   type Plain,
@@ -52,7 +53,7 @@ export type CollabResult = {
   day: string;
 };
 
-async function senderChannel(request: Request, uid: string, email: string | null, profile: Record<string, Plain>): Promise<YtAccount | null> {
+async function senderChannel(request: Request, identity: FirebaseIdentity, profile: Record<string, Plain>): Promise<YtAccount | null> {
   const bound = typeof profile.verifiedChannelId === "string" && profile.verifiedChannelId ? profile.verifiedChannelId : null;
   if (bound) {
     const record = await readChannelRecord(bound);
@@ -62,7 +63,7 @@ async function senderChannel(request: Request, uid: string, email: string | null
   const account = await requestAccount(request);
   if (!account) return null;
   try {
-    await bindProfileToChannel({ uid, email, emailVerified: true }, account);
+    await bindProfileToChannel(identity, account);
     return account;
   } catch {
     return null;
@@ -97,7 +98,7 @@ export async function handleCollabRequest(request: Request): Promise<Response> {
       return json({ error: "That creator isn't on Smash Collab anymore.", code: "not_found" }, 404);
     }
 
-    const account = await senderChannel(request, uid, identity.email, senderProfile);
+    const account = await senderChannel(request, identity, senderProfile);
     const plus = account ? (await resolveStoredPlus(account)).premium : false;
     const targetSubs =
       typeof targetProfile.subscriberCount === "number" && Number.isFinite(targetProfile.subscriberCount)
@@ -175,5 +176,65 @@ export async function handleCollabRequest(request: Request): Promise<Response> {
       return json({ error: error.message, code: error.code }, error.code === "daily_limit" ? 429 : 403);
     }
     return json({ error: "Could not send that collab right now. Try again.", code: "unavailable" }, 503);
+  }
+}
+
+const INBOUND_SCAN_CAP = 500;
+
+async function listWhere(collectionId: string, field: string, equals: string, cap: number) {
+  const docs: { id: string; data: Record<string, Plain> }[] = [];
+  let cursor: string | null = null;
+  while (docs.length < cap) {
+    const page = await queryPage(collectionId, { field, equals }, Math.min(50, cap - docs.length), cursor);
+    docs.push(...page.docs);
+    if (!page.nextId || page.docs.length === 0) break;
+    cursor = page.nextId;
+  }
+  return docs;
+}
+
+export type InboundItem = { from: string; note: string; at: number };
+
+/**
+ * Inbound collabs for the signed-in member. Sender identity and the note are
+ * returned only when that member's YouTube channel has Plus in durable storage.
+ * Free members get a count so the inbox can show a locked row, and nothing else.
+ */
+export async function handleInboundRequest(request: Request): Promise<Response> {
+  const identity = await requestFirebaseUser(request);
+  if (!identity) return json({ error: "Sign in again to see collabs.", code: "auth" }, 401);
+  if (!isStorageConfigured()) return json({ error: "Collabs are unavailable right now.", code: "unavailable" }, 503);
+  try {
+    const profile = await getDocument(userPath(identity.uid));
+    if (!profile || !hasConfirmedAge(profile)) {
+      return json({ plus: false, count: 0 }, 200);
+    }
+    const [incoming, outgoing] = await Promise.all([
+      listWhere("swipes", "to", identity.uid, INBOUND_SCAN_CAP),
+      listWhere("swipes", "from", identity.uid, INBOUND_SCAN_CAP),
+    ]);
+    const answered = new Set(
+      outgoing.flatMap((doc) => (typeof doc.data.to === "string" ? [doc.data.to] : [])),
+    );
+    const pitches = incoming.flatMap((doc) => {
+      if (doc.data.direction !== "pitch" || typeof doc.data.from !== "string") return [];
+      const at = typeof doc.data.createdAt === "number" && Number.isFinite(doc.data.createdAt) ? doc.data.createdAt : 0;
+      const note = typeof doc.data.note === "string" ? doc.data.note.slice(0, NOTE_MAX) : "";
+      return [{ from: doc.data.from, note, at }];
+    });
+    const pending = pitches.filter((item) => !answered.has(item.from));
+    let plus = false;
+    const account = await senderChannel(request, identity, profile);
+    if (account) {
+      try {
+        plus = (await resolveStoredPlus(account)).premium;
+      } catch {
+        plus = false;
+      }
+    }
+    if (!plus) return json({ plus: false, count: pending.length });
+    return json({ plus: true, count: pending.length, items: pitches satisfies InboundItem[] });
+  } catch {
+    return json({ error: "Could not load collabs right now.", code: "unavailable" }, 503);
   }
 }
