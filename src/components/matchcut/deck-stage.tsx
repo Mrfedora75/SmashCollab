@@ -122,14 +122,19 @@ export function DeckStage({
           : `Sending as ${channel} · ${subscriberCountLabel({ subscribers, subscribersKnown, subscribersHidden })}`}
       </p>
 
-      <div className="relative pb-6">
+      {/*
+        The cards stacked behind are absolutely positioned, so they never add height here.
+        Clip each one to the top card's height (top-0 to bottom-8) and keep their 14px/28px
+        peek inside pb-8, so a longer card behind can never spill over the buttons below.
+      */}
+      <div className="relative pb-8">
         {behind.map((creator, index) => {
           const depth = leaving ? index : index + 1;
           return (
             <div
               key={creator.id}
               aria-hidden="true"
-              className="absolute inset-x-0 top-0"
+              className="pointer-events-none absolute inset-x-0 top-0 bottom-8 overflow-hidden rounded-card"
               style={{
                 transform: `translateY(${depth * 14}px)`,
                 zIndex: 14 - index,
@@ -141,6 +146,7 @@ export function DeckStage({
                 asHeading={false}
                 locked={!premium && isPlusChannel(creator.subscribers)}
                 fit={collabFit(viewer, creator)}
+                className="h-full"
               />
             </div>
           );
@@ -181,7 +187,15 @@ export function DeckStage({
               requestAnimationFrame(() => setOffset({ x: 0, y: 0 }));
             }}
           >
-            <CardFace creator={top} locked={locked} passOpacity={passOpacity} collabOpacity={collabOpacity} fit={collabFit(viewer, top)} />
+            {/* Capped to the screen so the buttons stay just below; a long card scrolls inside. */}
+            <CardFace
+              creator={top}
+              locked={locked}
+              passOpacity={passOpacity}
+              collabOpacity={collabOpacity}
+              fit={collabFit(viewer, top)}
+              className="max-h-[max(20rem,calc(100dvh-11rem))]"
+            />
           </article>
         ) : (
           <div className="rounded-card border border-line bg-ink-soft px-6 py-12 text-center">
@@ -227,7 +241,7 @@ export function DeckStage({
         )}
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-3">
+      <div className="relative z-30 mt-2 grid grid-cols-3 gap-3">
         <button
           type="button"
           onClick={() => finish("pass")}
