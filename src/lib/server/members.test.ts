@@ -85,4 +85,30 @@ describe("GET /api/members", () => {
     expect(JSON.stringify(body)).not.toContain("spoofed");
     expect(JSON.stringify(body)).not.toContain("999");
   });
+
+  it("leaves out members who paused collabs", async () => {
+    const docs: { id: string; data: Record<string, Plain> }[] = [
+      { id: "paused", data: { channel: "@p", ageConfirmed: true, verifiedChannelId: "UCp", paused: true } },
+      { id: "active", data: { channel: "@a", ageConfirmed: true, verifiedChannelId: "UCa", paused: false } },
+    ];
+    const query = vi.fn(async () => ({ docs, nextId: null }));
+    const readChannel = vi.fn(async (channelId: string) => ({
+      channelId,
+      channel: channelId === "UCp" ? "@p" : "@a",
+      email: null,
+      subscriberCount: 1,
+      avgViews: 1,
+      uid: channelId === "UCp" ? "paused" : "active",
+    }));
+    const res = await handleMembersRequest(
+      new Request("http://x/api/members", { headers: { Authorization: `Bearer ${await token("me")}` } }),
+      query,
+      readChannel,
+    );
+    const body = (await res.json()) as { members: Record<string, unknown>[] };
+    expect(body.members.map((m) => m.id)).toEqual(["active"]);
+    // Paused profiles are skipped before their channel record is even read.
+    expect(readChannel).toHaveBeenCalledTimes(1);
+    expect(readChannel).toHaveBeenCalledWith("UCa");
+  });
 });

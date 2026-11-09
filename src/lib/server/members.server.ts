@@ -4,10 +4,10 @@
  * Replaces the old client-side `getDocs(collection("users"))`, which let every
  * signed-in user download every full profile. Now the server returns one page at
  * a time, only profiles that are public (verified YouTube channel + age confirmed),
- * and only the public fields (PUBLIC_PROFILE_FIELDS). firestore.rules no longer lets
+ * not paused ("Pause collabs"), and only the public fields (PUBLIC_PROFILE_FIELDS). firestore.rules no longer lets
  * a browser read anyone else's users/{uid} document.
  */
-import { MEMBERS_PAGE_SIZE, isPublicProfile, publicProfileView } from "@/lib/profile-policy";
+import { MEMBERS_PAGE_SIZE, isDiscoverableProfile, isPublicProfile, publicProfileView } from "@/lib/profile-policy";
 import { requestFirebaseUser } from "@/lib/server/firebase-auth.server";
 import { isStorageConfigured, queryPage, type Plain } from "@/lib/server/firestore.server";
 import { readChannelRecord, type ChannelRecord } from "@/lib/server/public-profile.server";
@@ -49,7 +49,7 @@ export async function handleMembersRequest(
     const page = await query("users", { field: "ageConfirmed", equals: true }, limit, cursor);
     const members = [];
     for (const doc of page.docs) {
-      if (doc.id === identity.uid || !isPublicProfile(doc.data)) continue;
+      if (doc.id === identity.uid || !isDiscoverableProfile(doc.data)) continue;
       const verifiedId = typeof doc.data.verifiedChannelId === "string" ? doc.data.verifiedChannelId : "";
       const record = verifiedId ? await readChannel(verifiedId) : null;
       const view = verifiedPublicView(doc.data, record);
