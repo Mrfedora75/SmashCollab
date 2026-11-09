@@ -15,6 +15,8 @@ type CardFaceProps = {
   collabOpacity?: number;
   /** Omit on surfaces with no signed-in profile (guest sample cards). */
   fit?: CollabFit;
+  /** Extra classes for the card box (e.g. a height cap; the details then scroll inside the card). */
+  className?: string;
 };
 
 function fitBadgeClass(score: number): string {
@@ -23,13 +25,13 @@ function fitBadgeClass(score: number): string {
   return "border border-ink-text/15 bg-cream-deep text-ink-text";
 }
 
-export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, collabOpacity = 0, fit }: CardFaceProps) {
+export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, collabOpacity = 0, fit, className }: CardFaceProps) {
   const tier = bracketOf(creator.subscribers);
   const shared = new Set(fit?.shared ?? []);
 
   return (
-    <div className="overflow-hidden rounded-card bg-cream text-ink-text shadow-card">
-      <div className="relative h-20 bg-ink sm:aspect-video sm:h-auto">
+    <div className={cn("flex flex-col overflow-hidden rounded-card bg-cream text-ink-text shadow-card", className)}>
+      <div className="relative h-20 shrink-0 bg-ink sm:aspect-video sm:h-auto">
         <img
           src={creator.thumb}
           alt={`${creator.channel}: ${creator.videoTitle}`}
@@ -57,7 +59,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, c
           Collab
         </span>
       </div>
-      <div className="space-y-3 p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
         <div>
           <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">{tier.label}</p>
           {asHeading ? (

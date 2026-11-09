@@ -12,6 +12,11 @@ export function PreferencesModal({
   onAllow,
   onBlock,
   onUnblock,
+  paused = false,
+  pauseAvailable = false,
+  pauseSaving = false,
+  pauseError = null,
+  onTogglePause,
 }: {
   open: boolean;
   pushEnabled: boolean;
@@ -22,6 +27,12 @@ export function PreferencesModal({
   onAllow: () => void;
   onBlock: () => void;
   onUnblock: (creatorId: string) => void;
+  paused?: boolean;
+  /** Only signed-in creators with a profile can pause. */
+  pauseAvailable?: boolean;
+  pauseSaving?: boolean;
+  pauseError?: string | null;
+  onTogglePause?: () => void;
 }) {
   return (
     <>
@@ -35,6 +46,46 @@ export function PreferencesModal({
                 <X className="size-4" />
               </Dialog.Close>
             </div>
+            {pauseAvailable ? (
+              <section className="mt-6 rounded-card border border-line bg-ink-soft p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p id="settings-paused" className="text-sm font-medium">
+                      Pause collabs
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                      {paused
+                        ? "Paused: other creators won't see you in their deck or search. Your matches and chats keep working, and you can still send collabs."
+                        : "Take a break by hiding yourself from other creators' decks and search. Your matches and chats keep working."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={paused}
+                    aria-labelledby="settings-paused"
+                    disabled={pauseSaving}
+                    onClick={onTogglePause}
+                    className={cn(
+                      "press relative h-8 w-14 shrink-0 rounded-full border border-line transition-colors disabled:opacity-60",
+                      paused ? "bg-accent" : "bg-ink",
+                    )}
+                  >
+                    <span className={cn("absolute top-1 left-1 size-6 rounded-full bg-cream transition-transform", paused ? "translate-x-6" : "")} />
+                  </button>
+                </div>
+                {pauseSaving ? (
+                  <p className="mt-2 text-xs text-muted" role="status">
+                    Saving…
+                  </p>
+                ) : null}
+                {pauseError ? (
+                  <p className="mt-2 text-xs text-accent" role="alert">
+                    {pauseError}
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
             <div className="mt-6 flex items-center justify-between gap-4">
               <label htmlFor="push-toggle" className="text-sm font-medium">
                 Enable Push Notifications

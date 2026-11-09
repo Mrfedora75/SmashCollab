@@ -8,7 +8,7 @@ import {
   type Auth,
   type User,
 } from "firebase/auth";
-import { deleteField, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { deleteField, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { normalizeFilterNiche } from "@/data/creators";
 import type { DeskProfile } from "@/components/matchcut/onboarding-storage";
 import { firebaseAuth, firebaseDb } from "@/lib/firebase";
@@ -237,6 +237,24 @@ export async function saveFirebaseUser(
     return { ...merged, niches, avatar: savedAvatar, ageConfirmed };
   }
   return { ...merged, niches, ageConfirmed };
+}
+
+/**
+ * "Pause collabs" from Settings: writes only the paused flag (allowed by firestore.rules
+ * for the profile owner), so it cannot overwrite anything else on the profile.
+ */
+export async function savePausedSetting(paused: boolean): Promise<void> {
+  const db = await firebaseDb();
+  if (!db) throw new Error("Firebase is not configured.");
+  let user: User;
+  try {
+    user = await requireUser();
+  } catch (error) {
+    if (isNeedsVerify(error)) throw new NeedsVerifyError("Verify via YouTube to save your profile to your account.");
+    throw error;
+  }
+  await updateDoc(doc(db, "users", user.uid), { paused, updatedAt: serverTimestamp() });
+  await syncProfileOnServer();
 }
 
 /** The signed-in creator's saved Firestore profile (used to restore after logout / on a new device). */

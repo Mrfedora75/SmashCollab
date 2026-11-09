@@ -116,6 +116,8 @@ await t("age confirmation can't be removed", assertFails(updateDoc(doc(A, "users
 await t("age confirmation can't be set false", assertFails(updateDoc(doc(A, "users/alice"), { ageConfirmed: false })));
 await t("owner can pause", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: true })));
 await t("owner can unpause", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: false })));
+await t("Settings pause write (paused + updatedAt) allowed", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: true, updatedAt: serverTimestamp() })));
+await t("Settings unpause write (paused + updatedAt) allowed", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: false, updatedAt: serverTimestamp() })));
 await t("paused must be a boolean", assertFails(updateDoc(doc(A, "users/alice"), { paused: "yes" })));
 await t("pitchUsage read denied", assertFails(getDoc(doc(A, "pitchUsage/alice"))));
 await t("other collection denied", assertFails(setDoc(doc(A, "random/x"), { a: 1 })));

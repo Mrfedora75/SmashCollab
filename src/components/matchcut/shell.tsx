@@ -23,7 +23,8 @@ import { captureLaunchPromoFromUrl } from "@/lib/launch-promo";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveLoginHint } from "@/lib/login-hint";
-import { saveFirebaseUser, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
+import { saveFirebaseUser, savePausedSetting, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
+import { loadPushPref, savePushPref } from "@/lib/push-pref";
 import { fillFromSaved, reverifiedProfile } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
 import { utcDayKey } from "@/lib/collab-policy";
@@ -96,6 +97,8 @@ export function MatchcutApp() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [askingPush, setAskingPush] = useState(false);
+  const [pauseSaving, setPauseSaving] = useState(false);
+  const [pauseError, setPauseError] = useState<string | null>(null);
   const [memoryReady, setMemoryReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [channelRetryReason, setChannelRetryReason] = useState<string | null>(null);
@@ -129,6 +132,7 @@ export function MatchcutApp() {
     setProfile(sessionOn ? storedProfile : null);
     setSignedIn(sessionOn);
     setReviews(loadReviews());
+    setPushEnabled(loadPushPref());
     setMemoryReady(true);
   }, [hydrate]);
 
@@ -283,6 +287,26 @@ export function MatchcutApp() {
     setInviteOpen(false);
     setChatId(null);
     setReviewFor(null);
+  }
+
+  /** Settings > Pause collabs: saves just the paused flag to the account right away. */
+  async function togglePaused() {
+    if (!profile || pauseSaving) return;
+    const before = profile;
+    const next: DeskProfile = { ...profile, paused: profile.paused !== true };
+    setPauseError(null);
+    setPauseSaving(true);
+    setProfile(next);
+    saveProfile(next);
+    try {
+      await savePausedSetting(next.paused === true);
+    } catch (error) {
+      setProfile(before);
+      saveProfile(before);
+      setPauseError(`Not saved to your account: ${describeAuthError(error)}`);
+    } finally {
+      setPauseSaving(false);
+    }
   }
 
   function finishSignIn(next: DeskProfile, warning?: string) {
@@ -850,18 +874,26 @@ export function MatchcutApp() {
       onToggle={() => {
         if (pushEnabled) {
           setPushEnabled(false);
+          savePushPref(false);
           return;
         }
         setAskingPush(true);
       }}
       onAllow={() => {
         setPushEnabled(true);
+        savePushPref(true);
         setAskingPush(false);
       }}
       onBlock={() => {
         setPushEnabled(false);
+        savePushPref(false);
         setAskingPush(false);
       }}
+      paused={profile?.paused === true}
+      pauseAvailable={signedIn && profile != null}
+      pauseSaving={pauseSaving}
+      pauseError={pauseError}
+      onTogglePause={togglePaused}
       blocked={blocked}
       onUnblock={unblockCreator}
     />
