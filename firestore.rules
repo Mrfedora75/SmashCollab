@@ -27,7 +27,7 @@ service cloud.firestore {
     // verifiedChannelId, subsVerifiedAt, plus, plusUntil, plusSyncedAt.
     function clientProfileCreateKeys() {
       return ['uid', 'displayName', 'channel', 'channelId', 'avgViews', 'niches',
-              'bio', 'avatar', 'country', 'state', 'county', 'ageConfirmed', 'paused', 'createdAt', 'updatedAt'];
+              'bio', 'avatar', 'country', 'state', 'county', 'ageConfirmed', 'paused', 'notificationsEnabled', 'createdAt', 'updatedAt'];
     }
 
     // After create, the YouTube handle, channel id, and average views are server-written
@@ -35,7 +35,7 @@ service cloud.firestore {
     // displayName and bio, plus location, photo, and the "Pause collabs" toggle.
     function clientProfileUpdateKeys() {
       return ['uid', 'displayName', 'niches', 'bio', 'avatar', 'country', 'state', 'county',
-              'ageConfirmed', 'paused', 'createdAt', 'updatedAt'];
+              'ageConfirmed', 'paused', 'notificationsEnabled', 'createdAt', 'updatedAt'];
     }
 
     // Profile photo: an https URL (YouTube / Google photo) or a small uploaded
@@ -66,7 +66,9 @@ service cloud.firestore {
         // "I am 18 or older" (src/lib/profile-policy.ts MIN_AGE): may only ever be true.
         && (!('ageConfirmed' in data) || data.ageConfirmed == true)
         // "Pause collabs" (hide me from the deck): optional, boolean only.
-        && (!('paused' in data) || data.paused is bool);
+        && (!('paused' in data) || data.paused is bool)
+        // Settings > "Enable Push Notifications": optional, boolean only.
+        && (!('notificationsEnabled' in data) || data.notificationsEnabled is bool);
     }
 
     // ---- Creator profiles: readable and writable only by the owner (only the owner-editable

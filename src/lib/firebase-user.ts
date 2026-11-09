@@ -240,10 +240,10 @@ export async function saveFirebaseUser(
 }
 
 /**
- * "Pause collabs" from Settings: writes only the paused flag (allowed by firestore.rules
- * for the profile owner), so it cannot overwrite anything else on the profile.
+ * One Settings switch (allowed by firestore.rules for the profile owner): writes only that
+ * flag and updatedAt, so it cannot overwrite anything else on the profile.
  */
-export async function savePausedSetting(paused: boolean): Promise<void> {
+async function saveProfileSwitch(field: "paused" | "notificationsEnabled", value: boolean): Promise<void> {
   const db = await firebaseDb();
   if (!db) throw new Error("Firebase is not configured.");
   let user: User;
@@ -253,8 +253,22 @@ export async function savePausedSetting(paused: boolean): Promise<void> {
     if (isNeedsVerify(error)) throw new NeedsVerifyError("Verify via YouTube to save your profile to your account.");
     throw error;
   }
-  await updateDoc(doc(db, "users", user.uid), { paused, updatedAt: serverTimestamp() });
-  await syncProfileOnServer();
+  await updateDoc(doc(db, "users", user.uid), { [field]: value, updatedAt: serverTimestamp() });
+  if (field === "paused") await syncProfileOnServer();
+}
+
+/** Settings > Pause collabs. */
+export function savePausedSetting(paused: boolean): Promise<void> {
+  return saveProfileSwitch("paused", paused);
+}
+
+/**
+ * Settings > Enable Push Notifications, saved on the account so it follows the creator to
+ * other devices. Deliberately not part of saveFirebaseUser's full-profile write, so profile
+ * saves keep working even before the rules that allow this field are deployed.
+ */
+export function saveNotificationsSetting(enabled: boolean): Promise<void> {
+  return saveProfileSwitch("notificationsEnabled", enabled);
 }
 
 /** The signed-in creator's saved Firestore profile (used to restore after logout / on a new device). */

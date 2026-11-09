@@ -23,8 +23,8 @@ import { captureLaunchPromoFromUrl } from "@/lib/launch-promo";
 import { captureReferralFromUrl, claimPendingReferral, fetchReferralStatus } from "@/lib/referrals";
 import { onAuthStateChanged } from "firebase/auth";
 import { saveLoginHint } from "@/lib/login-hint";
-import { saveFirebaseUser, savePausedSetting, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
-import { loadPushPref, savePushPref } from "@/lib/push-pref";
+import { saveFirebaseUser, savePausedSetting, saveNotificationsSetting, describeAuthError, loadFirebaseProfile, signInToFirebase, isNeedsVerify } from "@/lib/firebase-user";
+import { loadPushPref, resolveNotificationsEnabled, savePushPref } from "@/lib/push-pref";
 import { fillFromSaved, reverifiedProfile } from "@/lib/profile-merge";
 import { loadMemberCreators } from "@/lib/members";
 import { utcDayKey } from "@/lib/collab-policy";
@@ -99,6 +99,8 @@ export function MatchcutApp() {
   const [askingPush, setAskingPush] = useState(false);
   const [pauseSaving, setPauseSaving] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
+  const [notifySaving, setNotifySaving] = useState(false);
+  const [notifyError, setNotifyError] = useState<string | null>(null);
   const [memoryReady, setMemoryReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [channelRetryReason, setChannelRetryReason] = useState<string | null>(null);
@@ -306,6 +308,39 @@ export function MatchcutApp() {
       setPauseError(`Not saved to your account: ${describeAuthError(error)}`);
     } finally {
       setPauseSaving(false);
+    }
+  }
+
+  // The account's saved choice wins once the profile is loaded; this device's choice until then.
+  const accountNotifications = profile?.notificationsEnabled;
+  useEffect(() => {
+    if (!memoryReady) return;
+    setPushEnabled(resolveNotificationsEnabled(accountNotifications, loadPushPref()));
+  }, [accountNotifications, memoryReady]);
+
+  /** Settings > Enable Push Notifications: kept on this device and saved to the account right away. */
+  async function setNotifications(enabled: boolean) {
+    if (notifySaving) return;
+    const deviceBefore = loadPushPref();
+    setNotifyError(null);
+    savePushPref(enabled);
+    setPushEnabled(enabled);
+    if (!signedIn || !profile) return;
+    const before = profile;
+    const next: DeskProfile = { ...profile, notificationsEnabled: enabled };
+    setNotifySaving(true);
+    setProfile(next);
+    saveProfile(next);
+    try {
+      await saveNotificationsSetting(enabled);
+    } catch (error) {
+      savePushPref(deviceBefore);
+      setProfile(before);
+      saveProfile(before);
+      setPushEnabled(resolveNotificationsEnabled(before.notificationsEnabled, deviceBefore));
+      setNotifyError(`Not saved to your account: ${describeAuthError(error)}`);
+    } finally {
+      setNotifySaving(false);
     }
   }
 
@@ -871,23 +906,23 @@ export function MatchcutApp() {
       pushEnabled={pushEnabled}
       asking={askingPush}
       onOpenChange={setPrefsOpen}
+      notifySaving={notifySaving}
+      notifyError={notifyError}
       onToggle={() => {
+        if (notifySaving) return;
         if (pushEnabled) {
-          setPushEnabled(false);
-          savePushPref(false);
+          void setNotifications(false);
           return;
         }
         setAskingPush(true);
       }}
       onAllow={() => {
-        setPushEnabled(true);
-        savePushPref(true);
         setAskingPush(false);
+        void setNotifications(true);
       }}
       onBlock={() => {
-        setPushEnabled(false);
-        savePushPref(false);
         setAskingPush(false);
+        if (pushEnabled) void setNotifications(false);
       }}
       paused={profile?.paused === true}
       pauseAvailable={signedIn && profile != null}

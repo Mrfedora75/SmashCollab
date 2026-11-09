@@ -47,3 +47,17 @@ describe("push notification preference", () => {
     expect(loadPushPref()).toBe(true);
   });
 });
+
+describe("resolveNotificationsEnabled (account first, device as fallback)", () => {
+  it("uses the account's saved choice once the profile has loaded", async () => {
+    const { resolveNotificationsEnabled } = await import("@/lib/push-pref");
+    expect(resolveNotificationsEnabled(true, false)).toBe(true);
+    expect(resolveNotificationsEnabled(false, true)).toBe(false);
+  });
+
+  it("falls back to this device before the profile loads or when an older profile has no choice", async () => {
+    const { resolveNotificationsEnabled } = await import("@/lib/push-pref");
+    expect(resolveNotificationsEnabled(undefined, true)).toBe(true);
+    expect(resolveNotificationsEnabled(null, false)).toBe(false);
+  });
+});
