@@ -17,6 +17,14 @@ export function loadPushPref(): boolean {
   }
 }
 
+/**
+ * What the Settings switch shows: the choice saved on the account once the profile has
+ * loaded; this device's choice until then, or when an older profile has none saved yet.
+ */
+export function resolveNotificationsEnabled(accountValue: boolean | undefined | null, deviceValue: boolean): boolean {
+  return typeof accountValue === "boolean" ? accountValue : deviceValue;
+}
+
 export function savePushPref(enabled: boolean): void {
   if (typeof localStorage === "undefined") return;
   try {

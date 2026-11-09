@@ -118,6 +118,12 @@ await t("owner can pause", assertSucceeds(updateDoc(doc(A, "users/alice"), { pau
 await t("owner can unpause", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: false })));
 await t("Settings pause write (paused + updatedAt) allowed", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: true, updatedAt: serverTimestamp() })));
 await t("Settings unpause write (paused + updatedAt) allowed", assertSucceeds(updateDoc(doc(A, "users/alice"), { paused: false, updatedAt: serverTimestamp() })));
+await t("owner can turn notifications on", assertSucceeds(updateDoc(doc(A, "users/alice"), { notificationsEnabled: true, updatedAt: serverTimestamp() })));
+await t("owner can turn notifications off", assertSucceeds(updateDoc(doc(A, "users/alice"), { notificationsEnabled: false })));
+await t("notificationsEnabled must be a boolean", assertFails(updateDoc(doc(A, "users/alice"), { notificationsEnabled: "yes" })));
+await t("notificationsEnabled can't be a number", assertFails(updateDoc(doc(A, "users/alice"), { notificationsEnabled: 1 })));
+await t("other creator can't set notificationsEnabled", assertFails(updateDoc(doc(B, "users/alice"), { notificationsEnabled: true })));
+await t("other creator can't set notificationsEnabled via merge", assertFails(setDoc(doc(B, "users/alice"), { notificationsEnabled: false }, { merge: true })));
 await t("paused must be a boolean", assertFails(updateDoc(doc(A, "users/alice"), { paused: "yes" })));
 await t("pitchUsage read denied", assertFails(getDoc(doc(A, "pitchUsage/alice"))));
 await t("other collection denied", assertFails(setDoc(doc(A, "random/x"), { a: 1 })));

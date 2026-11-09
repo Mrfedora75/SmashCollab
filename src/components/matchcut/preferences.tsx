@@ -17,6 +17,8 @@ export function PreferencesModal({
   pauseSaving = false,
   pauseError = null,
   onTogglePause,
+  notifySaving = false,
+  notifyError = null,
 }: {
   open: boolean;
   pushEnabled: boolean;
@@ -33,6 +35,8 @@ export function PreferencesModal({
   pauseSaving?: boolean;
   pauseError?: string | null;
   onTogglePause?: () => void;
+  notifySaving?: boolean;
+  notifyError?: string | null;
 }) {
   return (
     <>
@@ -95,8 +99,9 @@ export function PreferencesModal({
                 type="button"
                 role="switch"
                 aria-checked={pushEnabled}
+                disabled={notifySaving}
                 onClick={onToggle}
-                className="press flex h-11 w-14 shrink-0 items-center rounded-full px-1"
+                className="press flex h-11 w-14 shrink-0 items-center rounded-full px-1 disabled:opacity-60"
               >
                 <span className={cn("relative h-7 w-12 rounded-full", pushEnabled ? "bg-accent" : "bg-muted")}>
                   <span
@@ -111,6 +116,16 @@ export function PreferencesModal({
             <p id="push-hint" className="mt-2 text-sm leading-relaxed text-muted">
               Get instantly alerted when you receive a new collab or chat message.
             </p>
+            {notifySaving ? (
+              <p className="mt-2 text-xs text-muted" role="status">
+                Saving…
+              </p>
+            ) : null}
+            {notifyError ? (
+              <p className="mt-2 text-xs text-accent" role="alert">
+                {notifyError}
+              </p>
+            ) : null}
             <section className="mt-6 border-t border-line pt-5">
               <h2 className="text-sm font-medium">Blocked Users</h2>
               {blocked.length === 0 ? (

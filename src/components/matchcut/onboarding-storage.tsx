@@ -24,6 +24,8 @@ export type DeskProfile = {
   ageConfirmed?: boolean;
   /** "Pause collabs": hidden from other creators' decks and search. Missing = not paused. */
   paused?: boolean;
+  /** Settings > "Enable Push Notifications", saved on the account. Missing = not chosen yet (use this device's choice). */
+  notificationsEnabled?: boolean;
 };
 
 export type VerifiedChannel = {
@@ -102,6 +104,7 @@ export function loadProfile(): DeskProfile | null {
       county,
       ageConfirmed: parsed.ageConfirmed === true,
       ...(typeof parsed.paused === "boolean" ? { paused: parsed.paused } : {}),
+      ...(typeof parsed.notificationsEnabled === "boolean" ? { notificationsEnabled: parsed.notificationsEnabled } : {}),
     };
   } catch {
     return null;

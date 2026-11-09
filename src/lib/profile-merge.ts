@@ -47,6 +47,8 @@ export function profileFromDoc(data: Record<string, unknown> | null | undefined)
     county: str(data.county).slice(0, 40),
     ageConfirmed: data.ageConfirmed === true,
     paused: data.paused === true,
+    // Older profiles have no saved choice: leave it unset so this device's choice is used.
+    ...(typeof data.notificationsEnabled === "boolean" ? { notificationsEnabled: data.notificationsEnabled } : {}),
   };
 }
 
@@ -62,6 +64,9 @@ export function fillFromSaved(local: DeskProfile, saved: Record<string, unknown>
   const next: DeskProfile = { ...local };
   if (saved.ageConfirmed === true) next.ageConfirmed = true;
   if (next.paused === undefined && typeof saved.paused === "boolean") next.paused = saved.paused;
+  if (next.notificationsEnabled === undefined && typeof saved.notificationsEnabled === "boolean") {
+    next.notificationsEnabled = saved.notificationsEnabled;
+  }
   if (!next.bio?.trim() && str(saved.bio).trim()) next.bio = str(saved.bio).slice(0, 150);
   if (!next.displayName?.trim() && str(saved.displayName).trim()) next.displayName = str(saved.displayName);
   if (!next.avatar && str(saved.avatar)) next.avatar = str(saved.avatar);
@@ -144,5 +149,6 @@ export function reverifiedProfile(
     // Re-verifying never un-confirms the 18+ checkbox (and never confirms it either).
     ageConfirmed: existing.ageConfirmed === true,
     paused: existing.paused === true,
+    ...(typeof existing.notificationsEnabled === "boolean" ? { notificationsEnabled: existing.notificationsEnabled } : {}),
   };
 }
