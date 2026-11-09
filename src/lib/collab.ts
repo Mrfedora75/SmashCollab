@@ -195,24 +195,56 @@ export async function updateSwipeNote(to: string, note: string): Promise<void> {
   await updateDoc(doc(db, "swipes", `${uid}_${to}`), { note: note.slice(0, NOTE_MAX) });
 }
 
-export function watchInbound(db: NonNullable<Awaited<ReturnType<typeof firebaseDb>>>, uid: string, onData: (items: InboundRemote[]) => void, onError: (error: unknown) => void): Unsubscribe {
-  const q = query(collection(db, "swipes"), where("to", "==", uid), where("direction", "==", "pitch"));
-  return onSnapshot(
-    q,
-    (snap) => {
-      onData(
-        snap.docs
-          .flatMap((item) => {
-            const data = item.data();
-            return typeof data.from === "string"
-              ? [{ from: data.from, note: typeof data.note === "string" ? data.note : "", at: millis(data.createdAt) }]
-              : [];
-          })
-          .sort((a, b) => b.at - a.at),
-      );
-    },
-    onError,
-  );
+export type InboundSnapshot = { plus: boolean; count: number; items: InboundRemote[] };
+
+/** Inbound collabs from the server. Free members receive a count only. */
+export async function fetchInbound(): Promise<InboundSnapshot> {
+  const empty: InboundSnapshot = { plus: false, count: 0, items: [] };
+  const auth = await firebaseAuth();
+  await auth?.authStateReady();
+  const user = auth?.currentUser ?? null;
+  if (!user) return empty;
+  const token = await user.getIdToken();
+  const res = await fetch("/api/collab", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401) return empty;
+  if (!res.ok) throw new Error("Could not load collabs.");
+  const data = (await res.json()) as { plus?: unknown; count?: unknown; items?: unknown };
+  const plus = data.plus === true;
+  const count = typeof data.count === "number" && data.count > 0 ? Math.floor(data.count) : 0;
+  const items = plus && Array.isArray(data.items)
+    ? data.items.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const row = item as { from?: unknown; note?: unknown; at?: unknown };
+        return typeof row.from === "string"
+          ? [{ from: row.from, note: typeof row.note === "string" ? row.note : "", at: typeof row.at === "number" ? row.at : 0 }]
+          : [];
+      })
+    : [];
+  return { plus, count, items };
+}
+
+/** Poll inbound collabs. The browser must not read other people's swipe documents. */
+export function watchInboundFeed(onData: (snap: InboundSnapshot) => void, onError: (error: unknown) => void): () => void {
+  let stopped = false;
+  const tick = () => {
+    if (stopped) return;
+    void fetchInbound()
+      .then((snap) => {
+        if (!stopped) onData(snap);
+      })
+      .catch((error: unknown) => {
+        if (!stopped) onError(error);
+      });
+  };
+  tick();
+  const timer = setInterval(tick, 20_000);
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
 }
 
 export function watchMatches(db: NonNullable<Awaited<ReturnType<typeof firebaseDb>>>, uid: string, onData: (items: RemoteMatch[]) => void, onError: (error: unknown) => void): Unsubscribe {

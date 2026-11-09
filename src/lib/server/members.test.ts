@@ -37,13 +37,52 @@ describe("GET /api/members", () => {
       { id: "unverified", data: { channel: "@u", ageConfirmed: true } },
     ];
     const query = vi.fn(async (_c: string, _w: unknown, limit: number) => ({ docs, nextId: limit === docs.length ? "unverified" : null }));
-    expect((await handleMembersRequest(new Request("http://x/api/members"), query)).status).toBe(401);
+    const readChannel = vi.fn(async () => null);
+    expect((await handleMembersRequest(new Request("http://x/api/members"), query, readChannel)).status).toBe(401);
     const res = await handleMembersRequest(
       new Request("http://x/api/members?limit=999", { headers: { Authorization: `Bearer ${await token("me")}` } }),
       query,
+      readChannel,
     );
     const body = (await res.json()) as { members: Record<string, unknown>[] };
     expect(query.mock.calls[0][2]).toBe(50);
-    expect(body.members).toEqual([{ id: "pub", channel: "@pub" }]);
+    expect(body.members).toEqual([{ id: "pub", channel: "@pub", channelId: "UCpub" }]);
+    expect(body.members[0]).not.toHaveProperty("avgViews");
+  });
+
+  it("shows the server channel record instead of a client-written handle", async () => {
+    const docs = [
+      {
+        id: "pub",
+        data: {
+          channel: "@spoofed",
+          channelId: "UCspoof",
+          avgViews: 999_999,
+          subscriberCount: 5,
+          ageConfirmed: true,
+          verifiedChannelId: "UCpub",
+        },
+      },
+    ];
+    const query = vi.fn(async () => ({ docs, nextId: null }));
+    const readChannel = vi.fn(async () => ({
+      channelId: "UCpub",
+      channel: "@real",
+      email: null,
+      subscriberCount: 40,
+      avgViews: 12,
+      uid: "pub",
+    }));
+    const res = await handleMembersRequest(
+      new Request("http://x/api/members", { headers: { Authorization: `Bearer ${await token("me")}` } }),
+      query,
+      readChannel,
+    );
+    const body = (await res.json()) as { members: Record<string, unknown>[] };
+    expect(body.members).toEqual([
+      { id: "pub", channel: "@real", channelId: "UCpub", subscriberCount: 40, avgViews: 12 },
+    ]);
+    expect(JSON.stringify(body)).not.toContain("spoofed");
+    expect(JSON.stringify(body)).not.toContain("999");
   });
 });

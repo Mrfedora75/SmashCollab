@@ -191,10 +191,12 @@ export async function saveFirebaseUser(
     // Profiles are readable by other signed-in creators, so no email here.
     email: deleteField(),
     displayName: merged.displayName || user.displayName || "",
-    channel: merged.channel,
-    channelId: merged.channelId ?? null,
-    // Subscriber count is written by the server from the YouTube Data API (see /api/profile/sync).
-    avgViews: merged.avgViews,
+    // Handle, channel id, and average views are fixed after create. The server
+    // writes the verified values during profile sync. Sending them again on
+    // update would be rejected once rules are deployed.
+    ...(existing.exists()
+      ? {}
+      : { channel: merged.channel, channelId: merged.channelId ?? null, avgViews: merged.avgViews }),
     niches,
     bio: (merged.bio ?? "").slice(0, 150),
     avatar,
