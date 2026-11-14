@@ -187,7 +187,12 @@ export function DeckStage({
               requestAnimationFrame(() => setOffset({ x: 0, y: 0 }));
             }}
           >
-            {/* Capped to the screen so the buttons stay just below; a long card scrolls inside. */}
+            {/*
+              Capped to the screen so the buttons stay just below; a long card scrolls inside.
+              The scrolling details area needs touch-pan-y too: a scroll box starts its own
+              touch-action, so without it a sideways finger drag there is taken by the browser
+              (pointercancel) and the card snaps back instead of swiping.
+            */}
             <CardFace
               creator={top}
               locked={locked}
@@ -195,6 +200,7 @@ export function DeckStage({
               collabOpacity={collabOpacity}
               fit={collabFit(viewer, top)}
               className="max-h-[max(20rem,calc(100dvh-11rem))]"
+              bodyClassName="touch-pan-y"
             />
           </article>
         ) : (
