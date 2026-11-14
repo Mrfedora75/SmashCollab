@@ -17,6 +17,12 @@ type CardFaceProps = {
   fit?: CollabFit;
   /** Extra classes for the card box (e.g. a height cap; the details then scroll inside the card). */
   className?: string;
+  /**
+   * Extra classes for the details area under the thumbnail. That area is its own scroll box
+   * (overflow-y-auto), and on phones a scroll box ignores the touch-action set on the parent,
+   * so the swipeable deck card passes "touch-pan-y" here to keep sideways drags for swiping.
+   */
+  bodyClassName?: string;
 };
 
 function fitBadgeClass(score: number): string {
@@ -25,7 +31,7 @@ function fitBadgeClass(score: number): string {
   return "border border-ink-text/15 bg-cream-deep text-ink-text";
 }
 
-export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, collabOpacity = 0, fit, className }: CardFaceProps) {
+export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, collabOpacity = 0, fit, className, bodyClassName }: CardFaceProps) {
   const tier = bracketOf(creator.subscribers);
   const shared = new Set(fit?.shared ?? []);
 
@@ -59,7 +65,7 @@ export function CardFace({ creator, locked, asHeading = true, passOpacity = 0, c
           Collab
         </span>
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
+      <div className={cn("min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4", bodyClassName)}>
         <div>
           <p className="text-xs font-medium tracking-widest text-muted-strong uppercase">{tier.label}</p>
           {asHeading ? (
